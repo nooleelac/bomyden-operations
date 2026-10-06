@@ -86,6 +86,19 @@ export const resetPasswordSchema = z
     message: "Mật khẩu nhập lại không khớp.",
   });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Danh sách chi nhánh được chọn (checkbox name="branch_ids"). */
+export function readBranchIds(formData: FormData): string[] {
+  return [
+    ...new Set(
+      formData
+        .getAll("branch_ids")
+        .filter((value): value is string => typeof value === "string" && UUID.test(value))
+    ),
+  ];
+}
+
 /** Lấy các trường text từ FormData (tránh lẫn trường $ACTION_ của Next.js). */
 export function pickFormFields(formData: FormData, keys: readonly string[]) {
   const result: Record<string, string> = {};

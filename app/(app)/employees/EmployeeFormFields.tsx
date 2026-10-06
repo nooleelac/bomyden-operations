@@ -11,11 +11,21 @@ export type EmployeeFormDefaults = {
   role: EmployeeRole;
   default_start_time: string;
   sort_order: number;
+  requires_attendance: boolean;
+  branch_ids: string[];
 };
+
+export type BranchOption = { id: string; name: string };
 
 type Props = {
   defaults: EmployeeFormDefaults;
   roles: EmployeeRole[];
+  /** Chi nhánh người thao tác được phép gán */
+  branches: BranchOption[];
+  /** Chi nhánh của nhân viên nằm ngoài phạm vi người thao tác (chỉ hiển thị, không sửa) */
+  otherBranchNames?: string[];
+  /** Chỉ Quản trị viên được bật/tắt "phải chấm công" */
+  canToggleAttendance: boolean;
   fieldErrors?: Record<string, string>;
   withPassword?: boolean;
   roleLocked?: boolean;
@@ -25,6 +35,9 @@ type Props = {
 export default function EmployeeFormFields({
   defaults,
   roles,
+  branches,
+  otherBranchNames = [],
+  canToggleAttendance,
   fieldErrors,
   withPassword = false,
   roleLocked = false,
@@ -162,6 +175,64 @@ export default function EmployeeFormFields({
           <p className="mt-1 text-xs text-neutral-500">Ít nhất {PASSWORD_MIN_LENGTH} ký tự.</p>
           {error("password")}
         </div>
+      )}
+
+      {/* CHI NHÁNH */}
+      <fieldset className="sm:col-span-2">
+        <legend className="mb-1.5 block text-sm font-medium text-neutral-700">
+          Chi nhánh làm việc {defaults.role !== "admin" && <span className="text-red-600">*</span>}
+        </legend>
+        {branches.length === 0 ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Chưa có chi nhánh nào bạn được quản lý. Quản trị viên cần tạo chi nhánh và gán bạn vào trước.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {branches.map((branch) => (
+              <label
+                key={branch.id}
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm has-[:checked]:border-neutral-900 has-[:checked]:bg-neutral-900 has-[:checked]:text-white"
+              >
+                <input
+                  type="checkbox"
+                  name="branch_ids"
+                  value={branch.id}
+                  defaultChecked={defaults.branch_ids.includes(branch.id)}
+                  className="h-4 w-4 accent-white"
+                />
+                {branch.name}
+              </label>
+            ))}
+          </div>
+        )}
+        {otherBranchNames.length > 0 && (
+          <p className="mt-2 text-xs text-neutral-500">
+            Còn thuộc chi nhánh ngoài phạm vi của bạn (giữ nguyên): {otherBranchNames.join(", ")}
+          </p>
+        )}
+        {error("branch_ids")}
+      </fieldset>
+
+      {/* PHẢI CHẤM CÔNG */}
+      {canToggleAttendance ? (
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 sm:col-span-2">
+          <input
+            type="checkbox"
+            name="requires_attendance"
+            defaultChecked={defaults.requires_attendance}
+            className="mt-0.5 h-4 w-4 accent-neutral-900"
+          />
+          <span>
+            <span className="block text-sm font-medium">Phải chấm công</span>
+            <span className="block text-xs text-neutral-500">
+              Bỏ chọn nếu người này không cần chấm công (ví dụ: Quản lý không trực ca). Quản trị viên luôn không chấm công.
+            </span>
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-neutral-500 sm:col-span-2">
+          Chấm công: {defaults.requires_attendance ? "bắt buộc" : "không cần"} (chỉ Quản trị viên được thay đổi).
+        </p>
       )}
     </div>
   );

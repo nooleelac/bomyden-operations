@@ -5,7 +5,7 @@ import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
-import EmployeeFormFields from "./EmployeeFormFields";
+import EmployeeFormFields, { type BranchOption } from "./EmployeeFormFields";
 import { resetEmployeePassword, setEmployeeActive, updateEmployee } from "./actions";
 import type { ActionState } from "@/lib/action-state";
 import { formatPhone } from "@/lib/phone";
@@ -16,13 +16,22 @@ import type { EmployeeListItem } from "./EmployeesView";
 type Props = {
   employee: EmployeeListItem;
   roles: EmployeeRole[];
+  branchOptions: BranchOption[];
+  canToggleAttendance: boolean;
   isSelf: boolean;
   onDone: (message: string) => void;
 };
 
 type Panel = "edit" | "password" | "toggle" | null;
 
-export default function EmployeeRowActions({ employee, roles, isSelf, onDone }: Props) {
+export default function EmployeeRowActions({
+  employee,
+  roles,
+  branchOptions,
+  canToggleAttendance,
+  isSelf,
+  onDone,
+}: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const close = () => setPanel(null);
   const finish = (message: string) => {
@@ -47,6 +56,10 @@ export default function EmployeeRowActions({ employee, roles, isSelf, onDone }: 
 
   // Không cho tự đổi chức vụ; chức vụ hiện tại có thể nằm ngoài danh sách được gán (vd: Quản trị viên)
   const roleLocked = isSelf || !roles.includes(employee.role);
+  const allowedBranchIds = new Set(branchOptions.map((branch) => branch.id));
+  const otherBranchNames = employee.branches
+    .filter((branch) => !allowedBranchIds.has(branch.id))
+    .map((branch) => branch.name);
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -77,6 +90,9 @@ export default function EmployeeRowActions({ employee, roles, isSelf, onDone }: 
             idPrefix={`edit-${employee.id}`}
             roles={roles}
             roleLocked={roleLocked}
+            branches={branchOptions}
+            otherBranchNames={otherBranchNames}
+            canToggleAttendance={canToggleAttendance && !isSelf && employee.role !== "admin"}
             fieldErrors={editState.ok ? undefined : editState.fieldErrors}
             defaults={{
               full_name: employee.full_name,
@@ -85,6 +101,8 @@ export default function EmployeeRowActions({ employee, roles, isSelf, onDone }: 
               role: employee.role,
               default_start_time: employee.default_start_time?.slice(0, 5) ?? "",
               sort_order: employee.sort_order,
+              requires_attendance: employee.requires_attendance,
+              branch_ids: employee.branches.map((branch) => branch.id),
             }}
           />
           {editState.message && !editState.ok && (

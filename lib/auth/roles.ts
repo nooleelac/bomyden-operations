@@ -30,6 +30,21 @@ export function canManageEmployees(role: EmployeeRole): boolean {
   return isManagerOrAdmin(role);
 }
 
+/** Chỉ Quản trị viên tạo/sửa chi nhánh và bật/tắt "phải chấm công". */
+export function isAdmin(role: EmployeeRole): boolean {
+  return role === "admin";
+}
+
+/** Quản trị viên & Quản lý xem/duyệt/sửa chấm công (Quản lý: trong chi nhánh mình). */
+export function canManageAttendance(role: EmployeeRole): boolean {
+  return isManagerOrAdmin(role);
+}
+
+/** Người này có phải tự chấm công không. */
+export function mustClockIn(employee: { role: EmployeeRole; requires_attendance: boolean }): boolean {
+  return employee.role !== "admin" && employee.requires_attendance;
+}
+
 /** Các chức vụ mà người thao tác được phép gán. Chỉ Quản trị viên mới gán được "admin". */
 export function assignableRoles(actorRole: EmployeeRole): EmployeeRole[] {
   if (actorRole === "admin") return ALL_ROLES;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import CreateEmployeeButton from "./CreateEmployeeButton";
 import EmployeeRowActions from "./EmployeeRowActions";
+import type { BranchOption } from "./EmployeeFormFields";
 import { ROLE_LABELS, canManageTarget } from "@/lib/auth/roles";
 import { formatPhone } from "@/lib/phone";
 import type { Employee, EmployeeRole } from "@/lib/database.types";
@@ -19,19 +20,29 @@ export type EmployeeListItem = Pick<
   | "default_start_time"
   | "sort_order"
   | "deactivated_at"
->;
+  | "requires_attendance"
+> & { branches: BranchOption[] };
 
 type Props = {
   employees: EmployeeListItem[];
   actorId: string;
   actorRole: EmployeeRole;
   assignable: EmployeeRole[];
+  branchOptions: BranchOption[];
   showLocked: boolean;
 };
 
-export default function EmployeesView({ employees, actorId, actorRole, assignable, showLocked }: Props) {
+export default function EmployeesView({
+  employees,
+  actorId,
+  actorRole,
+  assignable,
+  branchOptions,
+  showLocked,
+}: Props) {
   const [toast, setToast] = useState("");
   const notify = useCallback((message: string) => setToast(message), []);
+  const isAdmin = actorRole === "admin";
 
   useEffect(() => {
     if (!toast) return;
@@ -56,7 +67,12 @@ export default function EmployeesView({ employees, actorId, actorRole, assignabl
             Đã khóa
           </Link>
         </div>
-        <CreateEmployeeButton roles={assignable} onDone={notify} />
+        <CreateEmployeeButton
+          roles={assignable}
+          branchOptions={branchOptions}
+          canToggleAttendance={isAdmin}
+          onDone={notify}
+        />
       </div>
 
       {employees.length === 0 ? (
@@ -82,11 +98,29 @@ export default function EmployeesView({ employees, actorId, actorRole, assignabl
                       {!employee.is_active && (
                         <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">Đã khóa</span>
                       )}
+                      {employee.role !== "admin" && !employee.requires_attendance && (
+                        <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-500">
+                          Không chấm công
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-500">
                       {employee.phone && <span>📞 {formatPhone(employee.phone)}</span>}
                       {employee.email && <span className="truncate">✉️ {employee.email}</span>}
                       {employee.default_start_time && <span>🕐 Vào ca {employee.default_start_time.slice(0, 5)}</span>}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {employee.branches.length > 0 ? (
+                        employee.branches.map((branch) => (
+                          <span key={branch.id} className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
+                            🏠 {branch.name}
+                          </span>
+                        ))
+                      ) : employee.role !== "admin" ? (
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                          ⚠️ Chưa gán chi nhánh
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -94,6 +128,8 @@ export default function EmployeesView({ employees, actorId, actorRole, assignabl
                     <EmployeeRowActions
                       employee={employee}
                       roles={assignable}
+                      branchOptions={branchOptions}
+                      canToggleAttendance={isAdmin}
                       isSelf={employee.id === actorId}
                       onDone={notify}
                     />

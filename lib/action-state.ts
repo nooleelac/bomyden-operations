@@ -43,6 +43,9 @@ export function friendlyDbError(error: { code?: string; message?: string } | nul
     }
     return error.message;
   }
+  // Lỗi nghiệp vụ do hàm DB trả về (thông báo đã là tiếng Việt)
+  if (error.code === "P0001" && error.message) return error.message;
+  if (error.code === "23P01") return "Thời gian bị trùng với một ca khác.";
   if (error.code === "23514") return "Dữ liệu không hợp lệ.";
   return "Không thể lưu dữ liệu. Vui lòng thử lại.";
 }

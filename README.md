@@ -32,13 +32,26 @@ scripts/                 tiện ích (tạo Quản trị viên đầu tiên)
 proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng nhập
 ```
 
-## Chức vụ
+## Chức vụ & phạm vi
 
-| Mã | Tên | Quản lý nhân viên |
-|---|---|---|
-| `admin` | Quản trị viên | Toàn quyền. Là người duy nhất tạo/sửa được Quản trị viên |
-| `manager` | Quản lý | Tạo/sửa/khóa mọi chức vụ trừ Quản trị viên |
-| `head_chef`, `staff`, `server`, `cashier` | Bếp chính, Nhân viên, Phục vụ, Thu ngân | Chỉ xem thông tin của mình |
+| Mã | Tên | Nhân viên | Chấm công | Chi nhánh |
+|---|---|---|---|---|
+| `admin` | Quản trị viên | Toàn quyền; duy nhất tạo/sửa Quản trị viên; bật/tắt "phải chấm công" | Không chấm công; xem/duyệt/sửa mọi chi nhánh | Tạo/sửa |
+| `manager` | Quản lý | Tạo/sửa/khóa nhân viên **cùng chi nhánh** (trừ Quản trị viên) | Chấm công nếu được bật; xem/duyệt/sửa trong chi nhánh mình (không tự duyệt cho mình) | Chỉ xem |
+| `head_chef`, `staff`, `server`, `cashier` | Bếp chính, Nhân viên, Phục vụ, Thu ngân | Chỉ xem của mình | Vào/ra ca, gửi yêu cầu sửa | — |
+
+## Chấm công
+
+- Hợp lệ khi **IP Wi-Fi chi nhánh** hoặc **GPS trong bán kính** (sai số GPS ≤ 200 m). Giờ lấy từ máy chủ.
+- Vào/ra ca chạy qua server (`attendance_check_in/out` chỉ `service_role` gọi được) → người dùng không giả được IP.
+- Tối đa 1 ca mở/người; DB chặn ca chồng thời gian. Ca mở > 16 giờ = "quên ra ca" → phải gửi yêu cầu sửa.
+- Mọi sửa đổi ghi `audit_logs` kèm người sửa và lý do. Không xóa bản ghi chấm công.
+- Lưu ý: GPS do điện thoại gửi nên có thể bị giả bởi người rành công nghệ; IP Wi-Fi khó giả hơn.
+
+## Dọn dữ liệu thử (an toàn)
+
+Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,
+và xóa tài khoản đăng nhập qua Supabase Auth Admin API (`deleteUser`).
 
 ## Cài đặt
 

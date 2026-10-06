@@ -5,19 +5,24 @@ import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
-import EmployeeFormFields from "./EmployeeFormFields";
+import EmployeeFormFields, { type BranchOption } from "./EmployeeFormFields";
 import { createEmployee } from "./actions";
 import type { EmployeeRole } from "@/lib/database.types";
 
 export default function CreateEmployeeButton({
   roles,
+  branchOptions,
+  canToggleAttendance,
   onDone,
 }: {
   roles: EmployeeRole[];
+  branchOptions: BranchOption[];
+  canToggleAttendance: boolean;
   onDone?: (message: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+
   // Thành công → đóng hộp thoại, làm mới form, báo kết quả
   const [state, formAction, pending] = useFormAction(createEmployee, (result) => {
     setOpen(false);
@@ -42,6 +47,8 @@ export default function CreateEmployeeButton({
             idPrefix="create"
             withPassword
             roles={roles}
+            branches={branchOptions}
+            canToggleAttendance={canToggleAttendance}
             fieldErrors={state.ok ? undefined : state.fieldErrors}
             defaults={{
               full_name: "",
@@ -50,6 +57,8 @@ export default function CreateEmployeeButton({
               role: "staff",
               default_start_time: "",
               sort_order: 0,
+              requires_attendance: true,
+              branch_ids: branchOptions.length === 1 ? [branchOptions[0].id] : [],
             }}
           />
 

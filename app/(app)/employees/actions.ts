@@ -9,6 +9,7 @@ import { phoneLoginEmail } from "@/lib/phone";
 import {
   createEmployeeSchema,
   pickFormFields,
+  readBranchIds,
   resetPasswordSchema,
   updateEmployeeSchema,
 } from "@/lib/validation/employee";
@@ -54,7 +55,9 @@ async function loadTarget(employeeId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("employees")
-    .select("id, auth_user_id, full_name, email, phone, role, is_active, default_start_time, sort_order")
+    .select(
+      "id, auth_user_id, full_name, email, phone, role, is_active, default_start_time, sort_order, requires_attendance"
+    )
     .eq("id", employeeId)
     .maybeSingle();
   return { supabase, target: data };
@@ -81,6 +84,14 @@ export async function createEmployee(_prev: ActionState, formData: FormData): Pr
     });
   }
 
+  const branchIds = readBranchIds(formData);
+  if (role !== "admin" && branchIds.length === 0) {
+    return fail("Vui lòng chọn ít nhất một chi nhánh.", { branch_ids: "Chọn ít nhất một chi nhánh." });
+  }
+  // Chỉ Quản trị viên quyết định "phải chấm công"; người khác tạo thì mặc định phải chấm công
+  const requiresAttendance =
+    role === "admin" ? false : actor.role === "admin" ? formData.get("requires_attendance") === "on" : true;
+
   // 1. Tạo tài khoản Supabase Auth (cần quyền admin)
   const admin = createAdminClient();
   const { data: created, error: authError } = await admin.auth.admin.createUser({
@@ -93,21 +104,20 @@ export async function createEmployee(_prev: ActionState, formData: FormData): Pr
     return fail(friendlyAuthError(authError ?? {}));
   }
 
-  // 2. Tạo bản ghi nhân viên bằng phiên của người thao tác → RLS + trigger kiểm tra quyền
+  // 2. Tạo nhân viên + gán chi nhánh trong 1 giao dịch, bằng phiên của người thao tác
+  //    (hàm DB kiểm tra quyền chức vụ, phạm vi chi nhánh, cờ chấm công)
   const supabase = await createClient();
-  const { error: insertError } = await supabase
-    .from("employees")
-    .insert({
-      auth_user_id: created.user.id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      role,
-      default_start_time: input.default_start_time,
-      sort_order: input.sort_order,
-    })
-    .select("id")
-    .single();
+  const { error: insertError } = await supabase.rpc("create_employee", {
+    p_auth_user_id: created.user.id,
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_phone: input.phone,
+    p_role: role,
+    p_default_start_time: input.default_start_time,
+    p_sort_order: input.sort_order,
+    p_requires_attendance: requiresAttendance,
+    p_branch_ids: branchIds,
+  });
 
   if (insertError) {
     // Hoàn tác: xóa tài khoản Auth vừa tạo để không để lại tài khoản mồ côi
@@ -151,23 +161,29 @@ export async function updateEmployee(
     return fail("Bạn không thể tự thay đổi chức vụ của mình.", { role: "Không thể tự đổi chức vụ." });
   }
 
-  // 1. Cập nhật DB (trigger là chốt chặn cuối cùng về quyền)
-  const { data: updated, error: updateError } = await supabase
-    .from("employees")
-    .update({
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      role,
-      default_start_time: input.default_start_time,
-      sort_order: input.sort_order,
-    })
-    .eq("id", target.id)
-    .select("id")
-    .maybeSingle();
+  const branchIds = readBranchIds(formData);
+  const requiresAttendance =
+    role === "admin"
+      ? false
+      : actor.role === "admin"
+        ? formData.get("requires_attendance") === "on"
+        : target.requires_attendance;
+
+  // 1. Cập nhật DB + chi nhánh trong 1 giao dịch (hàm DB + trigger là chốt chặn cuối về quyền).
+  //    Quản lý chỉ thêm/bớt được các chi nhánh mình quản lý; chi nhánh khác của nhân viên giữ nguyên.
+  const { error: updateError } = await supabase.rpc("update_employee", {
+    p_employee_id: target.id,
+    p_full_name: input.full_name,
+    p_email: input.email,
+    p_phone: input.phone,
+    p_role: role,
+    p_default_start_time: input.default_start_time,
+    p_sort_order: input.sort_order,
+    p_requires_attendance: requiresAttendance,
+    p_branch_ids: branchIds,
+  });
 
   if (updateError) return fail(friendlyDbError(updateError));
-  if (!updated) return fail("Bạn không có quyền thực hiện thao tác này.");
 
   // 2. Đồng bộ email đăng nhập nếu email/SĐT thay đổi
   const oldAuthEmail = authEmailFor(target.email, target.phone);

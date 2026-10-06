@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
-import { canManageEmployees } from "@/lib/auth/roles";
+import { canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
 
 export const instant = false;
 
@@ -16,12 +16,20 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
 
   const modules: Module[] = [
+    ...(mustClockIn(employee)
+      ? [{ title: "Chấm công", description: "Vào ca / ra ca, lịch sử, yêu cầu sửa", href: "/attendance", icon: "🕐" }]
+      : []),
+    ...(canManageAttendance(employee.role)
+      ? [{ title: "Quản lý chấm công", description: "Duyệt yêu cầu sửa, ai đang trong ca", href: "/attendance/manage", icon: "🗂️" }]
+      : []),
     ...(canManageEmployees(employee.role)
-      ? [{ title: "Nhân viên", description: "Tài khoản, chức vụ, khóa/mở khóa", href: "/employees", icon: "👥" }]
+      ? [{ title: "Nhân viên", description: "Tài khoản, chức vụ, chi nhánh", href: "/employees", icon: "👥" }]
+      : []),
+    ...(isAdmin(employee.role)
+      ? [{ title: "Chi nhánh", description: "Vị trí GPS, Wi-Fi chấm công", href: "/branches", icon: "🏠" }]
       : []),
     { title: "Tài khoản của tôi", description: "Thông tin cá nhân, đổi mật khẩu", href: "/account", icon: "🔐" },
     { title: "Checklist", description: "Công việc hằng ngày", icon: "📋" },
-    { title: "Chấm công", description: "Vào ca / ra ca", icon: "🕐" },
     { title: "Lịch làm việc", description: "Ca làm & xin phép", icon: "📅" },
   ];
 

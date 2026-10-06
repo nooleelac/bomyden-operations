@@ -9,7 +9,7 @@ import type { Employee } from "@/lib/database.types";
 
 export type CurrentEmployee = Pick<
   Employee,
-  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active"
+  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active" | "requires_attendance"
 >;
 
 /**
@@ -28,7 +28,7 @@ export const getCurrentEmployee = cache(async (): Promise<CurrentEmployee | null
 
   const { data: employee, error } = await supabase
     .from("employees")
-    .select("id, auth_user_id, full_name, email, phone, role, is_active")
+    .select("id, auth_user_id, full_name, email, phone, role, is_active, requires_attendance")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -41,6 +41,15 @@ export async function requireEmployee(): Promise<CurrentEmployee> {
   const employee = await getCurrentEmployee();
   if (!employee) {
     redirect("/auth/signout?reason=no_access");
+  }
+  return employee;
+}
+
+/** Bắt buộc là Quản trị viên. */
+export async function requireAdmin(): Promise<CurrentEmployee> {
+  const employee = await requireEmployee();
+  if (employee.role !== "admin") {
+    redirect("/?error=forbidden");
   }
   return employee;
 }
