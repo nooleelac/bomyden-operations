@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import EmployeesView from "./EmployeesView";
 
 export const metadata: Metadata = { title: "Nhân viên" };
+export const instant = false;
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/employees">) {
   const actor = await requireManager();

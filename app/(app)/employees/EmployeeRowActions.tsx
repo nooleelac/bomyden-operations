@@ -9,7 +9,7 @@ import EmployeeFormFields from "./EmployeeFormFields";
 import { resetEmployeePassword, setEmployeeActive, updateEmployee } from "./actions";
 import type { ActionState } from "@/lib/action-state";
 import { formatPhone } from "@/lib/phone";
-import { PASSWORD_MIN_LENGTH } from "@/lib/validation/employee";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validation/constants";
 import type { EmployeeRole } from "@/lib/database.types";
 import type { EmployeeListItem } from "./EmployeesView";
 

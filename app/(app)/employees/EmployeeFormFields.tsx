@@ -1,7 +1,7 @@
 "use client";
 
 import { ROLE_LABELS } from "@/lib/auth/roles";
-import { PASSWORD_MIN_LENGTH } from "@/lib/validation/employee";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validation/constants";
 import type { EmployeeRole } from "@/lib/database.types";
 
 export type EmployeeFormDefaults = {

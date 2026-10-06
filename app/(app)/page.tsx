@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
 import { canManageEmployees } from "@/lib/auth/roles";
 
+export const instant = false;
+
 type Module = {
   title: string;
   description: string;

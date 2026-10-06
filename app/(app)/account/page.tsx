@@ -6,6 +6,7 @@ import { formatPhone } from "@/lib/phone";
 import ChangePasswordForm from "./ChangePasswordForm";
 
 export const metadata: Metadata = { title: "Tài khoản của tôi" };
+export const instant = false;
 
 export default async function AccountPage() {
   const employee = await requireEmployee();

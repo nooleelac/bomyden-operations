@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isManagerOrAdmin } from "@/lib/auth/roles";
 import type { Employee } from "@/lib/database.types";
@@ -17,6 +18,8 @@ export type CurrentEmployee = Pick<
  * Được cache trong phạm vi 1 request.
  */
 export const getCurrentEmployee = cache(async (): Promise<CurrentEmployee | null> => {
+  // Phiên đăng nhập luôn đọc theo từng request (không prerender), trước khi Supabase kiểm tra hạn token.
+  await connection();
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();

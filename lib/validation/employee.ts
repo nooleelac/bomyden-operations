@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ALL_ROLES } from "@/lib/auth/roles";
 import { normalizePhone } from "@/lib/phone";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validation/constants";
 
-export const PASSWORD_MIN_LENGTH = 8;
+export { PASSWORD_MIN_LENGTH };
 
 const optionalText = z
   .string()

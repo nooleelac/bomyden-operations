@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { changeOwnPassword } from "./actions";
 import { initialActionState } from "@/lib/action-state";
-import { PASSWORD_MIN_LENGTH } from "@/lib/validation/employee";
+import { PASSWORD_MIN_LENGTH } from "@/lib/validation/constants";
 import ActionForm from "@/components/ActionForm";
 import SubmitButton from "@/components/SubmitButton";
 
