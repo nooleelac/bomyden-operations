@@ -1,6 +1,7 @@
-// Kiểu dữ liệu database.
-// Tạm viết tay theo migration Phase 1. Sau khi có project Supabase sẽ thay bằng file sinh tự động:
-//   npx supabase gen types typescript --project-id <id> > lib/database.types.ts
+// FILE SINH TỰ ĐỘNG từ Supabase (project bomyden-ops-v2). Không sửa tay phần Database.
+// Sinh lại sau mỗi migration:
+//   npx supabase gen types typescript --project-id jsnidpylkkhjfhyzxayp > lib/database.types.ts
+// (rồi thêm lại các alias ở cuối file)
 
 export type Json =
   | string
@@ -8,120 +9,178 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
-
-export type EmployeeRole =
-  | "admin"
-  | "manager"
-  | "head_chef"
-  | "staff"
-  | "server"
-  | "cashier";
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
   public: {
     Tables: {
-      employees: {
-        Row: {
-          id: string;
-          auth_user_id: string;
-          full_name: string;
-          email: string | null;
-          phone: string | null;
-          role: EmployeeRole;
-          is_active: boolean;
-          default_start_time: string | null;
-          sort_order: number;
-          deactivated_at: string | null;
-          deactivated_by: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-        };
-        Insert: {
-          id?: string;
-          auth_user_id: string;
-          full_name: string;
-          email?: string | null;
-          phone?: string | null;
-          role?: EmployeeRole;
-          is_active?: boolean;
-          default_start_time?: string | null;
-          sort_order?: number;
-          deactivated_at?: string | null;
-          deactivated_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Update: {
-          id?: string;
-          auth_user_id?: string;
-          full_name?: string;
-          email?: string | null;
-          phone?: string | null;
-          role?: EmployeeRole;
-          is_active?: boolean;
-          default_start_time?: string | null;
-          sort_order?: number;
-          deactivated_at?: string | null;
-          deactivated_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
       audit_logs: {
         Row: {
-          id: number;
-          table_name: string;
-          record_id: string | null;
-          action: string;
-          actor_auth_uid: string | null;
-          actor_employee_id: string | null;
-          old_data: Json | null;
-          new_data: Json | null;
-          note: string | null;
-          created_at: string;
-        };
+          action: string
+          actor_auth_uid: string | null
+          actor_employee_id: string | null
+          created_at: string
+          id: number
+          new_data: Json | null
+          note: string | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+        }
         Insert: {
-          id?: never;
-          table_name: string;
-          record_id?: string | null;
-          action: string;
-          actor_auth_uid?: string | null;
-          actor_employee_id?: string | null;
-          old_data?: Json | null;
-          new_data?: Json | null;
-          note?: string | null;
-          created_at?: string;
-        };
+          action: string
+          actor_auth_uid?: string | null
+          actor_employee_id?: string | null
+          created_at?: string
+          id?: never
+          new_data?: Json | null
+          note?: string | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+        }
         Update: {
-          id?: never;
-          table_name?: string;
-          record_id?: string | null;
-          action?: string;
-          actor_auth_uid?: string | null;
-          actor_employee_id?: string | null;
-          old_data?: Json | null;
-          new_data?: Json | null;
-          note?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-    };
-    Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+          action?: string
+          actor_auth_uid?: string | null
+          actor_employee_id?: string | null
+          created_at?: string
+          id?: never
+          new_data?: Json | null
+          note?: string | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_employee_id_fkey"
+            columns: ["actor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          default_start_time: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          role: Database["public"]["Enums"]["employee_role"]
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          default_start_time?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          role?: Database["public"]["Enums"]["employee_role"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          default_start_time?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          role?: Database["public"]["Enums"]["employee_role"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_deactivated_by_fkey"
+            columns: ["deactivated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
-      employee_role: EmployeeRole;
-    };
-    CompositeTypes: { [_ in never]: never };
-  };
-};
+      employee_role:
+        | "admin"
+        | "manager"
+        | "head_chef"
+        | "staff"
+        | "server"
+        | "cashier"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
 
-export type Employee = Database["public"]["Tables"]["employees"]["Row"];
+export const Constants = {
+  public: {
+    Enums: {
+      employee_role: [
+        "admin",
+        "manager",
+        "head_chef",
+        "staff",
+        "server",
+        "cashier",
+      ],
+    },
+  },
+} as const
+
+// ---------------------------------------------------------------------
+// Alias dùng trong app
+// ---------------------------------------------------------------------
+export type EmployeeRole = Database["public"]["Enums"]["employee_role"]
+export type Employee = Database["public"]["Tables"]["employees"]["Row"]
