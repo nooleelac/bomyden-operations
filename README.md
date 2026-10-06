@@ -48,6 +48,17 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - Mọi sửa đổi ghi `audit_logs` kèm người sửa và lý do. Không xóa bản ghi chấm công.
 - Lưu ý: GPS do điện thoại gửi nên có thể bị giả bởi người rành công nghệ; IP Wi-Fi khó giả hơn.
 
+## Checklist
+
+- **Mẫu công việc** (`task_templates`) theo chi nhánh: giờ bắt đầu/hạn chót, lặp hằng ngày / theo thứ / theo ngày trong tháng
+  (ngày 29–31 không có trong tháng → chạy ngày cuối tháng), 1 người chính + 1 người thay thế, bắt buộc ảnh/ghi chú tùy mẫu.
+- **Việc theo ngày** (`task_instances`) sinh tự động, idempotent (`ensure_task_instances`, unique theo mẫu + ngày).
+  Nội dung được "chụp" lúc sinh; sửa mẫu chỉ áp dụng cho việc chưa làm từ hôm nay.
+- **Đánh dấu** qua server (`complete_task_instance` chỉ `service_role` gọi): người chính, hoặc người thay thế khi người chính
+  không chấm công hôm đó; phải đang trong ca tại chi nhánh của việc. "Không đạt" luôn cần lý do.
+- **Ảnh** thu nhỏ trên điện thoại (≤1600px JPEG) → kho riêng tư `task-photos`, chỉ xem qua link ký tạm thời 1 giờ.
+- **Quản lý**: báo cáo theo ngày (quá hạn / không đạt / cần làm / xong / xong trễ), yêu cầu làm lại kèm lý do.
+
 ## Dọn dữ liệu thử (an toàn)
 
 Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,

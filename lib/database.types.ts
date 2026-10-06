@@ -55,6 +55,57 @@ type AttendanceCorrectionRow = {
   updated_at: string
 }
 
+type TaskTemplateRow = {
+  backup_employee_id: string | null
+  branch_id: string
+  category: string
+  created_at: string
+  created_by: string | null
+  description: string | null
+  due_time: string
+  frequency: Database["public"]["Enums"]["task_frequency"]
+  id: string
+  is_active: boolean
+  month_days: number[]
+  primary_employee_id: string
+  priority: Database["public"]["Enums"]["task_priority"]
+  requires_note: boolean
+  requires_photo: boolean
+  sort_order: number
+  start_time: string
+  title: string
+  updated_at: string
+  updated_by: string | null
+  weekdays: number[]
+}
+
+type TaskInstanceRow = {
+  backup_employee_id: string | null
+  branch_id: string
+  category: string
+  completed_at: string | null
+  completed_by: string | null
+  created_at: string
+  description: string | null
+  due_at: string
+  id: string
+  note: string | null
+  photo_path: string | null
+  primary_employee_id: string
+  priority: Database["public"]["Enums"]["task_priority"]
+  reopen_reason: string | null
+  reopened_at: string | null
+  reopened_by: string | null
+  requires_note: boolean
+  requires_photo: boolean
+  start_at: string
+  status: Database["public"]["Enums"]["task_status"]
+  task_date: string
+  template_id: string
+  title: string
+  updated_at: string
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -376,11 +427,138 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: TaskTemplateRow
+        Insert: Partial<TaskTemplateRow> & {
+          branch_id: string
+          title: string
+          start_time: string
+          due_time: string
+          primary_employee_id: string
+        }
+        Update: Partial<TaskTemplateRow>
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_templates_primary_employee_id_fkey"
+            columns: ["primary_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_templates_backup_employee_id_fkey"
+            columns: ["backup_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_templates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_instances: {
+        Row: TaskInstanceRow
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "task_instances_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_primary_employee_id_fkey"
+            columns: ["primary_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_backup_employee_id_fkey"
+            columns: ["backup_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_instances_reopened_by_fkey"
+            columns: ["reopened_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      complete_task_instance: {
+        Args: {
+          p_auth_uid: string
+          p_instance_id: string
+          p_note?: string
+          p_photo_path?: string
+          p_status: Database["public"]["Enums"]["task_status"]
+        }
+        Returns: TaskInstanceRow
+        SetofOptions: {
+          from: "*"
+          to: "task_instances"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      ensure_task_instances: {
+        Args: { p_date?: string }
+        Returns: number
+      }
+      reopen_task_instance: {
+        Args: { p_instance_id: string; p_reason: string }
+        Returns: TaskInstanceRow
+        SetofOptions: {
+          from: "*"
+          to: "task_instances"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       add_manual_attendance: {
         Args: {
           p_branch_id: string
@@ -503,6 +681,9 @@ export type Database = {
       }
     }
     Enums: {
+      task_frequency: "daily" | "weekly" | "monthly"
+      task_priority: "low" | "normal" | "high" | "critical"
+      task_status: "pending" | "done" | "failed" | "cancelled"
       attendance_method: "gps" | "wifi" | "manual"
       correction_status: "pending" | "approved" | "rejected" | "cancelled"
       employee_role:
@@ -540,3 +721,8 @@ export type AttendanceRecord = AttendanceRecordRow
 export type AttendanceCorrection = AttendanceCorrectionRow
 export type AttendanceMethod = Database["public"]["Enums"]["attendance_method"]
 export type CorrectionStatus = Database["public"]["Enums"]["correction_status"]
+export type TaskTemplate = TaskTemplateRow
+export type TaskInstance = TaskInstanceRow
+export type TaskFrequency = Database["public"]["Enums"]["task_frequency"]
+export type TaskPriority = Database["public"]["Enums"]["task_priority"]
+export type TaskStatus = Database["public"]["Enums"]["task_status"]
