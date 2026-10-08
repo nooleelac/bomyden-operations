@@ -59,6 +59,18 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - **Ảnh** thu nhỏ trên điện thoại (≤1600px JPEG) → kho riêng tư `task-photos`, chỉ xem qua link ký tạm thời 1 giờ.
 - **Quản lý**: báo cáo theo ngày (quá hạn / không đạt / cần làm / xong / xong trễ), yêu cầu làm lại kèm lý do.
 
+## Bảng lương
+
+- **Hồ sơ lương** từng NV: theo giờ / theo ca / cố định (÷ ngày công chuẩn × ngày đi làm, tối đa = lương), kỳ tuần (T2–CN)
+  hoặc tháng, tăng ca (giờ vượt chuẩn mỗi ngày), phụ cấp cố định/kỳ & theo ngày công, mức phạt riêng (ghi đè mức chung).
+- **Tự tính** từ chấm công (chỉ ca đã ra ca) + checklist: phạt trễ (lần vào ca đầu ngày > giờ vào ca mặc định + ân hạn),
+  "Không đạt" & làm trễ (người đánh dấu), không làm (người chính, hoặc người thay thế nếu người chính nghỉ).
+- **Nhập tay**: KPI, thưởng, phụ cấp khác, khoản trừ, truy lĩnh/truy thu — bắt buộc lý do.
+- **Chốt** (`finalize_payslip`): chỉ khi kỳ đã kết thúc, không còn ca chưa ra / yêu cầu sửa chờ duyệt. Phiếu lưu ảnh chụp
+  `payslips.data`, khóa cứng (không sửa/xóa). Tính đến từng đồng, làm tròn thực nhận đến 1.000đ.
+- **Quyền**: QTV; Quản lý được QTV bật `can_manage_payroll` → NV chi nhánh mình (không gồm mình & Quản lý khác);
+  NV xem phiếu đã chốt khi QTV bật `can_view_payslip`. Một công thức duy nhất trong DB (`private.compute_payslip`).
+
 ## Dọn dữ liệu thử (an toàn)
 
 Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,

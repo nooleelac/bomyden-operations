@@ -40,6 +40,11 @@ export function canManageAttendance(role: EmployeeRole): boolean {
   return isManagerOrAdmin(role);
 }
 
+/** Được vào Bảng lương: QTV, hoặc Quản lý được QTV cấp quyền (khớp private.has_payroll_access ở DB). */
+export function canAccessPayroll(employee: { role: EmployeeRole; can_manage_payroll: boolean }): boolean {
+  return employee.role === "admin" || (employee.role === "manager" && employee.can_manage_payroll);
+}
+
 /** Người này có phải tự chấm công không. */
 export function mustClockIn(employee: { role: EmployeeRole; requires_attendance: boolean }): boolean {
   return employee.role !== "admin" && employee.requires_attendance;

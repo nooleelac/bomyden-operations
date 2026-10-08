@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
-import { canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
+import { canAccessPayroll, canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -14,6 +15,14 @@ type Module = {
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const employee = await requireEmployee();
   const params = await searchParams;
+
+  // RLS: chỉ thấy hồ sơ lương của mình khi QTV đã cho phép xem phiếu lương
+  const supabase = await createClient();
+  const { data: ownProfile } = await supabase
+    .from("payroll_profiles")
+    .select("can_view_payslip")
+    .eq("employee_id", employee.id)
+    .maybeSingle();
 
   const modules: Module[] = [
     { title: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" },
@@ -31,6 +40,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       : []),
     ...(isAdmin(employee.role)
       ? [{ title: "Chi nhánh", description: "Vị trí GPS, Wi-Fi chấm công", href: "/branches", icon: "🏠" }]
+      : []),
+    ...(canAccessPayroll(employee)
+      ? [{ title: "Bảng lương", description: "Tính lương, KPI, thưởng/phạt, chốt kỳ", href: "/payroll", icon: "💰" }]
+      : []),
+    ...(ownProfile?.can_view_payslip
+      ? [{ title: "Phiếu lương của tôi", description: "Các kỳ lương đã chốt", href: "/payslips", icon: "🧾" }]
       : []),
     { title: "Tài khoản của tôi", description: "Thông tin cá nhân, đổi mật khẩu", href: "/account", icon: "🔐" },
     { title: "Lịch làm việc", description: "Ca làm & xin phép", icon: "📅" },

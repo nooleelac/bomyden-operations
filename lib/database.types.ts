@@ -106,6 +106,66 @@ type TaskInstanceRow = {
   updated_at: string
 }
 
+type PayrollProfileRow = {
+  employee_id: string
+  pay_type: Database["public"]["Enums"]["pay_type"]
+  pay_period: Database["public"]["Enums"]["pay_period"]
+  hourly_rate: number
+  shift_rate: number
+  fixed_salary: number
+  standard_days: number
+  overtime_enabled: boolean
+  overtime_threshold_minutes: number
+  overtime_rate: number
+  allowance_per_period: number
+  allowance_per_workday: number
+  late_grace_minutes: number | null
+  late_penalty: number | null
+  checklist_failed_penalty: number | null
+  checklist_missed_penalty: number | null
+  checklist_late_penalty: number | null
+  can_view_payslip: boolean
+  created_at: string
+  updated_at: string
+  updated_by: string | null
+}
+
+type PayrollSettingsRow = {
+  id: boolean
+  late_grace_minutes: number
+  late_penalty: number
+  checklist_failed_penalty: number
+  checklist_missed_penalty: number
+  checklist_late_penalty: number
+  updated_at: string
+  updated_by: string | null
+}
+
+type PayrollAdjustmentRow = {
+  id: string
+  employee_id: string
+  period_start: string
+  kind: Database["public"]["Enums"]["payroll_adjustment_kind"]
+  amount: number
+  reason: string
+  created_at: string
+  created_by: string | null
+}
+
+type PayslipRow = {
+  id: string
+  employee_id: string
+  pay_period: Database["public"]["Enums"]["pay_period"]
+  period_start: string
+  period_end: string
+  gross_amount: number
+  deductions_amount: number
+  net_amount: number
+  data: Json
+  finalized_at: string
+  finalized_by: string | null
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -362,6 +422,7 @@ export type Database = {
           is_active: boolean
           phone: string | null
           requires_attendance: boolean
+          can_manage_payroll: boolean
           role: Database["public"]["Enums"]["employee_role"]
           sort_order: number
           updated_at: string
@@ -380,6 +441,7 @@ export type Database = {
           is_active?: boolean
           phone?: string | null
           requires_attendance?: boolean
+          can_manage_payroll?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -398,6 +460,7 @@ export type Database = {
           is_active?: boolean
           phone?: string | null
           requires_attendance?: boolean
+          can_manage_payroll?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -421,6 +484,74 @@ export type Database = {
           {
             foreignKeyName: "employees_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: PayrollSettingsRow
+        Insert: never
+        Update: Partial<Omit<PayrollSettingsRow, "id">>
+        Relationships: []
+      }
+      payroll_profiles: {
+        Row: PayrollProfileRow
+        Insert: Partial<PayrollProfileRow> & { employee_id: string }
+        Update: Partial<PayrollProfileRow>
+        Relationships: [
+          {
+            foreignKeyName: "payroll_profiles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_adjustments: {
+        Row: PayrollAdjustmentRow
+        Insert: {
+          employee_id: string
+          period_start: string
+          kind: Database["public"]["Enums"]["payroll_adjustment_kind"]
+          amount: number
+          reason: string
+        }
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "payroll_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payslips: {
+        Row: PayslipRow
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_finalized_by_fkey"
+            columns: ["finalized_by"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -529,6 +660,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      payroll_overview: {
+        Args: { p_period: Database["public"]["Enums"]["pay_period"]; p_period_start: string }
+        Returns: Json
+      }
+      payroll_preview: {
+        Args: { p_employee_id: string; p_period_start: string }
+        Returns: Json
+      }
+      finalize_payslip: {
+        Args: { p_employee_id: string; p_period_start: string }
+        Returns: PayslipRow
+        SetofOptions: {
+          from: "*"
+          to: "payslips"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_task_instance: {
         Args: {
           p_auth_uid: string
@@ -681,6 +830,9 @@ export type Database = {
       }
     }
     Enums: {
+      pay_type: "hourly" | "per_shift" | "fixed"
+      pay_period: "weekly" | "monthly"
+      payroll_adjustment_kind: "kpi" | "bonus" | "allowance" | "deduction" | "correction_plus" | "correction_minus"
       task_frequency: "daily" | "weekly" | "monthly"
       task_priority: "low" | "normal" | "high" | "critical"
       task_status: "pending" | "done" | "failed" | "cancelled"
@@ -721,6 +873,13 @@ export type AttendanceRecord = AttendanceRecordRow
 export type AttendanceCorrection = AttendanceCorrectionRow
 export type AttendanceMethod = Database["public"]["Enums"]["attendance_method"]
 export type CorrectionStatus = Database["public"]["Enums"]["correction_status"]
+export type PayrollProfile = PayrollProfileRow
+export type PayrollSettings = PayrollSettingsRow
+export type PayrollAdjustment = PayrollAdjustmentRow
+export type Payslip = PayslipRow
+export type PayType = Database["public"]["Enums"]["pay_type"]
+export type PayPeriod = Database["public"]["Enums"]["pay_period"]
+export type PayrollAdjustmentKind = Database["public"]["Enums"]["payroll_adjustment_kind"]
 export type TaskTemplate = TaskTemplateRow
 export type TaskInstance = TaskInstanceRow
 export type TaskFrequency = Database["public"]["Enums"]["task_frequency"]
