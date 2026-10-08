@@ -1,6 +1,6 @@
 // FILE SINH TỰ ĐỘNG từ Supabase (project bomyden-ops-v2). Không sửa tay phần Database.
 // Sinh lại sau mỗi migration:
-//   npx supabase gen types typescript --project-id jsnidpylkkhjfhyzxayp > lib/database.types.ts
+//   npx supabase gen types typescript --project-id vhpbycdbprppxpejtkiu > lib/database.types.ts
 // (rồi thêm lại các alias ở cuối file)
 
 export type Json =
