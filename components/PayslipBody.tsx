@@ -43,9 +43,12 @@ export default function PayslipBody({ data, lineAction }: Props) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: "Kiểu lương", value: PAY_TYPE_LABELS[data.pay_type] },
-          { label: "Ngày công", value: `${data.work_days} ngày` },
+          { label: "Ngày công", value: `${data.work_days} ngày` + (data.paid_leave_days ? ` + ${data.paid_leave_days} nghỉ có lương` : "") },
           { label: "Giờ công", value: formatHours(data.worked_minutes) },
-          { label: "Số ca · đi trễ", value: `${data.shifts} ca · ${data.late_count} lần` },
+          {
+            label: "Số ca · trễ · sớm · vắng",
+            value: `${data.shifts} ca · ${data.late_count} · ${data.early_count ?? 0} · ${data.absent_count ?? 0}`,
+          },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-neutral-200 bg-white px-3 py-2">
             <p className="text-xs text-neutral-500">{s.label}</p>

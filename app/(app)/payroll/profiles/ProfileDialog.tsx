@@ -141,6 +141,12 @@ export default function ProfileDialog({
             <Money name="checklist_failed_penalty" label={`Phạt "Không đạt" (chung: ${formatMoney(settings.checklist_failed_penalty)})`} value={p?.checklist_failed_penalty} state={state} />
             <Money name="checklist_missed_penalty" label={`Phạt không làm (chung: ${formatMoney(settings.checklist_missed_penalty)})`} value={p?.checklist_missed_penalty} state={state} />
             <Money name="checklist_late_penalty" label={`Phạt làm trễ (chung: ${formatMoney(settings.checklist_late_penalty)})`} value={p?.checklist_late_penalty} state={state} />
+            <div>
+              <label htmlFor="pf-egrace" className="mb-1 block text-xs font-medium text-neutral-600">Ân hạn về sớm (chung: {settings.early_grace_minutes})</label>
+              <input id="pf-egrace" name="early_grace_minutes" type="number" min={0} max={240} defaultValue={p?.early_grace_minutes ?? ""} className="input" />
+            </div>
+            <Money name="early_leave_penalty" label={`Phạt về sớm (chung: ${formatMoney(settings.early_leave_penalty)})`} value={p?.early_leave_penalty} state={state} />
+            <Money name="absent_penalty" label={`Phạt nghỉ không phép/ca (chung: ${formatMoney(settings.absent_penalty)})`} value={p?.absent_penalty} state={state} />
           </div>
         </details>
 

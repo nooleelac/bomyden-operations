@@ -61,6 +61,13 @@ const profileSchema = z.object({
   checklist_failed_penalty: optionalMoney("Phạt không đạt"),
   checklist_missed_penalty: optionalMoney("Phạt không làm"),
   checklist_late_penalty: optionalMoney("Phạt làm trễ"),
+  early_grace_minutes: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : Number(v)))
+    .pipe(z.number().int().min(0).max(240).nullable()),
+  early_leave_penalty: optionalMoney("Phạt về sớm"),
+  absent_penalty: optionalMoney("Phạt nghỉ không phép"),
 });
 
 export async function saveProfile(employeeId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -83,6 +90,9 @@ export async function saveProfile(employeeId: string, _prev: ActionState, formDa
     checklist_failed_penalty: str(formData, "checklist_failed_penalty"),
     checklist_missed_penalty: str(formData, "checklist_missed_penalty"),
     checklist_late_penalty: str(formData, "checklist_late_penalty"),
+    early_grace_minutes: str(formData, "early_grace_minutes"),
+    early_leave_penalty: str(formData, "early_leave_penalty"),
+    absent_penalty: str(formData, "absent_penalty"),
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
 
@@ -180,6 +190,9 @@ const settingsSchema = z.object({
   checklist_failed_penalty: money("Phạt không đạt"),
   checklist_missed_penalty: money("Phạt không làm"),
   checklist_late_penalty: money("Phạt làm trễ"),
+  early_grace_minutes: z.coerce.number({ message: "Phút ân hạn phải là số." }).int().min(0).max(240),
+  early_leave_penalty: money("Phạt về sớm"),
+  absent_penalty: money("Phạt nghỉ không phép"),
 });
 
 export async function saveSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -190,6 +203,9 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
     checklist_failed_penalty: str(formData, "checklist_failed_penalty"),
     checklist_missed_penalty: str(formData, "checklist_missed_penalty"),
     checklist_late_penalty: str(formData, "checklist_late_penalty"),
+    early_grace_minutes: str(formData, "early_grace_minutes") || "0",
+    early_leave_penalty: str(formData, "early_leave_penalty"),
+    absent_penalty: str(formData, "absent_penalty"),
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
 

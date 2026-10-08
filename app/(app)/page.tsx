@@ -25,6 +25,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     .maybeSingle();
 
   const modules: Module[] = [
+    ...(employee.role !== "admin"
+      ? [{ title: "Lịch làm việc", description: "Ca làm của chi nhánh, xin nghỉ / trễ / đổi ca", href: "/schedule", icon: "📅" }]
+      : []),
+    ...(canManageAttendance(employee.role)
+      ? [{ title: "Xếp lịch & duyệt đơn", description: "Xếp ca, công bố lịch, duyệt đơn xin phép", href: "/schedule/manage", icon: "🗓️" }]
+      : []),
     { title: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" },
     ...(canManageAttendance(employee.role)
       ? [{ title: "Quản lý checklist", description: "Mẫu công việc, báo cáo hằng ngày", href: "/checklist/manage", icon: "✅" }]
@@ -48,7 +54,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       ? [{ title: "Phiếu lương của tôi", description: "Các kỳ lương đã chốt", href: "/payslips", icon: "🧾" }]
       : []),
     { title: "Tài khoản của tôi", description: "Thông tin cá nhân, đổi mật khẩu", href: "/account", icon: "🔐" },
-    { title: "Lịch làm việc", description: "Ca làm & xin phép", icon: "📅" },
   ];
 
   return (

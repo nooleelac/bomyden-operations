@@ -71,6 +71,20 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - **Quyền**: QTV; Quản lý được QTV bật `can_manage_payroll` → NV chi nhánh mình (không gồm mình & Quản lý khác);
   NV xem phiếu đã chốt khi QTV bật `can_view_payslip`. Một công thức duy nhất trong DB (`private.compute_payslip`).
 
+## Lịch làm việc & đơn xin phép
+
+- **Mẫu ca** (`shift_templates`) và **ca** (`shifts`) theo chi nhánh; ca qua đêm được (tối đa 16 giờ); DB chặn ca trùng giờ của
+  cùng một người. QTV + Quản lý (chi nhánh mình) xếp lịch, sao chép tuần trước (`copy_week_shifts`, bỏ qua ca trùng).
+- **Nháp → Công bố** (`publish_week_shifts`): nhân viên chỉ thấy ca đã công bố (cả chi nhánh mình, qua `branch_week_schedule`).
+  Ca đã công bố không xóa, không đổi ngày giờ — chỉ đổi người/ghi chú hoặc **hủy kèm lý do** (đơn đang chờ của ca đó tự hủy).
+- **Đơn**: nghỉ (theo ngày), đi trễ, về sớm (giờ dự kiến), đổi/nhường ca (người nhận đồng ý → Quản lý duyệt; duyệt thì ca
+  được chuyển ngay, DB kiểm tra trùng giờ). Gửi sát hơn hạn báo trước → **Gấp**; vượt số lần/tháng → **Vượt giới hạn**
+  (vẫn gửi được). QTV cài hạn/giới hạn. Không ai tự duyệt đơn liên quan đến mình. Chỉ QTV đánh dấu **nghỉ có lương**.
+- **Nối vào lương** (`compute_payslip`): đi trễ so với ca đầu ngày theo lịch (trễ có phép → mốc = giờ đã xin; không có lịch →
+  giờ vào ca mặc định); về sớm so với ca cuối ngày (có ân hạn); nghỉ không phép = ca đã kết thúc mà không chấm công và không có
+  đơn nghỉ đã duyệt (chỉ NV phải chấm công); ngày nghỉ có lương = 1 ngày công cho lương cố định. Đơn chờ duyệt trong kỳ chặn chốt.
+- Chấm công vẫn tự do, không bắt buộc có ca.
+
 ## Dọn dữ liệu thử (an toàn)
 
 Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,

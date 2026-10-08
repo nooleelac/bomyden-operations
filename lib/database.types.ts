@@ -124,6 +124,9 @@ type PayrollProfileRow = {
   checklist_failed_penalty: number | null
   checklist_missed_penalty: number | null
   checklist_late_penalty: number | null
+  early_grace_minutes: number | null
+  early_leave_penalty: number | null
+  absent_penalty: number | null
   can_view_payslip: boolean
   created_at: string
   updated_at: string
@@ -137,8 +140,85 @@ type PayrollSettingsRow = {
   checklist_failed_penalty: number
   checklist_missed_penalty: number
   checklist_late_penalty: number
+  early_grace_minutes: number
+  early_leave_penalty: number
+  absent_penalty: number
   updated_at: string
   updated_by: string | null
+}
+
+type ScheduleSettingsRow = {
+  id: boolean
+  leave_notice_hours: number
+  late_notice_hours: number
+  early_notice_hours: number
+  swap_notice_hours: number
+  leave_days_per_month: number
+  late_per_month: number
+  early_per_month: number
+  swap_per_month: number
+  updated_at: string
+  updated_by: string | null
+}
+
+type ShiftTemplateRow = {
+  id: string
+  branch_id: string
+  name: string
+  start_time: string
+  end_time: string
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  created_by: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+type ShiftRow = {
+  id: string
+  branch_id: string
+  employee_id: string
+  work_date: string
+  start_time: string
+  end_time: string
+  start_at: string
+  end_at: string
+  template_id: string | null
+  note: string | null
+  status: Database["public"]["Enums"]["shift_status"]
+  published_at: string | null
+  cancelled_at: string | null
+  cancelled_by: string | null
+  cancel_reason: string | null
+  created_at: string
+  created_by: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+type ScheduleRequestRow = {
+  id: string
+  employee_id: string
+  kind: Database["public"]["Enums"]["request_kind"]
+  branch_id: string | null
+  start_date: string | null
+  end_date: string | null
+  shift_id: string | null
+  requested_time: string | null
+  target_employee_id: string | null
+  target_shift_id: string | null
+  reason: string
+  is_urgent: boolean
+  over_limit: boolean
+  status: Database["public"]["Enums"]["request_status"]
+  peer_responded_at: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_note: string | null
+  is_paid: boolean
+  created_at: string
+  updated_at: string
 }
 
 type PayrollAdjustmentRow = {
@@ -496,6 +576,108 @@ export type Database = {
         Update: Partial<Omit<PayrollSettingsRow, "id">>
         Relationships: []
       }
+      schedule_settings: {
+        Row: ScheduleSettingsRow
+        Insert: never
+        Update: Partial<Omit<ScheduleSettingsRow, "id">>
+        Relationships: []
+      }
+      shift_templates: {
+        Row: ShiftTemplateRow
+        Insert: { branch_id: string; name: string; start_time: string; end_time: string; is_active?: boolean; sort_order?: number }
+        Update: Partial<Pick<ShiftTemplateRow, "name" | "start_time" | "end_time" | "is_active" | "sort_order">>
+        Relationships: [
+          {
+            foreignKeyName: "shift_templates_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: ShiftRow
+        Insert: {
+          branch_id: string
+          employee_id: string
+          work_date: string
+          start_time: string
+          end_time: string
+          template_id?: string | null
+          note?: string | null
+          status?: Database["public"]["Enums"]["shift_status"]
+          // Tính bởi trigger
+          start_at?: string
+          end_at?: string
+        }
+        Update: Partial<Pick<ShiftRow, "employee_id" | "work_date" | "start_time" | "end_time" | "template_id" | "note" | "status" | "cancel_reason">>
+        Relationships: [
+          {
+            foreignKeyName: "shifts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_requests: {
+        Row: ScheduleRequestRow
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "schedule_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_requests_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_requests_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_requests_target_shift_id_fkey"
+            columns: ["target_shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_profiles: {
         Row: PayrollProfileRow
         Insert: Partial<PayrollProfileRow> & { employee_id: string }
@@ -660,6 +842,79 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      publish_week_shifts: {
+        Args: { p_branch_id: string; p_week_start: string }
+        Returns: number
+      }
+      copy_week_shifts: {
+        Args: { p_branch_id: string; p_from_week: string; p_to_week: string }
+        Returns: Json
+      }
+      create_schedule_request: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["request_kind"]
+          p_reason: string
+          p_start_date?: string | null
+          p_end_date?: string | null
+          p_shift_id?: string | null
+          p_requested_time?: string | null
+          p_target_employee_id?: string | null
+          p_target_shift_id?: string | null
+        }
+        Returns: ScheduleRequestRow
+        SetofOptions: {
+          from: "*"
+          to: "schedule_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      respond_swap_request: {
+        Args: { p_request_id: string; p_accept: boolean }
+        Returns: ScheduleRequestRow
+        SetofOptions: {
+          from: "*"
+          to: "schedule_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_schedule_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      review_schedule_request: {
+        Args: { p_request_id: string; p_approve: boolean; p_note?: string | null; p_paid?: boolean }
+        Returns: ScheduleRequestRow
+        SetofOptions: {
+          from: "*"
+          to: "schedule_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_leave_paid: {
+        Args: { p_request_id: string; p_paid: boolean }
+        Returns: ScheduleRequestRow
+        SetofOptions: {
+          from: "*"
+          to: "schedule_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      branch_week_schedule: {
+        Args: { p_branch_id: string; p_week_start: string }
+        Returns: Json
+      }
+      branch_colleagues: {
+        Args: { p_branch_id: string }
+        Returns: { id: string; full_name: string }[]
+      }
+      my_schedule_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       payroll_overview: {
         Args: { p_period: Database["public"]["Enums"]["pay_period"]; p_period_start: string }
         Returns: Json
@@ -830,6 +1085,9 @@ export type Database = {
       }
     }
     Enums: {
+      shift_status: "draft" | "published" | "cancelled"
+      request_kind: "leave" | "late" | "early_leave" | "swap"
+      request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
       pay_type: "hourly" | "per_shift" | "fixed"
       pay_period: "weekly" | "monthly"
       payroll_adjustment_kind: "kpi" | "bonus" | "allowance" | "deduction" | "correction_plus" | "correction_minus"
@@ -885,3 +1143,10 @@ export type TaskInstance = TaskInstanceRow
 export type TaskFrequency = Database["public"]["Enums"]["task_frequency"]
 export type TaskPriority = Database["public"]["Enums"]["task_priority"]
 export type TaskStatus = Database["public"]["Enums"]["task_status"]
+export type ScheduleSettings = ScheduleSettingsRow
+export type ShiftTemplate = ShiftTemplateRow
+export type Shift = ShiftRow
+export type ScheduleRequest = ScheduleRequestRow
+export type ShiftStatus = Database["public"]["Enums"]["shift_status"]
+export type RequestKind = Database["public"]["Enums"]["request_kind"]
+export type RequestStatus = Database["public"]["Enums"]["request_status"]

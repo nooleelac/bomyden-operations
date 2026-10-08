@@ -117,6 +117,10 @@ export type PayslipData = {
   shifts: number;
   work_days: number;
   late_count: number;
+  // Có từ Phase 5 (phiếu chốt trước đó không có)
+  early_count?: number;
+  absent_count?: number;
+  paid_leave_days?: number;
   lines: PayslipLine[];
   gross_amount: number;
   deductions_amount: number;
