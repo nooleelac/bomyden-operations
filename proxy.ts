@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Các đường dẫn không cần đăng nhập
-const PUBLIC_PATHS = ["/login", "/auth/signout"];
+const PUBLIC_PATHS = ["/login", "/auth/signout", "/sw.js", "/manifest.webmanifest", "/icons", "/apple-icon"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(

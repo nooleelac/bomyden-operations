@@ -33,7 +33,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     supabase
       .from("task_instances")
       .select(
-        "id, title, category, start_at, due_at, status, completed_at, note, photo_path, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
+        "id, title, category, start_at, due_at, status, completed_at, note, photo_path, photo_purged_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
       )
       .eq("task_date", date)
       .neq("status", "cancelled")
@@ -59,7 +59,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     throw new Error("Không tải được dữ liệu checklist.");
   }
 
-  const photoUrls = await signTaskPhotos(reportRes.data.map((r) => r.photo_path));
+  const photoUrls = await signTaskPhotos(reportRes.data.map((r) => (r.photo_purged_at ? null : r.photo_path)));
 
   const report: ReportItem[] = reportRes.data.map((r) => ({
     id: r.id,
@@ -74,7 +74,8 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     completedByName: r.completer?.full_name ?? null,
     completedAt: r.completed_at,
     note: r.note,
-    photoUrl: r.photo_path ? photoUrls.get(r.photo_path) ?? null : null,
+    photoUrl: r.photo_path && !r.photo_purged_at ? photoUrls.get(r.photo_path) ?? null : null,
+    photoPurged: Boolean(r.photo_purged_at),
     canReopen: date === today && (r.status === "done" || r.status === "failed"),
   }));
 

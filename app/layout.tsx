@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   },
   description: "Hệ thống quản lý vận hành quán Bò Mỹ Đen",
   robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: "Bò Mỹ Đen", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {

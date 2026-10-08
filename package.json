@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "admin:create": "node --env-file=.env.local scripts/create-first-admin.mjs"
+    "admin:create": "node --env-file=.env.local scripts/create-first-admin.mjs",
+    "push:setup": "node --env-file=.env.local scripts/setup-push.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

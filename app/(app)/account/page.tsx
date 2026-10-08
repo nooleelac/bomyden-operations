@@ -4,6 +4,7 @@ import { requireEmployee } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { formatPhone } from "@/lib/phone";
 import ChangePasswordForm from "./ChangePasswordForm";
+import PushToggle from "@/components/PushToggle";
 
 export const metadata: Metadata = { title: "Tài khoản của tôi" };
 export const instant = false;
@@ -39,6 +40,8 @@ export default async function AccountPage() {
           Cần sửa thông tin? Liên hệ Quản lý hoặc Quản trị viên.
         </p>
       </section>
+
+      <PushToggle />
 
       <section className="card mt-6 p-5 sm:p-6">
         <h2 className="mb-4 font-semibold">Đổi mật khẩu</h2>

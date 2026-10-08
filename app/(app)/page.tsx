@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
 import { canAccessPayroll, canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
+import PushToggle from "@/components/PushToggle";
 
 export const instant = false;
 
@@ -61,6 +62,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       {params.error === "forbidden" && (
         <p className="alert-error mb-6">Bạn không có quyền truy cập trang đó.</p>
       )}
+
+      <PushToggle compact />
 
       <h1 className="text-2xl font-bold tracking-tight">Xin chào, {employee.full_name}</h1>
       <p className="mt-1 text-neutral-500">Chọn chức năng để bắt đầu.</p>

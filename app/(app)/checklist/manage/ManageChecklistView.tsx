@@ -24,6 +24,8 @@ export type ReportItem = {
   completedAt: string | null;
   note: string | null;
   photoUrl: string | null;
+  /** Ảnh đã được tự dọn (quá 3 tháng) */
+  photoPurged: boolean;
   canReopen: boolean;
 };
 
@@ -108,6 +110,11 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={item.photoUrl} alt="Ảnh hoàn thành" className="h-14 w-14 rounded-md object-cover" />
                       </a>
+                    )}
+                    {item.photoPurged && (
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-center text-[10px] leading-tight text-neutral-400" title="Ảnh cũ hơn 3 tháng đã được tự xóa">
+                        Ảnh đã dọn
+                      </span>
                     )}
                     <div className="min-w-0 flex-1 text-sm">
                       <div className="flex flex-wrap items-center gap-2">

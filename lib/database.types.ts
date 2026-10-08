@@ -91,6 +91,7 @@ type TaskInstanceRow = {
   id: string
   note: string | null
   photo_path: string | null
+  photo_purged_at: string | null
   primary_employee_id: string
   priority: Database["public"]["Enums"]["task_priority"]
   reopen_reason: string | null
@@ -145,6 +146,30 @@ type PayrollSettingsRow = {
   absent_penalty: number
   updated_at: string
   updated_by: string | null
+}
+
+type NotificationRow = {
+  id: string
+  employee_id: string
+  kind: Database["public"]["Enums"]["notification_kind"]
+  task_instance_id: string | null
+  title: string
+  body: string
+  url: string
+  created_at: string
+  read_at: string | null
+  push_sent_at: string | null
+}
+
+type PushSubscriptionRow = {
+  id: string
+  employee_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
+  created_at: string
+  updated_at: string
 }
 
 type ScheduleSettingsRow = {
@@ -576,6 +601,18 @@ export type Database = {
         Update: Partial<Omit<PayrollSettingsRow, "id">>
         Relationships: []
       }
+      notifications: {
+        Row: NotificationRow
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: PushSubscriptionRow
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       schedule_settings: {
         Row: ScheduleSettingsRow
         Insert: never
@@ -842,6 +879,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_push_subscription: {
+        Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }
+        Returns: undefined
+      }
+      delete_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: undefined
+      }
+      mark_notifications_read: {
+        Args: { p_ids?: string[] | null }
+        Returns: number
+      }
       publish_week_shifts: {
         Args: { p_branch_id: string; p_week_start: string }
         Returns: number
@@ -1085,6 +1134,7 @@ export type Database = {
       }
     }
     Enums: {
+      notification_kind: "task_due_soon" | "task_overdue" | "task_overdue_report"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
@@ -1143,6 +1193,7 @@ export type TaskInstance = TaskInstanceRow
 export type TaskFrequency = Database["public"]["Enums"]["task_frequency"]
 export type TaskPriority = Database["public"]["Enums"]["task_priority"]
 export type TaskStatus = Database["public"]["Enums"]["task_status"]
+export type Notification = NotificationRow
 export type ScheduleSettings = ScheduleSettingsRow
 export type ShiftTemplate = ShiftTemplateRow
 export type Shift = ShiftRow

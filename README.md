@@ -85,6 +85,22 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
   đơn nghỉ đã duyệt (chỉ NV phải chấm công); ngày nghỉ có lương = 1 ngày công cho lương cố định. Đơn chờ duyệt trong kỳ chặn chốt.
 - Chấm công vẫn tự do, không bắt buộc có ca.
 
+## Thông báo & tự dọn ảnh
+
+- **Thông báo đẩy (Web Push)** — hiện cả khi app đóng / màn hình tắt. Người dùng bấm "Bật thông báo" (trang chủ, Tài khoản
+  hoặc Thông báo). iPhone (iOS 16.4+): phải mở bằng Safari → Chia sẻ → "Thêm vào MH chính" rồi bật trong app. Cần HTTPS
+  (chạy thật sau khi deploy; localhost dùng để thử trên máy tính).
+- **Nhắc checklist**: trước hạn chót 30 phút → người phụ trách (người chính; + người thay thế nếu người chính chưa chấm công).
+  Quá hạn → người phụ trách + Quản lý chi nhánh + Quản trị viên. Mỗi loại chỉ báo 1 lần/việc; chuông 🔔 trên đầu trang
+  lưu thông báo 60 ngày.
+- **Cách chạy**: `pg_cron` mỗi phút gọi `private.run_task_reminders()` (ghi bảng `notifications`) → nếu có tin cần đẩy thì
+  gọi Edge Function `ops-jobs` (`supabase/functions/ops-jobs`) qua `pg_net`. Edge Function gửi Web Push, tự gỡ thiết bị hết hạn.
+- **Tự dọn ảnh checklist**: 03:00 hằng đêm xóa ảnh cũ hơn **3 tháng** khỏi kho `task-photos` (giữ dòng lịch sử, đánh dấu
+  `photo_purged_at`; báo cáo hiện "Ảnh đã dọn").
+- **Cài đặt 1 lần cho mỗi project**: deploy Edge Function `ops-jobs` (verify_jwt = false, tự kiểm tra `x-cron-secret`),
+  rồi chạy `npm run push:setup` — tạo khóa VAPID + mã cron, lưu vào Supabase Vault, ghi `NEXT_PUBLIC_VAPID_PUBLIC_KEY` vào
+  `.env.local` (khi deploy nhớ thêm biến này vào hosting). `-- --rotate` để đổi khóa (mọi thiết bị phải bật lại).
+
 ## Dọn dữ liệu thử (an toàn)
 
 Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,
@@ -96,7 +112,8 @@ và xóa tài khoản đăng nhập qua Supabase Auth Admin API (`deleteUser`).
 2. Sao chép `.env.example` → `.env.local`, điền URL, publishable key, secret key của project Supabase.
 3. Áp dụng migration trong `supabase/migrations/` lên project.
 4. Tạo Quản trị viên đầu tiên: `npm run admin:create`
-5. `npm run dev` → http://localhost:3000
+5. Thông báo đẩy: deploy Edge Function `supabase/functions/ops-jobs`, rồi `npm run push:setup`
+6. `npm run dev` → http://localhost:3000
 
 ## Kiểm tra
 
