@@ -46,7 +46,7 @@ export async function completeTask(
       return fail("Ảnh phải là JPG, PNG hoặc WEBP.", { photo: "Định dạng ảnh không hợp lệ." });
     }
     if (photo.size > TASK_PHOTO_MAX_BYTES) {
-      return fail("Ảnh quá lớn (tối đa 5 MB).", { photo: "Ảnh quá lớn." });
+      return fail("Ảnh quá lớn (tối đa 3,5 MB).", { photo: "Ảnh quá lớn." });
     }
     const ext = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
     photoPath = `${task.branch_id}/${task.task_date}/${task.id}/${randomUUID()}.${ext}`;

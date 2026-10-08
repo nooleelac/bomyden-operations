@@ -3,7 +3,8 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const TASK_PHOTO_BUCKET = "task-photos";
-export const TASK_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+// Dưới giới hạn body 4,5 MB của Vercel (ảnh đã được thu nhỏ trên điện thoại trước khi gửi)
+export const TASK_PHOTO_MAX_BYTES = 3.5 * 1024 * 1024;
 export const TASK_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /**

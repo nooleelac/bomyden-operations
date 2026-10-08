@@ -8,9 +8,10 @@ const nextConfig: NextConfig = {
     instantInsights: {
       validationLevel: "manual-warning",
     },
-    // Ảnh checklist (đã được thu nhỏ trên điện thoại trước khi gửi; kho ảnh giới hạn 5 MB/ảnh)
+    // Ảnh checklist (đã được thu nhỏ trên điện thoại trước khi gửi, thường ~350 KB).
+    // Vercel giới hạn body request 4,5 MB → giữ dưới mức đó.
     serverActions: {
-      bodySizeLimit: "6mb",
+      bodySizeLimit: "4mb",
     },
   },
   partialPrefetching: true,
