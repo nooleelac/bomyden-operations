@@ -301,6 +301,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
           <BulkAssignDialog
             key={assigning ? [...selected].join() : "closed"}
             selected={templates.filter((t) => selected.has(t.id))}
+            allTemplates={templates}
             branches={branches}
             open={assigning}
             onClose={() => setAssigning(false)}

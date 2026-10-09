@@ -10,13 +10,15 @@ import type { BranchStaff, TemplateItem } from "./TemplateDialog";
 
 type Props = {
   selected: TemplateItem[];
+  /** Mọi mẫu (để báo trước việc trùng tên) */
+  allTemplates: TemplateItem[];
   branches: BranchStaff[];
   open: boolean;
   onClose: () => void;
   onDone: (message: string) => void;
 };
 
-export default function BulkAssignDialog({ selected, branches, open, onClose, onDone }: Props) {
+export default function BulkAssignDialog({ selected, allTemplates, branches, open, onClose, onDone }: Props) {
   const [primary, setPrimary] = useState("");
   const [state, formAction, pending] = useFormAction(bulkAssignTemplates, (r) => onDone(r.message));
   const label = "mb-1.5 block text-sm font-medium text-neutral-700";
@@ -25,6 +27,19 @@ export default function BulkAssignDialog({ selected, branches, open, onClose, on
   const branchIds = [...new Set(selected.map((t) => t.branchId))];
   const staffLists = branchIds.map((id) => branches.find((b) => b.id === id)?.staff ?? []);
   const staff = (staffLists[0] ?? []).filter((s) => staffLists.every((list) => list.some((x) => x.id === s.id)));
+
+  // Không giao trùng việc: 1 người không phụ trách 2 mẫu đang áp dụng cùng tên trong cùng chi nhánh
+  const key = (t: TemplateItem) => `${t.branchId}|${t.title.trim().replace(/\s+/g, " ").toLowerCase()}`;
+  const duplicates = new Set<string>();
+  if (primary) {
+    const seen = new Set<string>();
+    const selectedIds = new Set(selected.map((t) => t.id));
+    const taken = new Set(allTemplates.filter((t) => t.isActive && t.primaryId === primary && !selectedIds.has(t.id)).map(key));
+    for (const t of selected.filter((t) => t.isActive)) {
+      if (seen.has(key(t)) || taken.has(key(t))) duplicates.add(t.title.trim());
+      seen.add(key(t));
+    }
+  }
 
   return (
     <Dialog open={open} onClose={onClose} title="Giao việc hàng loạt" description={`${selected.length} công việc đã chọn`}>
@@ -73,6 +88,12 @@ export default function BulkAssignDialog({ selected, branches, open, onClose, on
           <p className="alert-error">Bỏ giao sẽ hủy các việc chưa làm của những mẫu này từ hôm nay.</p>
         )}
 
+        {duplicates.size > 0 && (
+          <p role="alert" className="alert-error">
+            {staff.find((s) => s.id === primary)?.name} sẽ bị giao trùng việc: {[...duplicates].map((t) => `"${t}"`).join(", ")}.
+            Hãy bỏ chọn bớt mẫu trùng tên hoặc chọn người khác.
+          </p>
+        )}
         {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
         <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>

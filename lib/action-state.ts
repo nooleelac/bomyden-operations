@@ -34,6 +34,7 @@ export function friendlyDbError(error: { code?: string; message?: string } | nul
   if (error.code === "23505") {
     if (error.message?.includes("email")) return "Email này đã được dùng cho nhân viên khác.";
     if (error.message?.includes("phone")) return "Số điện thoại này đã được dùng cho nhân viên khác.";
+    if (error.message?.includes("task_templates_no_duplicate")) return "Không giao trùng việc: nhân viên đã có công việc cùng tên ở chi nhánh này.";
     return "Dữ liệu bị trùng.";
   }
   if (error.code === "42501") {
