@@ -7,6 +7,7 @@ import { vnDateString } from "@/lib/time";
 import { friendlyDbError } from "@/lib/action-state";
 import {
   PAY_TYPE_LABELS,
+  formatDayMonth,
   formatHours,
   formatMoney,
   isValidPeriodStart,
@@ -107,7 +108,9 @@ export default async function PayrollPage({ searchParams }: PageProps<"/payroll"
                       <p className="flex flex-wrap items-center gap-2 font-semibold">
                         {item.full_name}
                         {item.finalized ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Đã chốt</span>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                            {item.closed_early ? `Đã chốt sớm · đến ${formatDayMonth(item.period_end)}` : "Đã chốt"}
+                          </span>
                         ) : (
                           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">Tạm tính</span>
                         )}

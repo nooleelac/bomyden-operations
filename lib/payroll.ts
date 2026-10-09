@@ -86,9 +86,24 @@ function dm(day: string): string {
   return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
 }
 
-export function periodLabel(period: PayPeriod, start: string): string {
-  if (period === "monthly") return `Tháng ${start.slice(5, 7)}/${start.slice(0, 4)}`;
-  return `Tuần ${dm(start)} – ${dm(periodEnd(period, start))}/${periodEnd(period, start).slice(0, 4)}`;
+/** `end`: ngày kết thúc thực tế của phiếu (chốt sớm) — ghi chú nếu sớm hơn hết kỳ. */
+export function periodLabel(period: PayPeriod, start: string, end?: string | null): string {
+  const label =
+    period === "monthly"
+      ? `Tháng ${start.slice(5, 7)}/${start.slice(0, 4)}`
+      : `Tuần ${dm(start)} – ${dm(periodEnd(period, start))}/${periodEnd(period, start).slice(0, 4)}`;
+  return end && end < periodEnd(period, start) ? `${label} (chốt sớm đến ${dm(end)})` : label;
+}
+
+/** Ngày chốt sớm hợp lệ: trong kỳ, từ đầu kỳ đến hôm nay. */
+export function isValidEarlyEnd(period: PayPeriod, start: string, end: unknown, today: string): end is string {
+  if (typeof end !== "string" || !/^d{4}-d{2}-d{2}$/.test(end)) return false;
+  if (Number.isNaN(toUtcDate(end).getTime())) return false;
+  return end >= start && end <= today && end <= periodEnd(period, start);
+}
+
+export function formatDayMonth(day: string): string {
+  return dm(day);
 }
 
 // ---------------------------------------------------------------------
@@ -112,6 +127,8 @@ export type PayslipData = {
   pay_period: PayPeriod;
   period_start: string;
   period_end: string;
+  /** Chốt sớm (NV nghỉ giữa kỳ): period_end trước ngày cuối kỳ */
+  closed_early?: boolean;
   worked_minutes: number;
   overtime_minutes: number;
   shifts: number;

@@ -5,7 +5,7 @@ import ActionForm from "@/components/ActionForm";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import { addAdjustment, deleteAdjustment, finalizePayslip } from "../actions";
-import { ADJUSTMENT_KINDS, formatMoney } from "@/lib/payroll";
+import { ADJUSTMENT_KINDS, formatDayMonth, formatMoney } from "@/lib/payroll";
 
 export function AddAdjustmentForm({ employeeId, periodStart }: { employeeId: string; periodStart: string }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -61,21 +61,36 @@ export function DeleteAdjustmentButton({ adjustmentId, label, amount }: { adjust
   );
 }
 
-export function FinalizeButton({ employeeId, periodStart, name, net }: { employeeId: string; periodStart: string; name: string; net: number }) {
-  const [state, action, pending] = useFormAction(finalizePayslip.bind(null, employeeId, periodStart));
+export function FinalizeButton({
+  employeeId,
+  periodStart,
+  endDate = null,
+  name,
+  net,
+}: {
+  employeeId: string;
+  periodStart: string;
+  /** Có = chốt sớm đến ngày này */
+  endDate?: string | null;
+  name: string;
+  net: number;
+}) {
+  const [state, action, pending] = useFormAction(finalizePayslip.bind(null, employeeId, periodStart, endDate));
   const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="card space-y-3 p-4">
       {!confirming ? (
         <button type="button" onClick={() => setConfirming(true)} className="btn-primary w-full py-3">
-          Chốt lương kỳ này
+          {endDate ? `Chốt lương sớm đến ${formatDayMonth(endDate)}` : "Chốt lương kỳ này"}
         </button>
       ) : (
         <>
           <p className="text-sm">
-            Chốt lương <strong>{name}</strong>: thực nhận <strong>{formatMoney(net)}</strong>. Sau khi chốt, phiếu lương bị
-            khóa — sai sót sẽ phải truy thu/truy lĩnh ở kỳ sau.
+            Chốt lương <strong>{name}</strong>
+            {endDate && <> sớm đến hết ngày <strong>{formatDayMonth(endDate)}</strong></>}: thực nhận{" "}
+            <strong>{formatMoney(net)}</strong>. Sau khi chốt, phiếu lương bị khóa — sai sót sẽ phải truy thu/truy lĩnh ở kỳ sau.
+            {endDate && " Công phát sinh sau ngày chốt trong kỳ này sẽ không được tính."}
           </p>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setConfirming(false)} className="btn-secondary">Hủy</button>

@@ -16,7 +16,7 @@ export default async function MyPayslipsPage() {
     supabase.from("payroll_profiles").select("can_view_payslip").eq("employee_id", me.id).maybeSingle(),
     supabase
       .from("payslips")
-      .select("id, pay_period, period_start, net_amount, finalized_at")
+      .select("id, pay_period, period_start, period_end, net_amount, finalized_at")
       .eq("employee_id", me.id)
       .order("period_start", { ascending: false })
       .limit(24),
@@ -38,7 +38,7 @@ export default async function MyPayslipsPage() {
           {slips!.map((s) => (
             <li key={s.id}>
               <Link href={`/payslips/${s.id}`} className="card flex items-center justify-between p-4 transition hover:border-neutral-400">
-                <span className="font-semibold">{periodLabel(s.pay_period, s.period_start)}</span>
+                <span className="font-semibold">{periodLabel(s.pay_period, s.period_start, s.period_end)}</span>
                 <span className="font-bold tabular-nums">{formatMoney(s.net_amount)}</span>
               </Link>
             </li>

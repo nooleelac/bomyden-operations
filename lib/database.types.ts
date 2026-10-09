@@ -1651,11 +1651,11 @@ export type Database = {
         Returns: Json
       }
       payroll_preview: {
-        Args: { p_employee_id: string; p_period_start: string }
+        Args: { p_employee_id: string; p_period_start: string; p_end_date?: string }
         Returns: Json
       }
       finalize_payslip: {
-        Args: { p_employee_id: string; p_period_start: string }
+        Args: { p_employee_id: string; p_period_start: string; p_end_date?: string }
         Returns: PayslipRow
         SetofOptions: {
           from: "*"

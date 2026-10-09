@@ -3,7 +3,7 @@ import { requirePayrollAccess } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { addSheet, createWorkbook, excelResponse } from "@/lib/excel";
-import { PAY_TYPE_LABELS, isValidPeriodStart, periodLabel, periodStartOf, type PayrollOverview } from "@/lib/payroll";
+import { PAY_TYPE_LABELS, formatDayMonth, isValidPeriodStart, periodLabel, periodStartOf, type PayrollOverview } from "@/lib/payroll";
 import { vnDateString } from "@/lib/time";
 import type { EmployeeRole, PayPeriod } from "@/lib/database.types";
 
@@ -40,7 +40,12 @@ export async function GET(request: NextRequest) {
       { header: "Tổng thu nhập", type: "money", width: 16, total: true, value: (i) => i.gross_amount },
       { header: "Khấu trừ", type: "money", width: 14, total: true, value: (i) => i.deductions_amount },
       { header: "Thực nhận", type: "money", width: 16, total: true, value: (i) => i.net_amount },
-      { header: "Trạng thái", width: 11, value: (i) => (i.finalized ? "Đã chốt" : "Tạm tính") },
+      {
+        header: "Trạng thái",
+        width: 18,
+        value: (i) =>
+          i.finalized ? (i.closed_early ? `Chốt sớm đến ${formatDayMonth(i.period_end)}` : "Đã chốt") : "Tạm tính",
+      },
       { header: "Cảnh báo", width: 40, value: (i) => i.warnings.map((w) => w.message).join(" · ") },
     ],
     overview.items,

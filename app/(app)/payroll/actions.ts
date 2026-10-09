@@ -171,14 +171,18 @@ export async function deleteAdjustment(adjustmentId: string): Promise<ActionStat
 // =====================================================================
 // CHỐT LƯƠNG
 // =====================================================================
-export async function finalizePayslip(employeeId: string, periodStart: string): Promise<ActionState> {
+export async function finalizePayslip(employeeId: string, periodStart: string, endDate: string | null): Promise<ActionState> {
   await requirePayrollAccess();
   const supabase = await createClient();
-  const { error } = await supabase.rpc("finalize_payslip", { p_employee_id: employeeId, p_period_start: periodStart });
+  const { error } = await supabase.rpc("finalize_payslip", {
+    p_employee_id: employeeId,
+    p_period_start: periodStart,
+    ...(endDate ? { p_end_date: endDate } : {}),
+  });
   if (error) return fail(friendlyDbError(error));
 
   revalidatePayroll();
-  return success("Đã chốt lương. Phiếu lương đã được khóa.");
+  return success(endDate ? "Đã chốt lương sớm. Phiếu lương đã được khóa." : "Đã chốt lương. Phiếu lương đã được khóa.");
 }
 
 // =====================================================================
