@@ -129,6 +129,42 @@ export async function copyWeek(branchId: string, fromWeek: string, toWeek: strin
   );
 }
 
+// Xếp nhanh: nhiều ngày × (mẫu ca → nhiều nhân viên), tạo ca nháp hàng loạt
+const bulkSchema = z.object({
+  dates: z.array(date).min(1, { message: "Chọn ít nhất 1 ngày." }).max(62, { message: "Tối đa 62 ngày mỗi lần." }),
+  assignments: z
+    .array(z.object({ template_id: z.uuid(), employee_ids: z.array(z.uuid()).min(1) }))
+    .min(1, { message: "Chưa tick nhân viên nào." }),
+});
+
+export async function bulkCreateShifts(branchId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  let input: unknown;
+  try {
+    input = JSON.parse(str(formData, "payload"));
+  } catch {
+    return fail("Dữ liệu không hợp lệ.");
+  }
+  const parsed = bulkSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bulk_create_shifts", {
+    p_branch_id: branchId,
+    p_dates: parsed.data.dates,
+    p_assignments: parsed.data.assignments,
+  });
+  if (error) return fail(friendlyDbError(error));
+  const result = data as { created: number; skipped: number };
+  revalidateSchedule();
+  if (result.created === 0) return fail(`Không tạo được ca nào — ${result.skipped} ca bị trùng giờ với ca đã có hoặc nhân viên không còn ở chi nhánh.`);
+  return success(
+    `Đã xếp ${result.created} ca (nháp)` +
+      (result.skipped ? `, bỏ qua ${result.skipped} ca bị trùng giờ hoặc đã xếp trước đó.` : ".") +
+      " Nhớ bấm “Công bố” để nhân viên thấy."
+  );
+}
+
 // =====================================================================
 // MẪU CA
 // =====================================================================
@@ -212,6 +248,39 @@ export async function setLeavePaid(requestId: string, paid: boolean): Promise<Ac
 }
 
 // =====================================================================
+// ĐĂNG KÝ CA CỦA NHÂN VIÊN
+// =====================================================================
+export async function reviewRegistrations(approve: boolean, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const ids = formData.getAll("ids").map(String);
+  if (ids.length === 0 || !ids.every((id) => z.uuid().safeParse(id).success)) return fail("Chưa chọn đăng ký nào.");
+  const noteText = str(formData, "review_note");
+  if (!approve && noteText.length < 3) return fail("Vui lòng ghi lý do từ chối.", { review_note: "Nhập lý do (ít nhất 3 ký tự)." });
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("review_shift_registrations", { p_ids: ids, p_approve: approve, p_note: noteText || null });
+  if (error) return fail(friendlyDbError(error));
+  const result = data as { done: number; skipped: number };
+  revalidateSchedule();
+  if (!approve) return success(`Đã từ chối ${result.done} đăng ký.`);
+  if (result.done === 0 && result.skipped) return fail(`Không duyệt được — ${result.skipped} đăng ký bị trùng giờ với ca đã có.`);
+  return success(
+    `Đã duyệt ${result.done} đăng ký thành ca nháp` +
+      (result.skipped ? `, ${result.skipped} đăng ký bị trùng giờ với ca đã có nên vẫn để chờ.` : ".") +
+      " Nhớ bấm “Công bố” ở tab Xếp lịch."
+  );
+}
+
+export async function setSelfSchedule(employeeId: string, enabled: boolean): Promise<ActionState> {
+  await requireManager();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_self_schedule", { p_employee_id: employeeId, p_enabled: enabled });
+  if (error) return fail(friendlyDbError(error));
+  revalidateSchedule();
+  return success(enabled ? "Đã cho phép tự đăng ký ca." : "Đã tắt tự đăng ký ca.");
+}
+
+// =====================================================================
 // CÀI ĐẶT ĐƠN (chỉ QTV)
 // =====================================================================
 const hours = (label: string) => z.coerce.number({ message: `${label} phải là số.` }).int().min(0, { message: "Tối thiểu 0." }).max(720, { message: "Tối đa 720 giờ." });
@@ -226,6 +295,7 @@ const settingsSchema = z.object({
   late_per_month: perMonth("Số lần trễ"),
   early_per_month: perMonth("Số lần về sớm"),
   swap_per_month: perMonth("Số lần đổi ca"),
+  register_deadline_days: z.coerce.number({ message: "Số ngày phải là số." }).int().min(0, { message: "Tối thiểu 0." }).max(60, { message: "Tối đa 60 ngày." }),
 });
 
 export async function saveScheduleSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {

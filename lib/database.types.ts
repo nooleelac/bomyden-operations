@@ -182,6 +182,7 @@ type ScheduleSettingsRow = {
   late_per_month: number
   early_per_month: number
   swap_per_month: number
+  register_deadline_days: number
   updated_at: string
   updated_by: string | null
 }
@@ -529,6 +530,7 @@ export type Database = {
           requires_attendance: boolean
           can_manage_payroll: boolean
           can_receive_stock: boolean
+          self_schedule: boolean
           role: Database["public"]["Enums"]["employee_role"]
           sort_order: number
           updated_at: string
@@ -549,6 +551,7 @@ export type Database = {
           requires_attendance?: boolean
           can_manage_payroll?: boolean
           can_receive_stock?: boolean
+          self_schedule?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -569,6 +572,7 @@ export type Database = {
           requires_attendance?: boolean
           can_manage_payroll?: boolean
           can_receive_stock?: boolean
+          self_schedule?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -1552,6 +1556,30 @@ export type Database = {
         Args: { p_branch_id: string; p_from_week: string; p_to_week: string }
         Returns: Json
       }
+      bulk_create_shifts: {
+        Args: { p_branch_id: string; p_dates: string[]; p_assignments: Json }
+        Returns: Json
+      }
+      my_shift_registrations: {
+        Args: { p_branch_id: string; p_from: string; p_to: string }
+        Returns: Json
+      }
+      save_shift_registrations: {
+        Args: { p_branch_id: string; p_from: string; p_to: string; p_items: Json }
+        Returns: Json
+      }
+      branch_shift_registrations: {
+        Args: { p_branch_id: string; p_from: string; p_to: string }
+        Returns: Json
+      }
+      review_shift_registrations: {
+        Args: { p_ids: string[]; p_approve: boolean; p_note?: string | null }
+        Returns: Json
+      }
+      set_self_schedule: {
+        Args: { p_employee_id: string; p_enabled: boolean }
+        Returns: undefined
+      }
       create_schedule_request: {
         Args: {
           p_kind: Database["public"]["Enums"]["request_kind"]
@@ -1794,6 +1822,7 @@ export type Database = {
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
+      registration_status: "pending" | "approved" | "rejected"
       pay_type: "hourly" | "per_shift" | "fixed"
       pay_period: "weekly" | "monthly"
       payroll_adjustment_kind: "kpi" | "bonus" | "allowance" | "deduction" | "correction_plus" | "correction_minus"
@@ -1857,6 +1886,7 @@ export type ScheduleRequest = ScheduleRequestRow
 export type ShiftStatus = Database["public"]["Enums"]["shift_status"]
 export type RequestKind = Database["public"]["Enums"]["request_kind"]
 export type RequestStatus = Database["public"]["Enums"]["request_status"]
+export type RegistrationStatus = Database["public"]["Enums"]["registration_status"]
 export type Supplier = Database["public"]["Tables"]["suppliers"]["Row"]
 export type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"]
 export type InventoryItemUnit = Database["public"]["Tables"]["inventory_item_units"]["Row"]

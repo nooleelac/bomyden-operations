@@ -9,7 +9,7 @@ import type { Employee } from "@/lib/database.types";
 
 export type CurrentEmployee = Pick<
   Employee,
-  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active" | "requires_attendance" | "can_manage_payroll" | "can_receive_stock"
+  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active" | "requires_attendance" | "can_manage_payroll" | "can_receive_stock" | "self_schedule"
 >;
 
 /**
@@ -28,7 +28,7 @@ export const getCurrentEmployee = cache(async (): Promise<CurrentEmployee | null
 
   const { data: employee, error } = await supabase
     .from("employees")
-    .select("id, auth_user_id, full_name, email, phone, role, is_active, requires_attendance, can_manage_payroll, can_receive_stock")
+    .select("id, auth_user_id, full_name, email, phone, role, is_active, requires_attendance, can_manage_payroll, can_receive_stock, self_schedule")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 

@@ -51,6 +51,52 @@ export function weekDays(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 }
 
+/** Thứ trong tuần: 0 = CN … 6 = T7 */
+export function weekdayOf(day: string): number {
+  return toUtc(day).getUTCDay();
+}
+
+/** Danh sách ngày từ `from` đến `to` (gồm cả 2 đầu) */
+export function daysBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  for (let d = from; d <= to && out.length < 400; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+export function monthStartOf(day: string): string {
+  return `${day.slice(0, 7)}-01`;
+}
+
+export function monthEndOf(day: string): string {
+  const d = toUtc(monthStartOf(day));
+  d.setUTCMonth(d.getUTCMonth() + 1, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+export type Period = { mode: "week" | "month"; from: string; to: string; prev: string; next: string; label: string };
+
+/**
+ * Kỳ xem theo tuần (start = thứ Hai) hoặc theo tháng (start = "YYYY-MM").
+ * `fallback` là ngày nằm trong kỳ mặc định khi `start` không hợp lệ.
+ */
+export function resolvePeriod(mode: unknown, start: unknown, fallback: string): Period {
+  if (mode === "month") {
+    const month = typeof start === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(start) ? start : fallback.slice(0, 7);
+    const from = `${month}-01`;
+    const to = monthEndOf(from);
+    return {
+      mode: "month",
+      from,
+      to,
+      prev: monthStartOf(addDays(from, -1)).slice(0, 7),
+      next: addDays(to, 1).slice(0, 7),
+      label: `Tháng ${Number(month.slice(5, 7))}/${month.slice(0, 4)}`,
+    };
+  }
+  const from = isMonday(start) ? start : weekStartOf(fallback);
+  return { mode: "week", from, to: addDays(from, 6), prev: addDays(from, -7), next: addDays(from, 7), label: weekLabel(from) };
+}
+
 /** "T2 12/10" */
 export function dayLabel(day: string): string {
   return `${WEEKDAYS[toUtc(day).getUTCDay()]} ${day.slice(8, 10)}/${day.slice(5, 7)}`;

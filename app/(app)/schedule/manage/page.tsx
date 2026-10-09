@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getManageableBranches } from "@/lib/branches";
 import { getRequestTime } from "@/lib/request-time";
 import { vnDateString } from "@/lib/time";
-import { hm, isMonday, weekStartOf, type WeekSchedule } from "@/lib/schedule";
+import { addDays, hm, isMonday, resolvePeriod, weekStartOf, type WeekSchedule } from "@/lib/schedule";
+import { ROLE_LABELS } from "@/lib/auth/roles";
+import PeriodNav from "../PeriodNav";
+import { RegistrationsManager, type BranchRegistration } from "./RegistrationsManager";
 import WeekNav from "../WeekNav";
 import { RequestsManager, ScheduleManager, ScheduleSettingsForm, TemplatesManager, type ManageRequest, type TemplateRow } from "./ManageViews";
 
@@ -14,6 +17,7 @@ export const instant = false;
 
 const TABS = [
   { key: "schedule", label: "Xếp lịch" },
+  { key: "registrations", label: "Đăng ký ca" },
   { key: "requests", label: "Đơn xin phép" },
   { key: "templates", label: "Mẫu ca" },
   { key: "settings", label: "Cài đặt", adminOnly: true },
@@ -74,6 +78,38 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
           data={weekRes.data as WeekSchedule}
           staff={staff}
           templates={tplRes.data.map((t) => ({ id: t.id, name: t.name, startTime: hm(t.start_time), endTime: hm(t.end_time) }))}
+        />
+      </>
+    );
+  } else if (tab === "registrations") {
+    const period = resolvePeriod(params.mode, params.start, params.mode === "month" ? today : addDays(today, 7));
+    const [regRes, tplRes, shiftRes, staffRes] = await Promise.all([
+      supabase.rpc("branch_shift_registrations", { p_branch_id: branchId, p_from: period.from, p_to: period.to }),
+      supabase.from("shift_templates").select("id, name, start_time, end_time").eq("branch_id", branchId).order("sort_order").order("start_time"),
+      supabase.from("shifts").select("work_date, template_id").eq("branch_id", branchId).neq("status", "cancelled").gte("work_date", period.from).lte("work_date", period.to),
+      supabase
+        .from("employee_branches")
+        .select("employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, role, is_active, sort_order, self_schedule)")
+        .eq("branch_id", branchId)
+        .eq("employee.is_active", true),
+    ]);
+    if (regRes.error || tplRes.error || shiftRes.error || staffRes.error) throw new Error("Không tải được đăng ký ca.");
+    const scheduled: Record<string, number> = {};
+    for (const s of shiftRes.data) if (s.template_id) scheduled[`${s.work_date}|${s.template_id}`] = (scheduled[`${s.work_date}|${s.template_id}`] ?? 0) + 1;
+    const staff = staffRes.data
+      .map((row) => row.employee)
+      .filter((e) => e.role !== "admin" && e.role !== "manager")
+      .sort((a, b) => Number(b.self_schedule) - Number(a.self_schedule) || a.sort_order - b.sort_order || a.full_name.localeCompare(b.full_name, "vi"))
+      .map((e) => ({ id: e.id, name: e.full_name, roleLabel: ROLE_LABELS[e.role], enabled: e.self_schedule }));
+    content = (
+      <>
+        <PeriodNav period={period} branches={branches} branchId={branchId} extra={{ tab }} />
+        <RegistrationsManager
+          key={`${branchId}-${period.from}`}
+          registrations={regRes.data as BranchRegistration[]}
+          templates={tplRes.data.map((t) => ({ id: t.id, name: t.name, startTime: hm(t.start_time), endTime: hm(t.end_time) }))}
+          scheduled={scheduled}
+          staff={staff}
         />
       </>
     );

@@ -72,9 +72,12 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Lịch làm việc</h1>
-        {canManageAttendance(me.role) && (
-          <Link href="/schedule/manage" className="btn-secondary">Xếp lịch & duyệt đơn</Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {me.self_schedule && <Link href="/schedule/register" className="btn-primary">Đăng ký ca</Link>}
+          {canManageAttendance(me.role) && (
+            <Link href="/schedule/manage" className="btn-secondary">Xếp lịch & duyệt đơn</Link>
+          )}
+        </div>
       </div>
 
       {branches.length > 0 && <WeekNav weekStart={weekStart} currentWeek={currentWeek} branches={branches} branchId={branchId} />}

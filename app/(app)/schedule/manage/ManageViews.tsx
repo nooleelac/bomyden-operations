@@ -7,6 +7,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import WeekView from "../WeekView";
 import ShiftDialog, { type TemplateOption } from "./ShiftDialog";
+import BulkShiftDialog from "./BulkShiftDialog";
 import {
   copyWeek,
   createShiftTemplate,
@@ -62,6 +63,7 @@ export function ScheduleManager({
 }) {
   const [toast, notify] = useToast();
   const [editing, setEditing] = useState<{ shift?: ScheduleShift; day?: string } | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [pubState, pubAction, pubPending] = useFormAction(() => publishWeek(branchId, weekStart), (r) => notify(r.message));
   const [copyState, copyAction, copyPending] = useFormAction(() => copyWeek(branchId, addDays(weekStart, -7), weekStart), (r) => notify(r.message));
   const drafts = data.shifts.filter((s) => s.status === "draft").length;
@@ -76,6 +78,9 @@ export function ScheduleManager({
           <strong>{published}</strong> ca đã công bố · <strong className={drafts ? "text-amber-700" : ""}>{drafts}</strong> ca nháp
         </span>
         <div className="ml-auto flex flex-wrap gap-2">
+          <button type="button" disabled={staff.length === 0} onClick={() => setBulkOpen(true)} className="btn-secondary">
+            Xếp nhanh theo ca
+          </button>
           <button
             type="button"
             disabled={copyPending}
@@ -121,6 +126,23 @@ export function ScheduleManager({
           onClose={() => setEditing(null)}
           onDone={(m) => {
             setEditing(null);
+            notify(m);
+          }}
+        />
+      )}
+
+      {bulkOpen && (
+        <BulkShiftDialog
+          branchId={branchId}
+          branchName={branchName}
+          weekStart={weekStart}
+          today={today}
+          staff={staff}
+          templates={templates}
+          shifts={data.shifts}
+          onClose={() => setBulkOpen(false)}
+          onDone={(m) => {
+            setBulkOpen(false);
             notify(m);
           }}
         />
@@ -425,6 +447,18 @@ export function ScheduleSettingsForm({ settings }: { settings: ScheduleSettings 
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="border-t border-neutral-100 pt-4">
+        <h2 className="font-semibold">Nhân viên tự đăng ký ca</h2>
+        <label htmlFor="st-reg" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          Phải đăng ký trước
+          <input id="st-reg" name="register_deadline_days" type="number" min={0} max={60} defaultValue={settings.register_deadline_days} className="input w-20" />
+          ngày
+        </label>
+        <p className="mt-1 text-xs text-neutral-500">
+          Ví dụ 3: hôm nay chỉ đăng ký / sửa được các ngày từ 3 ngày sau trở đi. Sau hạn, muốn đổi phải gửi đơn như bình thường.
+        </p>
+        <Err state={state} name="register_deadline_days" />
       </div>
       {state.message && <p role="status" className={state.ok ? "alert-success" : "alert-error"}>{state.message}</p>}
       <div className="flex justify-end">
