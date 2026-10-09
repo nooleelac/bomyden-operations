@@ -15,6 +15,8 @@ as $$
   select lower(regexp_replace(btrim(p_title), '\s+', ' ', 'g'))
 $$;
 revoke all on function private.task_title_key(text) from public;
+-- Unique index bên dưới gọi hàm này với quyền của người đang ghi → phải cho chạy
+grant execute on function private.task_title_key(text) to authenticated, service_role;
 
 -- Tên trigger xếp sau "task_templates_guard" → chạy sau khi tên đã được chuẩn hóa
 create or replace function private.task_templates_no_duplicate()
