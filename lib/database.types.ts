@@ -642,6 +642,24 @@ export type Database = {
           },
         ]
       }
+      shift_registrations: {
+        Row: {
+          id: string
+          branch_id: string
+          employee_id: string
+          work_date: string
+          template_id: string | null
+          status: Database["public"]["Enums"]["registration_status"]
+          shift_id: string | null
+          review_note: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       shifts: {
         Row: ShiftRow
         Insert: {
