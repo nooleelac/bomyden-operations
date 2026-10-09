@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRequestTime } from "@/lib/request-time";
 import { vnDateString, vnDayRange } from "@/lib/time";
-import { displayStatus } from "@/lib/checklist";
+import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ChecklistView from "./ChecklistView";
 import type { TaskCardData } from "./TaskCard";
@@ -23,26 +23,39 @@ export default async function ChecklistPage() {
   // Sinh việc hôm nay nếu chưa có (idempotent)
   await supabase.rpc("ensure_task_instances");
 
-  const [{ data: tasks, error }, { data: openShift }] = await Promise.all([
+  const range = vnDayRange(today);
+  const [{ data: allTasks, error }, { data: openShift }, { data: myShifts }] = await Promise.all([
     supabase
       .from("task_instances")
       .select(
-        "id, branch_id, title, description, category, priority, start_at, due_at, requires_photo, requires_note, status, completed_by, completed_at, note, photo_path, reopen_reason, primary_employee_id, backup_employee_id, branch:branches(name)"
+        "id, branch_id, title, description, category, priority, start_at, due_at, requires_photo, requires_note, status, completed_by, completed_at, note, photo_path, reopen_reason, by_shift, primary_employee_id, backup_employee_id, branch:branches(name)"
       )
       .eq("task_date", today)
       .neq("status", "cancelled")
-      .or(`primary_employee_id.eq.${me.id},backup_employee_id.eq.${me.id}`)
+      .or(`primary_employee_id.eq.${me.id},backup_employee_id.eq.${me.id},by_shift.eq.true`)
       .order("due_at"),
     supabase.from("attendance_records").select("branch_id").eq("employee_id", me.id).is("check_out_at", null).maybeSingle(),
+    // Ca đã công bố của tôi hôm nay → việc "giao theo ca" trùng giờ ca
+    supabase
+      .from("shifts")
+      .select("branch_id, start_at, end_at")
+      .eq("employee_id", me.id)
+      .eq("status", "published")
+      .lt("start_at", range.end)
+      .gt("end_at", range.start),
   ]);
 
   if (error) throw new Error("Không tải được checklist.");
 
+  // Quản lý đọc được mọi việc theo ca của chi nhánh → chỉ giữ việc trùng ca của chính mình
+  const tasks = allTasks.filter((t) => !t.by_shift || (myShifts ?? []).some((s) => shiftCoversTask(s, t)));
+
   // Tên đồng nghiệp + người chính đã đi làm hôm nay chưa (đọc bằng quyền server, chỉ cho các việc của chính mình)
   const admin = createAdminClient();
   const peopleIds = [...new Set(tasks.flatMap((t) => [t.primary_employee_id, t.completed_by]).filter(Boolean) as string[])];
-  const backupPrimaryIds = [...new Set(tasks.filter((t) => t.backup_employee_id === me.id).map((t) => t.primary_employee_id))];
-  const range = vnDayRange(today);
+  const backupPrimaryIds = [
+    ...new Set(tasks.filter((t) => !t.by_shift && t.backup_employee_id === me.id).map((t) => t.primary_employee_id!)),
+  ];
 
   const [{ data: people }, { data: checkIns }, photoUrls] = await Promise.all([
     peopleIds.length
@@ -64,10 +77,10 @@ export default async function ChecklistPage() {
   const needsShift = mustClockIn(me);
 
   const cards: TaskCardData[] = tasks.map((t) => {
-    const role = t.primary_employee_id === me.id ? "primary" : "backup";
+    const role = t.by_shift ? "shift" : t.primary_employee_id === me.id ? "primary" : "backup";
     let blockedReason: string | null = null;
-    if (role === "backup" && primaryWorked.has(t.primary_employee_id)) {
-      blockedReason = `${names.get(t.primary_employee_id) ?? "Người phụ trách chính"} đã đi làm hôm nay nên sẽ làm việc này.`;
+    if (role === "backup" && primaryWorked.has(t.primary_employee_id!)) {
+      blockedReason = `${names.get(t.primary_employee_id!) ?? "Người phụ trách chính"} đã đi làm hôm nay nên sẽ làm việc này.`;
     } else if (needsShift && openShift?.branch_id !== t.branch_id) {
       blockedReason = `Vào ca tại ${t.branch?.name ?? "chi nhánh"} để đánh dấu việc này.`;
     }
@@ -88,15 +101,16 @@ export default async function ChecklistPage() {
       photoUrl: t.photo_path ? photoUrls.get(t.photo_path) ?? null : null,
       reopenReason: t.reopen_reason,
       role,
-      primaryName: names.get(t.primary_employee_id) ?? "",
+      primaryName: t.primary_employee_id ? names.get(t.primary_employee_id) ?? "" : "",
       blockedReason,
     };
   });
 
-  const mine = cards.filter((c) => c.role === "primary");
+  // Việc của tôi: việc mình là người chính + việc của ca mình
+  const mine = cards.filter((c) => c.role === "primary" || c.role === "shift");
   // Việc làm thay: chỉ hiện khi người chính nghỉ, hoặc khi chính mình đã làm
   const covering = cards.filter(
-    (c) => c.role === "backup" && (!primaryWorked.has(tasks.find((t) => t.id === c.id)!.primary_employee_id) || c.completedAt)
+    (c) => c.role === "backup" && (!primaryWorked.has(tasks.find((t) => t.id === c.id)!.primary_employee_id!) || c.completedAt)
   );
 
   const total = mine.length;

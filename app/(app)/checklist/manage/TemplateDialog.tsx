@@ -27,6 +27,8 @@ export type TemplateItem = {
   monthDays: number[];
   requiresPhoto: boolean;
   requiresNote: boolean;
+  /** Giao theo ca (ai có ca trùng giờ việc thì nhận) */
+  assignByShift: boolean;
   primaryId: string | null;
   primaryName: string | null;
   backupId: string | null;
@@ -57,6 +59,7 @@ export default function TemplateDialog({ template, copyFrom, branches, open, onC
   const init = template ?? (copyFrom && { ...copyFrom, title: `${copyFrom.title} (bản sao)` });
   const [branchId, setBranchId] = useState(init?.branchId ?? (branches.length === 1 ? branches[0].id : ""));
   const [frequency, setFrequency] = useState<TaskFrequency>(init?.frequency ?? "daily");
+  const [assignMode, setAssignMode] = useState<"person" | "shift">(init?.assignByShift ? "shift" : "person");
   const action = template ? updateTemplate.bind(null, template.id) : createTemplate;
   const [state, formAction, pending] = useFormAction(action, (r) => onDone(r.message));
   const staff = branches.find((b) => b.id === branchId)?.staff ?? [];
@@ -138,7 +141,25 @@ export default function TemplateDialog({ template, copyFrom, branches, open, onC
           <Err state={state} name="month_days" />
         </fieldset>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <fieldset>
+          <legend className={label}>Giao cho</legend>
+          <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
+            {(["person", "shift"] as const).map((m) => (
+              <label key={m} className={`cursor-pointer rounded-md px-3 py-1.5 font-medium ${assignMode === m ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+                <input type="radio" name="assign_mode" value={m} checked={assignMode === m} onChange={() => setAssignMode(m)} className="sr-only" />
+                {m === "person" ? "Người cụ thể" : "🕒 Theo ca"}
+              </label>
+            ))}
+          </div>
+          {assignMode === "shift" && (
+            <p className="mt-2 text-xs text-neutral-500">
+              Mỗi ngày, ai có ca (đã công bố) tại chi nhánh trùng giờ của việc sẽ nhận việc. Nhiều người cùng ca thì ai làm cũng được;
+              bỏ sót thì cả ca bị tính &quot;không làm&quot;. Không có ai trong ca → báo Quản lý.
+            </p>
+          )}
+        </fieldset>
+
+        <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${assignMode === "shift" ? "hidden" : ""}`}>
           <div>
             <label htmlFor="tp-primary" className={label}>Người phụ trách chính</label>
             <select key={`p-${branchId}`} id="tp-primary" name="primary_employee_id" defaultValue={init?.primaryId ?? ""} className="input">

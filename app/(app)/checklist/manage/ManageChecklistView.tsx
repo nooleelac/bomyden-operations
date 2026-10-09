@@ -13,6 +13,9 @@ import { formatTime } from "@/lib/time";
 
 export type ReportItem = {
   id: string;
+  /** Việc giao theo ca + người đang có ca trùng giờ việc */
+  byShift: boolean;
+  shiftStaff: string[];
   title: string;
   category: string;
   branchName: string;
@@ -95,7 +98,9 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
     });
   };
 
-  const unassignedCount = templates.filter((t) => !t.primaryId).length;
+  const isUnassigned = (t: TemplateItem) => !t.primaryId && !t.assignByShift;
+  const unassignedCount = templates.filter(isUnassigned).length;
+  const shiftCount = templates.filter((t) => t.assignByShift).length;
   const assignees = [
     ...new Map(
       templates.flatMap((t) => [
@@ -105,7 +110,13 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
     ),
   ].sort((a, b) => a[1].localeCompare(b[1], "vi"));
   const visible = templates.filter((t) =>
-    filter === "all" ? true : filter === "unassigned" ? !t.primaryId : t.primaryId === filter || t.backupId === filter
+    filter === "all"
+      ? true
+      : filter === "unassigned"
+        ? isUnassigned(t)
+        : filter === "shift"
+          ? t.assignByShift
+          : t.primaryId === filter || t.backupId === filter
   );
   const allVisibleSelected = visible.length > 0 && visible.every((t) => selected.has(t.id));
   const toggleMany = (ids: string[], on: boolean) =>
@@ -167,7 +178,16 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
                       </div>
                       <p className="mt-0.5 text-neutral-500">
-                        {item.branchName} · {formatTime(item.startAt)}–{formatTime(item.dueAt)} · {item.primaryName}
+                        {item.branchName} · {formatTime(item.startAt)}–{formatTime(item.dueAt)} ·{" "}
+                        {item.byShift ? (
+                          item.shiftStaff.length > 0 ? (
+                            <>🕒 Ca: {item.shiftStaff.join(", ")}</>
+                          ) : (
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Không có người trong ca</span>
+                          )
+                        ) : (
+                          item.primaryName
+                        )}
                         {item.backupName && <span> (thay: {item.backupName})</span>}
                       </p>
                       {item.completedAt && (
@@ -197,6 +217,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                   [
                     ["all", `Tất cả (${templates.length})`],
                     ["unassigned", `Chưa giao (${unassignedCount})`],
+                    ["shift", `Theo ca (${shiftCount})`],
                   ] as const
                 ).map(([value, text]) => (
                   <button
@@ -212,7 +233,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
               {assignees.length > 0 && (
                 <select
                   aria-label="Lọc theo nhân viên"
-                  value={filter === "all" || filter === "unassigned" ? "" : filter}
+                  value={["all", "unassigned", "shift"].includes(filter) ? "" : filter}
                   onChange={(e) => setFilter(e.target.value || "all")}
                   className="input w-auto py-1.5 text-sm"
                 >
@@ -265,7 +286,9 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                         {t.branchName} · {t.startTime}–{t.dueTime} · {describeSchedule(t.frequency, t.weekdays, t.monthDays)}
                       </p>
                       <p className="mt-0.5 text-neutral-700">
-                        {t.primaryName ? (
+                        {t.assignByShift ? (
+                          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">🕒 Theo ca</span>
+                        ) : t.primaryName ? (
                           <>👤 {t.primaryName}</>
                         ) : (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Chưa giao</span>

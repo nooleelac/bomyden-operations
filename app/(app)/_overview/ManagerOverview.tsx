@@ -70,7 +70,7 @@ export default async function ManagerOverview({
         .order("check_in_at"),
       supabase
         .from("task_instances")
-        .select("id, title, status, start_at, due_at, completed_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name)")
+        .select("id, by_shift, title, status, start_at, due_at, completed_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name)")
         .eq("task_date", today)
         .neq("status", "cancelled")
         .in("branch_id", scope)
@@ -389,7 +389,7 @@ export default async function ManagerOverview({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{t.title}</span>
                     <span className="block truncate text-xs text-neutral-500">
-                      {t.primary?.full_name ?? "—"} · hạn {formatTime(t.due_at)}
+                      {t.by_shift ? "Theo ca" : t.primary?.full_name ?? "—"} · hạn {formatTime(t.due_at)}
                       {showBranch && t.branch?.name ? ` · ${t.branch.name}` : ""}
                     </span>
                   </span>

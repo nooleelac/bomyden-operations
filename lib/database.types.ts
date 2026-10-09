@@ -56,6 +56,7 @@ type AttendanceCorrectionRow = {
 }
 
 type TaskTemplateRow = {
+  assign_by_shift: boolean
   backup_employee_id: string | null
   branch_id: string
   category: string
@@ -82,6 +83,7 @@ type TaskTemplateRow = {
 
 type TaskInstanceRow = {
   backup_employee_id: string | null
+  by_shift: boolean
   branch_id: string
   category: string
   completed_at: string | null
@@ -93,7 +95,7 @@ type TaskInstanceRow = {
   note: string | null
   photo_path: string | null
   photo_purged_at: string | null
-  primary_employee_id: string
+  primary_employee_id: string | null
   priority: Database["public"]["Enums"]["task_priority"]
   reopen_reason: string | null
   reopened_at: string | null
@@ -2030,6 +2032,7 @@ export type Database = {
       stock_receipt_status: "posted" | "cancelled"
       notification_kind:
         | "task_due_soon"
+        | "task_no_staff"
         | "task_overdue"
         | "task_overdue_report"
         | "request_new"

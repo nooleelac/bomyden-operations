@@ -27,7 +27,7 @@ export type TaskCardData = {
   photoUrl: string | null;
   reopenReason: string | null;
   /** Vai trò của người đang xem với việc này */
-  role: "primary" | "backup";
+  role: "primary" | "backup" | "shift";
   primaryName: string;
   /** null = được phép đánh dấu; chuỗi = lý do không được */
   blockedReason: string | null;
@@ -88,6 +88,7 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
             {task.requiresPhoto && <span className="text-neutral-500">📷 Cần ảnh</span>}
             {task.requiresNote && <span className="text-neutral-500">📝 Cần ghi chú</span>}
           </div>
+          {task.role === "shift" && <p className="mt-1 text-xs text-violet-700">🕒 Việc của ca — ai trong ca làm cũng được</p>}
           {task.role === "backup" && (
             <p className="mt-1 text-xs text-violet-700">Làm thay cho {task.primaryName}</p>
           )}

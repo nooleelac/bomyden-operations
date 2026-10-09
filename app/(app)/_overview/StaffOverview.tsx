@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getRequestTime } from "@/lib/request-time";
 import { formatDuration, formatTime, isForgotten, minutesBetween } from "@/lib/time";
 import { addDays, dayLabel, hm } from "@/lib/schedule";
-import { DISPLAY_STATUS, displayStatus } from "@/lib/checklist";
+import { DISPLAY_STATUS, displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
 
 const UPCOMING_DAYS = 14;
@@ -21,7 +21,7 @@ export default async function StaffOverview({ me, today, compact = false }: { me
   const [shiftsRes, openRes, tasksRes, peerRes, myRequestsRes] = await Promise.all([
     supabase
       .from("shifts")
-      .select("id, work_date, start_time, end_time, start_at, end_at, branch:branches(name)")
+      .select("id, branch_id, work_date, start_time, end_time, start_at, end_at, branch:branches(name)")
       .eq("employee_id", me.id)
       .eq("status", "published")
       .gte("work_date", today)
@@ -36,10 +36,10 @@ export default async function StaffOverview({ me, today, compact = false }: { me
       .maybeSingle(),
     supabase
       .from("task_instances")
-      .select("id, title, status, start_at, due_at, completed_at, primary_employee_id")
+      .select("id, branch_id, by_shift, title, status, start_at, due_at, completed_at, primary_employee_id")
       .eq("task_date", today)
       .neq("status", "cancelled")
-      .or(`primary_employee_id.eq.${me.id},backup_employee_id.eq.${me.id}`)
+      .or(`primary_employee_id.eq.${me.id},backup_employee_id.eq.${me.id},by_shift.eq.true`)
       .order("due_at"),
     supabase
       .from("schedule_requests")
@@ -59,8 +59,10 @@ export default async function StaffOverview({ me, today, compact = false }: { me
   const open = openRes.data;
   const forgotten = open ? isForgotten(open.check_in_at, null, now) : false;
 
-  // Việc của tôi: chỉ tính việc mình là người chính (việc thay thế chỉ làm khi người chính nghỉ)
-  const tasks = (tasksRes.data ?? []).filter((t) => t.primary_employee_id === me.id).map((t) => ({ ...t, display: displayStatus(t, now) }));
+  // Việc của tôi: việc mình là người chính + việc theo ca trùng ca mình (việc thay thế chỉ làm khi người chính nghỉ)
+  const tasks = (tasksRes.data ?? [])
+    .filter((t) => (t.by_shift ? shifts.some((s) => shiftCoversTask(s, t)) : t.primary_employee_id === me.id))
+    .map((t) => ({ ...t, display: displayStatus(t, now) }));
   const finished = tasks.filter((t) => t.display === "done" || t.display === "late").length;
   const overdue = tasks.filter((t) => t.display === "overdue");
   const nextTasks = tasks.filter((t) => t.display === "open" || t.display === "overdue" || t.display === "upcoming").slice(0, 5);

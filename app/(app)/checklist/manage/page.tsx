@@ -4,8 +4,8 @@ import { requireManager } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getManageableBranches } from "@/lib/branches";
 import { getRequestTime } from "@/lib/request-time";
-import { isValidDateString, vnDateString } from "@/lib/time";
-import { displayStatus } from "@/lib/checklist";
+import { isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
+import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ManageChecklistView, { type ReportItem } from "./ManageChecklistView";
 import type { BranchStaff, TemplateItem } from "./TemplateDialog";
@@ -29,11 +29,12 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
   const supabase = await createClient();
   if (date === today) await supabase.rpc("ensure_task_instances");
 
-  const [reportRes, templatesRes, staffRes] = await Promise.all([
+  const dayRange = vnDayRange(date);
+  const [reportRes, templatesRes, staffRes, shiftsRes] = await Promise.all([
     supabase
       .from("task_instances")
       .select(
-        "id, title, category, start_at, due_at, status, completed_at, note, photo_path, photo_purged_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
+        "id, branch_id, by_shift, title, category, start_at, due_at, status, completed_at, note, photo_path, photo_purged_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
       )
       .eq("task_date", date)
       .neq("status", "cancelled")
@@ -42,7 +43,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     supabase
       .from("task_templates")
       .select(
-        "id, branch_id, title, description, category, priority, start_time, due_time, frequency, weekdays, month_days, requires_photo, requires_note, primary_employee_id, backup_employee_id, is_active, sort_order, branch:branches(name), primary:employees!task_templates_primary_employee_id_fkey(full_name), backup:employees!task_templates_backup_employee_id_fkey(full_name)"
+        "id, branch_id, title, description, category, priority, start_time, due_time, frequency, weekdays, month_days, requires_photo, requires_note, assign_by_shift, primary_employee_id, backup_employee_id, is_active, sort_order, branch:branches(name), primary:employees!task_templates_primary_employee_id_fkey(full_name), backup:employees!task_templates_backup_employee_id_fkey(full_name)"
       )
       .in("branch_id", scope)
       .is("deleted_at", null)
@@ -54,16 +55,34 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
       .select("branch_id, employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, is_active)")
       .in("branch_id", branchIds)
       .eq("employee.is_active", true),
+    // Ca đã công bố trong ngày → biết ai nhận việc "giao theo ca"
+    supabase
+      .from("shifts")
+      .select("branch_id, start_at, end_at, employee:employees!shifts_employee_id_fkey(full_name, is_active)")
+      .eq("status", "published")
+      .in("branch_id", scope)
+      .lt("start_at", dayRange.end)
+      .gt("end_at", dayRange.start),
   ]);
 
-  if (reportRes.error || templatesRes.error || staffRes.error) {
+  if (reportRes.error || templatesRes.error || staffRes.error || shiftsRes.error) {
     throw new Error("Không tải được dữ liệu checklist.");
   }
 
   const photoUrls = await signTaskPhotos(reportRes.data.map((r) => (r.photo_purged_at ? null : r.photo_path)));
 
+  const shiftStaffOf = (r: { branch_id: string; start_at: string; due_at: string }) => [
+    ...new Set(
+      shiftsRes.data
+        .filter((s) => s.employee?.is_active && shiftCoversTask(s, r))
+        .map((s) => s.employee!.full_name)
+    ),
+  ];
+
   const report: ReportItem[] = reportRes.data.map((r) => ({
     id: r.id,
+    byShift: r.by_shift,
+    shiftStaff: r.by_shift ? shiftStaffOf(r) : [],
     title: r.title,
     category: r.category,
     branchName: r.branch?.name ?? "",
@@ -95,6 +114,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     monthDays: t.month_days,
     requiresPhoto: t.requires_photo,
     requiresNote: t.requires_note,
+    assignByShift: t.assign_by_shift,
     primaryId: t.primary_employee_id,
     primaryName: t.primary?.full_name ?? null,
     backupId: t.backup_employee_id,

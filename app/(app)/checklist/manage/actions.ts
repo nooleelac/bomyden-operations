@@ -38,6 +38,8 @@ const templateSchema = z
     }),
     requires_photo: z.boolean(),
     requires_note: z.boolean(),
+    // Giao theo ca: ai có ca trùng giờ việc thì nhận (không có người chính / người thay)
+    assign_by_shift: z.boolean(),
     // Để trống = mẫu chưa giao (giao hàng loạt sau)
     primary_employee_id: z
       .string()
@@ -63,6 +65,7 @@ const templateSchema = z
 
 function readTemplate(formData: FormData) {
   const str = (key: string) => String(formData.get(key) ?? "");
+  const byShift = str("assign_mode") === "shift";
   return templateSchema.safeParse({
     title: str("title"),
     description: str("description"),
@@ -75,8 +78,9 @@ function readTemplate(formData: FormData) {
     month_days: str("month_days"),
     requires_photo: formData.get("requires_photo") === "on",
     requires_note: formData.get("requires_note") === "on",
-    primary_employee_id: str("primary_employee_id"),
-    backup_employee_id: str("backup_employee_id"),
+    assign_by_shift: byShift,
+    primary_employee_id: byShift ? "" : str("primary_employee_id"),
+    backup_employee_id: byShift ? "" : str("backup_employee_id"),
     sort_order: str("sort_order") || "0",
   });
 }
@@ -100,9 +104,11 @@ export async function createTemplate(_prev: ActionState, formData: FormData): Pr
   await supabase.rpc("ensure_task_instances");
   revalidateChecklist();
   return success(
-    parsed.data.primary_employee_id
-      ? `Đã tạo công việc "${parsed.data.title}".`
-      : `Đã tạo mẫu "${parsed.data.title}" (chưa giao — chỉ sinh việc khi đã giao người phụ trách).`
+    parsed.data.assign_by_shift
+      ? `Đã tạo công việc "${parsed.data.title}" — giao theo ca.`
+      : parsed.data.primary_employee_id
+        ? `Đã tạo công việc "${parsed.data.title}".`
+        : `Đã tạo mẫu "${parsed.data.title}" (chưa giao — chỉ sinh việc khi đã giao người phụ trách).`
   );
 }
 
@@ -128,30 +134,32 @@ export async function updateTemplate(templateId: string, _prev: ActionState, for
 
 const bulkAssignSchema = z.object({
   template_ids: z.array(z.uuid()).min(1, { message: "Chọn ít nhất một công việc." }).max(500),
-  primary_employee_id: z
-    .string()
-    .transform((v) => v || null)
-    .pipe(z.uuid().nullable()),
+  // "shift" = giao theo ca, "" = bỏ giao, còn lại là id nhân viên
+  primary: z.union([z.literal("shift"), z.literal(""), z.uuid()]),
   // "keep" = giữ người thay hiện tại, "" = không có, còn lại là id nhân viên
   backup: z.union([z.literal("keep"), z.literal(""), z.uuid()]),
 });
 
-/** Giao (hoặc bỏ giao) nhiều mẫu cùng lúc. Lỗi ở 1 mẫu → không mẫu nào bị đổi. */
+/** Giao (theo người / theo ca) hoặc bỏ giao nhiều mẫu cùng lúc. Lỗi ở 1 mẫu → không mẫu nào bị đổi. */
 export async function bulkAssignTemplates(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireManager();
   const parsed = bulkAssignSchema.safeParse({
     template_ids: formData.getAll("template_ids").map(String),
-    primary_employee_id: String(formData.get("primary_employee_id") ?? ""),
+    primary: String(formData.get("primary_employee_id") ?? ""),
     backup: String(formData.get("backup") ?? "keep"),
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
-  const { template_ids, primary_employee_id, backup } = parsed.data;
-  if (primary_employee_id && backup === primary_employee_id) {
+  const { template_ids, primary, backup } = parsed.data;
+  if (primary && backup === primary) {
     return fail("Người thay thế phải khác người chính.", { backup: "Người thay thế phải khác người chính." });
   }
 
-  const patch: { primary_employee_id: string | null; backup_employee_id?: string | null } = { primary_employee_id };
-  if (!primary_employee_id) patch.backup_employee_id = null;
+  const byShift = primary === "shift";
+  const patch: { assign_by_shift: boolean; primary_employee_id: string | null; backup_employee_id?: string | null } = {
+    assign_by_shift: byShift,
+    primary_employee_id: byShift ? null : primary || null,
+  };
+  if (byShift || !primary) patch.backup_employee_id = null;
   else if (backup !== "keep") patch.backup_employee_id = backup || null;
 
   const supabase = await createClient();
@@ -162,9 +170,11 @@ export async function bulkAssignTemplates(_prev: ActionState, formData: FormData
   await supabase.rpc("ensure_task_instances");
   revalidateChecklist();
   return success(
-    primary_employee_id
-      ? `Đã giao ${data.length} công việc.`
-      : `Đã bỏ giao ${data.length} công việc (việc chưa làm từ hôm nay đã được hủy).`
+    byShift
+      ? `Đã chuyển ${data.length} công việc sang giao theo ca.`
+      : primary
+        ? `Đã giao ${data.length} công việc.`
+        : `Đã bỏ giao ${data.length} công việc (việc chưa làm từ hôm nay đã được hủy).`
   );
 }
 

@@ -63,6 +63,21 @@ export function displayStatus(
   return "open";
 }
 
+/**
+ * Việc "giao theo ca": ca (đã công bố, cùng chi nhánh) trùng khung giờ của việc thì người đó nhận việc.
+ * Khớp với private.on_task_shift trong CSDL.
+ */
+export function shiftCoversTask(
+  shift: { branch_id: string; start_at: string; end_at: string },
+  task: { branch_id: string; start_at: string; due_at: string }
+): boolean {
+  return (
+    shift.branch_id === task.branch_id &&
+    new Date(shift.start_at).getTime() < new Date(task.due_at).getTime() &&
+    new Date(shift.end_at).getTime() > new Date(task.start_at).getTime()
+  );
+}
+
 /** "1,15, 31" → [1, 15, 31] (bỏ trùng, chỉ nhận 1..31) */
 export function parseMonthDays(value: string): number[] | null {
   const items = value.split(/[\s,;]+/).filter(Boolean);
