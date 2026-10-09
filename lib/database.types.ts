@@ -153,6 +153,7 @@ type NotificationRow = {
   employee_id: string
   kind: Database["public"]["Enums"]["notification_kind"]
   task_instance_id: string | null
+  ref_id: string | null
   title: string
   body: string
   url: string
@@ -1818,7 +1819,15 @@ export type Database = {
       payment_method: "cash" | "transfer" | "other"
       stock_movement_kind: "receipt" | "receipt_cancel" | "adjust"
       stock_receipt_status: "posted" | "cancelled"
-      notification_kind: "task_due_soon" | "task_overdue" | "task_overdue_report"
+      notification_kind:
+        | "task_due_soon"
+        | "task_overdue"
+        | "task_overdue_report"
+        | "request_new"
+        | "request_peer"
+        | "request_result"
+        | "registration_new"
+        | "registration_result"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
