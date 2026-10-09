@@ -8,9 +8,25 @@ import { useFormAction } from "@/components/useFormAction";
 import { formatMoney } from "@/lib/inventory";
 import { saveSupplier } from "../actions";
 
-type SupplierRow = { id: string; name: string; phone: string | null; address: string | null; note: string | null; is_active: boolean };
+type SupplierRow = {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  note: string | null;
+  payment_terms_days: number | null;
+  is_active: boolean;
+};
 
-export default function SuppliersView({ suppliers, monthTotals }: { suppliers: SupplierRow[]; monthTotals: Record<string, number> }) {
+export default function SuppliersView({
+  suppliers,
+  monthTotals,
+  debts,
+}: {
+  suppliers: SupplierRow[];
+  monthTotals: Record<string, number>;
+  debts: Record<string, number>;
+}) {
   const [editing, setEditing] = useState<SupplierRow | "new" | null>(null);
   const [message, setMessage] = useState("");
 
@@ -28,11 +44,15 @@ export default function SuppliersView({ suppliers, monthTotals }: { suppliers: S
               <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-neutral-50" onClick={() => setEditing(s)}>
                 <div className="min-w-0">
                   <p className={`truncate font-medium ${s.is_active ? "" : "text-neutral-400 line-through"}`}>{s.name}</p>
-                  <p className="truncate text-xs text-neutral-500">{[s.phone, s.address].filter(Boolean).join(" · ") || "Chưa có liên hệ"}</p>
+                  <p className="truncate text-xs text-neutral-500">
+                    {[s.phone, s.address, s.payment_terms_days != null ? `nợ ${s.payment_terms_days} ngày` : null].filter(Boolean).join(" · ") ||
+                      "Chưa có liên hệ"}
+                  </p>
                 </div>
                 <div className="shrink-0 text-right text-xs text-neutral-500">
                   <p>Tháng này</p>
                   <p className="font-semibold text-neutral-800 tabular-nums">{formatMoney(monthTotals[s.id] ?? 0)}</p>
+                  {debts[s.id] ? <p className="font-medium text-red-700 tabular-nums">Nợ {formatMoney(debts[s.id])}</p> : null}
                 </div>
               </button>
             </li>
@@ -71,6 +91,21 @@ function SupplierDialog({ supplier, onClose, onDone }: { supplier: SupplierRow |
         <div>
           <label htmlFor="sup-address" className="mb-1.5 block text-sm font-medium text-neutral-700">Địa chỉ</label>
           <input id="sup-address" name="address" className="input" defaultValue={supplier?.address ?? ""} maxLength={300} />
+        </div>
+        <div>
+          <label htmlFor="sup-terms" className="mb-1.5 block text-sm font-medium text-neutral-700">Số ngày được nợ</label>
+          <input
+            id="sup-terms"
+            name="payment_terms_days"
+            type="number"
+            min={0}
+            max={365}
+            className="input"
+            defaultValue={supplier?.payment_terms_days ?? ""}
+            placeholder="vd: 30 — để trống nếu không có"
+          />
+          <p className="mt-1 text-xs text-neutral-500">Hạn thanh toán mặc định = ngày hóa đơn + số ngày này.</p>
+          {state.fieldErrors?.payment_terms_days && <p className="field-error">{state.fieldErrors.payment_terms_days}</p>}
         </div>
         <div>
           <label htmlFor="sup-note" className="mb-1.5 block text-sm font-medium text-neutral-700">Ghi chú</label>

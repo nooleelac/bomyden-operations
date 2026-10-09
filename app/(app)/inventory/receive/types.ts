@@ -8,9 +8,9 @@ export type CatalogItem = {
   units: { name: string; factor: number }[];
 };
 
-export type SupplierOption = { id: string; name: string };
+export type SupplierOption = { id: string; name: string; paymentTermsDays: number | null };
 
-/** Giá nhập gần nhất (quy về 1 đơn vị kho) của từng nguyên liệu */
+/** Giá nhập gần nhất SAU VAT (quy về 1 đơn vị kho) của từng nguyên liệu */
 export type LastPrices = Record<string, { price: number; date: string }>;
 
 /** Một dòng trên màn hình xác nhận. Số để dạng chuỗi cho ô nhập. */
@@ -26,7 +26,10 @@ export type DraftLine = {
   unitName: string;
   factor: string;
   unitPrice: string;
+  /** Thành tiền CHƯA VAT */
   amount: string;
+  /** Thuế suất VAT % */
+  vatRate: string;
   matchedBy: "memory" | "ai" | null;
 };
 
@@ -39,9 +42,18 @@ export type ReceiptDraft = {
   invoiceNumber: string;
   invoiceDate: string;
   invoiceTotal: string;
+  /** Tiền thuế in trên hóa đơn (chỉ để đối chiếu) */
+  printedVat: string;
+  /** null = chưa rõ, người dùng phải chọn */
+  paymentStatus: PaymentStatus | null;
+  paidAmount: string;
+  paymentMethod: "cash" | "transfer" | "other";
+  dueDate: string;
   warning: string | null;
   lines: DraftLine[];
 };
+
+export type PaymentStatus = "paid" | "partial" | "unpaid";
 
 export type ScanState = {
   ok: boolean;

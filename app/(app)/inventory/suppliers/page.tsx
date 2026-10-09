@@ -13,9 +13,10 @@ export default async function SuppliersPage() {
   const me = await requireManager();
   const supabase = await createClient();
   const monthStart = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()).slice(0, 7) + "-01";
-  const [suppliersRes, receiptsRes] = await Promise.all([
-    supabase.from("suppliers").select("id, name, phone, address, note, is_active").order("is_active", { ascending: false }).order("name"),
+  const [suppliersRes, receiptsRes, debtRes] = await Promise.all([
+    supabase.from("suppliers").select("id, name, phone, address, note, payment_terms_days, is_active").order("is_active", { ascending: false }).order("name"),
     supabase.from("stock_receipts").select("supplier_id, total_amount").eq("status", "posted").gte("invoice_date", monthStart),
+    supabase.from("stock_receipts").select("supplier_id, debt_amount").eq("status", "posted").gt("debt_amount", 0),
   ]);
   if (suppliersRes.error) throw new Error("Không tải được nhà cung cấp.");
 
@@ -24,12 +25,17 @@ export default async function SuppliersPage() {
     if (r.supplier_id) monthTotals[r.supplier_id] = (monthTotals[r.supplier_id] ?? 0) + Number(r.total_amount);
   }
 
+  const debts: Record<string, number> = {};
+  for (const r of debtRes.data ?? []) {
+    if (r.supplier_id) debts[r.supplier_id] = (debts[r.supplier_id] ?? 0) + Number(r.debt_amount ?? 0);
+  }
+
   return (
     <div>
       <Link href="/inventory" className="text-sm text-neutral-500 hover:text-neutral-900">← Kho</Link>
       <h1 className="mb-4 mt-2 text-2xl font-bold tracking-tight">Nhà cung cấp</h1>
       <InventoryNav active="suppliers" isManager isAdmin={isAdmin(me.role)} />
-      <SuppliersView suppliers={suppliersRes.data ?? []} monthTotals={monthTotals} />
+      <SuppliersView suppliers={suppliersRes.data ?? []} monthTotals={monthTotals} debts={debts} />
     </div>
   );
 }

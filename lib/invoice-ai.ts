@@ -13,7 +13,13 @@ const InvoiceSchema = z.object({
   supplier_phone: z.string().nullable(),
   invoice_number: z.string().nullable(),
   invoice_date: z.string().nullable(),
+  subtotal: z.number().nullable(),
+  vat_amount: z.number().nullable(),
   total_amount: z.number().nullable(),
+  payment_status: z.enum(["paid", "unpaid", "partial", "unknown"]),
+  paid_amount: z.number().nullable(),
+  payment_method: z.enum(["cash", "transfer", "other"]).nullable(),
+  due_date: z.string().nullable(),
   lines: z.array(
     z.object({
       name: z.string(),
@@ -21,6 +27,7 @@ const InvoiceSchema = z.object({
       unit: z.string().nullable(),
       unit_price: z.number().nullable(),
       amount: z.number().nullable(),
+      vat_rate: z.number().nullable(),
       catalog_no: z.number().int().nullable(),
     })
   ),
@@ -48,8 +55,27 @@ Quy tắc:
 - "unit": đơn vị tính ghi trên hóa đơn (kg, g, thùng, hộp, bao, chai, lon, bó, con, cái...). Không có thì null.
 - Kiểm tra chéo số lượng × đơn giá ≈ thành tiền; nếu chỉ có 2 trong 3 giá trị thì tự suy ra giá trị còn lại.
   Không đọc được thì để null, KHÔNG bịa số.
-- "invoice_date" dạng YYYY-MM-DD. Năm viết tắt "26" = 2026. Không có ngày thì null.
-- "total_amount": tổng tiền thanh toán in trên hóa đơn (sau thuế/chiết khấu), không có thì null.
+- "invoice_date" dạng YYYY-MM-DD. Hóa đơn Việt Nam ghi ngày kiểu NGÀY/THÁNG/NĂM: "03/10/2026" = 2026-10-03 (ngày 3 tháng 10),
+  KHÔNG phải tháng 3. Chỉ hiểu kiểu Mỹ (tháng trước) khi tháng được viết bằng chữ tiếng Anh (vd "Oct 3, 2026").
+  Năm viết tắt "26" = 2026. Không có ngày thì null.
+
+VAT (thuế GTGT):
+- "amount" của từng dòng là thành tiền CHƯA thuế. Nếu hóa đơn chỉ ghi giá đã gồm thuế (hóa đơn bán lẻ, không tách thuế)
+  thì giữ nguyên số đó và vat_rate = 0.
+- "vat_rate" của từng dòng: thuế suất % (0, 5, 8, 10...) lấy từ cột "Thuế suất" / "VAT %" của dòng đó.
+  Nếu cả hóa đơn chỉ ghi một thuế suất chung thì dùng cho mọi dòng. Hàng "KCT" (không chịu thuế) = 0.
+  Nếu hóa đơn có thuế nhưng không ghi rõ thuế suất từng dòng thì để null (app sẽ tự suy ra).
+- "subtotal": cộng tiền hàng trước thuế. "vat_amount": tổng tiền thuế GTGT. "total_amount": tổng tiền thanh toán SAU thuế
+  (sau chiết khấu nếu có). Không có thì null.
+
+THANH TOÁN / CÔNG NỢ:
+- "payment_status": "paid" nếu có dấu hiệu RÕ đã trả đủ (chữ/con dấu "Đã thanh toán", "Đã thu tiền", "Paid", ghi đã nhận đủ tiền);
+  "partial" nếu ghi đã trả trước / đặt cọc một phần; "unpaid" nếu ghi "Chưa thanh toán", "Công nợ", "Ghi nợ", có hạn thanh toán,
+  hoặc là phiếu giao hàng ghi rõ thanh toán sau; còn lại "unknown".
+  Chỉ ghi "Hình thức thanh toán: TM/CK" thì CHƯA đủ để kết luận đã trả → "unknown".
+- "paid_amount": số tiền đã trả nếu ghi rõ, không có thì null.
+- "payment_method": "cash" (TM, tiền mặt), "transfer" (CK, chuyển khoản), "other"; chỉ điền khi ghi rõ một hình thức, không thì null.
+- "due_date": hạn thanh toán (YYYY-MM-DD) nếu có ghi, không có thì null.
 - "catalog_no": nếu mặt hàng chắc chắn là một nguyên liệu trong DANH MỤC bên dưới (cùng loại hàng, có thể khác cách viết)
   thì ghi số thứ tự của nó; nếu không chắc hoặc không có thì null.
 - "warning": ghi ngắn bằng tiếng Việt nếu có chỗ không đọc rõ / nghi ngờ (vd "Dòng 3 mờ, số lượng không chắc"), không có thì null.`;

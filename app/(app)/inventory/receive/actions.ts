@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireInventoryAccess } from "@/lib/auth/session";
-import { INVOICE_PHOTO_BUCKET, normName } from "@/lib/inventory";
+import { INVOICE_PHOTO_BUCKET, fixSwappedDate, inferLineVatRates, normName } from "@/lib/inventory";
 import { loadCatalog, loadSuppliers, signInvoicePhoto } from "@/lib/inventory-data";
 import { extractInvoice, type InvoiceExtraction } from "@/lib/invoice-ai";
 import { TASK_PHOTO_MAX_BYTES, TASK_PHOTO_TYPES } from "@/lib/task-photos";
@@ -96,6 +96,11 @@ export async function scanInvoice(branchId: string, _prev: ScanState, formData: 
     invoiceNumber: "",
     invoiceDate: vnDateString(),
     invoiceTotal: "",
+    printedVat: "",
+    paymentStatus: null,
+    paidAmount: "",
+    paymentMethod: "cash",
+    dueDate: "",
     warning: null,
     lines: [blankLine()],
   };
@@ -126,6 +131,7 @@ function blankLine(): DraftLine {
     factor: "",
     unitPrice: "",
     amount: "",
+    vatRate: "0",
     matchedBy: null,
   };
 }
@@ -167,9 +173,31 @@ function buildDraft(
 ): ReceiptDraft {
   const supplier = matchSupplier(data.supplier_name, suppliers);
   const byId = new Map(catalog.map((item) => [item.id, item]));
-  const invoiceDate = data.invoice_date && /^\d{4}-\d{2}-\d{2}$/.test(data.invoice_date) ? data.invoice_date : base.invoiceDate;
+  const warnings: string[] = data.warning ? [data.warning] : [];
+  const isoDate = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
 
-  const lines = data.lines.map((line): DraftLine => {
+  let invoiceDate = isoDate(data.invoice_date) ?? base.invoiceDate;
+  const fixedDate = fixSwappedDate(invoiceDate, vnDateString());
+  if (fixedDate.swapped) {
+    invoiceDate = fixedDate.date;
+    warnings.push(`Ngày hóa đơn được hiểu là ${invoiceDate.split("-").reverse().join("/")} (ngày/tháng) — kiểm tra lại.`);
+  }
+
+  // Thuế suất từng dòng: AI đọc được thì dùng; thiếu mà có tổng tiền thuế thì thử suy ra
+  let vatRates = data.lines.map((line) => line.vat_rate);
+  const subtotal = data.subtotal ?? data.lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
+  const vatTotal = data.vat_amount ?? (data.total_amount && subtotal ? data.total_amount - subtotal : null);
+  if (vatRates.some((rate) => rate === null) && vatTotal && vatTotal > 0 && data.lines.every((l) => l.amount !== null)) {
+    const inferred = inferLineVatRates(data.lines.map((l) => l.amount!), vatTotal);
+    if (inferred) {
+      vatRates = inferred;
+      warnings.push("Thuế suất VAT từng dòng do app suy ra từ tổng tiền thuế — kiểm tra lại.");
+    } else {
+      warnings.push("Chưa xác định được thuế suất VAT từng dòng — vui lòng chọn VAT cho từng dòng.");
+    }
+  }
+
+  const lines = data.lines.map((line, index): DraftLine => {
     const draft: DraftLine = {
       ...blankLine(),
       rawName: line.name.trim(),
@@ -177,6 +205,7 @@ function buildDraft(
       unitName: line.unit?.trim() ?? "",
       unitPrice: num(line.unit_price),
       amount: num(line.amount),
+      vatRate: num(vatRates[index] ?? 0) || "0",
     };
     const key = normName(line.name);
 
@@ -213,7 +242,12 @@ function buildDraft(
     invoiceNumber: data.invoice_number?.trim() ?? "",
     invoiceDate,
     invoiceTotal: num(data.total_amount),
-    warning: data.warning,
+    printedVat: vatTotal ? num(vatTotal) : "",
+    paymentStatus: data.payment_status === "unknown" ? null : data.payment_status,
+    paidAmount: data.payment_status === "partial" ? num(data.paid_amount) : "",
+    paymentMethod: data.payment_method ?? "cash",
+    dueDate: isoDate(data.due_date) ?? "",
+    warning: warnings.length ? warnings.join(" ") : null,
     lines,
   };
 }
@@ -236,6 +270,7 @@ const lineSchema = z.object({
   factor: z.number().positive().nullable(),
   unit_price: z.number().min(0),
   amount: z.number().min(0),
+  vat_rate: z.number().min(0).max(100),
 });
 
 const receiptSchema = z.object({
@@ -247,6 +282,11 @@ const receiptSchema = z.object({
   invoice_date: z.iso.date("Ngày hóa đơn không hợp lệ."),
   invoice_total: z.number().min(0).nullable(),
   note: z.string().trim().max(500).nullable(),
+  payment: z.object({
+    paid_amount: z.number().min(0),
+    method: z.enum(["cash", "transfer", "other"]),
+    due_date: z.iso.date("Hạn thanh toán không hợp lệ.").nullable(),
+  }),
   lines: z.array(lineSchema).min(1, "Phiếu nhập cần ít nhất 1 dòng hàng.").max(100),
 });
 

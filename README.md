@@ -113,7 +113,12 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
   được ghi nhớ khi lưu phiếu (`inventory_item_units`, `inventory_aliases`).
 - **Tồn kho** = sổ phát sinh `stock_movements` + số dư `stock_balances` (chưa có xuất kho; QTV/QL "điều chỉnh" kèm lý do).
 - Phiếu đã lưu không sửa; sai thì QTV/QL **hủy** (trừ lại tồn) rồi nhập lại. Cùng NCC + cùng số hóa đơn → từ chối nhập trùng.
-- Lưu đơn giá → lịch sử giá, cảnh báo khi giá lệch ≥ 10% so với lần nhập trước. Chưa có công nợ.
+- **VAT theo từng dòng** (0/5/8/10%…): thành tiền dòng = chưa VAT, tiền thuế = thành tiền × thuế suất (làm tròn đồng).
+  AI không đọc được thuế suất từng dòng → app suy ra từ tổng tiền thuế (`inferLineVatRates`). Ngày bị đọc kiểu Mỹ → tự đảo.
+- Giá vốn (lịch sử giá, cảnh báo giá lệch ≥ 10%, giá trị tồn) tính **sau VAT**.
+- **Công nợ**: lúc lưu chọn đã trả đủ / một phần / chưa trả (+ hình thức, hạn; hạn mặc định = ngày HĐ + số ngày nợ của NCC).
+  `supplier_payments` (trả nhiều lần, không xóa, chỉ hủy kèm lý do) do QTV/QL ghi; `stock_receipts.debt_amount` tự tính.
+  Hủy phiếu → tự hủy các lần thanh toán. Trang Kho → Công nợ: nợ từng NCC, quá hạn, đã trả trong tháng.
 - Mỗi lượt quét ghi `invoice_scans` (token → chi phí ước tính ở Kho → Quyền); tối đa 50 lượt/người/ngày.
 - Ảnh quét bỏ dở xóa sau 1 ngày; ảnh phiếu nhập giữ 12 tháng (job `cleanup` của Edge Function `ops-jobs`).
 - Không có `ANTHROPIC_API_KEY` → vẫn nhập tay được (ảnh vẫn lưu kèm phiếu).

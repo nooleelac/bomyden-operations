@@ -141,6 +141,7 @@ const supplierSchema = z.object({
   phone: z.string().trim().max(30).nullable(),
   address: z.string().trim().max(300).nullable(),
   note: z.string().trim().max(500).nullable(),
+  payment_terms_days: z.number().int("Số ngày nợ phải là số nguyên.").min(0).max(365, "Tối đa 365 ngày.").nullable(),
   is_active: z.boolean(),
 });
 
@@ -151,6 +152,7 @@ export async function saveSupplier(supplierId: string | null, _prev: ActionState
     phone: str(formData, "phone") || null,
     address: str(formData, "address") || null,
     note: str(formData, "note") || null,
+    payment_terms_days: str(formData, "payment_terms_days") ? Number(str(formData, "payment_terms_days")) : null,
     is_active: supplierId ? formData.get("is_active") === "on" : true,
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
@@ -183,4 +185,53 @@ export async function setStockPermission(employeeId: string, enabled: boolean): 
   revalidateInventory();
   revalidatePath("/");
   return success(enabled ? "Đã cấp quyền nhập kho." : "Đã thu hồi quyền nhập kho.");
+}
+
+// ---------------------------------------------------------------------
+// CÔNG NỢ: GHI NHẬN / HỦY THANH TOÁN, ĐỔI HẠN (QTV / QL chi nhánh)
+// ---------------------------------------------------------------------
+const PAYMENT_METHODS = ["cash", "transfer", "other"] as const;
+
+export async function recordPayment(receiptId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const amount = parseVnNumber(str(formData, "amount"));
+  const paidOn = str(formData, "paid_on");
+  const method = str(formData, "method");
+  if (!amount || amount <= 0) return fail("Vui lòng kiểm tra lại.", { amount: "Nhập số tiền trả (lớn hơn 0)." });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) return fail("Vui lòng kiểm tra lại.", { paid_on: "Chọn ngày trả." });
+  if (!PAYMENT_METHODS.includes(method as (typeof PAYMENT_METHODS)[number])) return fail("Hình thức trả không hợp lệ.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_supplier_payment", {
+    p_receipt_id: receiptId,
+    p_amount: amount,
+    p_paid_on: paidOn,
+    p_method: method as (typeof PAYMENT_METHODS)[number],
+    p_note: str(formData, "note") || undefined,
+  });
+  if (error) return fail(friendlyDbError(error));
+  revalidateInventory();
+  return success("Đã ghi nhận thanh toán.");
+}
+
+export async function voidPayment(paymentId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const reason = str(formData, "reason");
+  if (reason.length < 3) return fail("Vui lòng kiểm tra lại.", { reason: "Ghi lý do (ít nhất 3 ký tự)." });
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("void_supplier_payment", { p_payment_id: paymentId, p_reason: reason });
+  if (error) return fail(friendlyDbError(error));
+  revalidateInventory();
+  return success("Đã hủy lần thanh toán.");
+}
+
+export async function setDueDate(receiptId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const due = str(formData, "due_date");
+  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) return fail("Hạn thanh toán không hợp lệ.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_receipt_due_date", { p_receipt_id: receiptId, p_due_date: due || null });
+  if (error) return fail(friendlyDbError(error));
+  revalidateInventory();
+  return success(due ? "Đã đổi hạn thanh toán." : "Đã bỏ hạn thanh toán.");
 }

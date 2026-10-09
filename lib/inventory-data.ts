@@ -28,17 +28,21 @@ export async function loadCatalog(): Promise<CatalogItem[]> {
 
 export async function loadSuppliers(): Promise<SupplierOption[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("suppliers").select("id, name").eq("is_active", true).order("name");
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select("id, name, payment_terms_days")
+    .eq("is_active", true)
+    .order("name");
   if (error) throw new Error("Không tải được danh sách nhà cung cấp.");
-  return data ?? [];
+  return (data ?? []).map((s) => ({ id: s.id, name: s.name, paymentTermsDays: s.payment_terms_days }));
 }
 
-/** Giá nhập gần nhất của từng nguyên liệu (quy về 1 đơn vị kho), từ các phiếu chưa hủy. */
+/** Giá nhập gần nhất SAU VAT của từng nguyên liệu (quy về 1 đơn vị kho), từ các phiếu chưa hủy. */
 export async function loadLastPrices(): Promise<LastPrices> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("stock_receipts")
-    .select("invoice_date, stock_receipt_lines(item_id, amount, base_quantity)")
+    .select("invoice_date, stock_receipt_lines(item_id, amount, vat_amount, base_quantity)")
     .eq("status", "posted")
     .order("invoice_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -49,7 +53,7 @@ export async function loadLastPrices(): Promise<LastPrices> {
     for (const line of receipt.stock_receipt_lines) {
       if (result[line.item_id]) continue;
       const base = Number(line.base_quantity);
-      const amount = Number(line.amount);
+      const amount = Number(line.amount) + Number(line.vat_amount);
       if (base > 0 && amount > 0) result[line.item_id] = { price: amount / base, date: receipt.invoice_date };
     }
   }

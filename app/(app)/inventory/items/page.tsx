@@ -22,7 +22,7 @@ export default async function ItemsPage() {
     supabase.from("inventory_aliases").select("id, item_id, alias_norm, unit_name, factor, supplier:suppliers(name)"),
     supabase
       .from("stock_receipts")
-      .select("invoice_date, supplier:suppliers(name), stock_receipt_lines(item_id, quantity, unit_name, unit_price, amount, base_quantity)")
+      .select("invoice_date, supplier:suppliers(name), stock_receipt_lines(item_id, quantity, unit_name, unit_price, amount, vat_amount, base_quantity)")
       .eq("status", "posted")
       .order("invoice_date", { ascending: false })
       .limit(300),
@@ -46,7 +46,7 @@ export default async function ItemsPage() {
           .map((l) => ({
             date: r.invoice_date,
             supplier: r.supplier?.name ?? null,
-            perBase: Number(l.base_quantity) > 0 ? Number(l.amount) / Number(l.base_quantity) : 0,
+            perBase: Number(l.base_quantity) > 0 ? (Number(l.amount) + Number(l.vat_amount)) / Number(l.base_quantity) : 0,
             quantity: Number(l.quantity),
             unit: l.unit_name,
           }))

@@ -14,7 +14,8 @@
 | 4 | **Bật "Leaked password protection"** trong Supabase Auth | Thấp | Khi nâng gói Supabase (có thể chỉ có ở gói trả phí) | — | ⏳ Chưa làm |
 | 8 | **Cài khóa AI + thử nhập kho thật**: tạo `ANTHROPIC_API_KEY` (console.anthropic.com, nạp ≥ 5 USD), thêm vào `.env.local` + Vercel, deploy, chụp 3–5 hóa đơn thật (in + viết tay) trên điện thoại | Cao | Ngay sau Phase 6 | Haiku 5.5 đọc phiếu viết tay có đủ tốt không? Nếu sai nhiều → `INVOICE_AI_MODEL=claude-sonnet-5-5` | ⏳ Chưa làm |
 | 9 | **Xuất kho / kiểm kê** (trừ tồn theo hàng dùng, phiếu kiểm kê định kỳ, cảnh báo tồn thấp) | Trung bình | Phase sau | Xuất theo ca/ngày hay theo món bán? | ⏳ Chưa làm |
-| 10 | **Công nợ nhà cung cấp** (đã trả / chưa trả, số nợ từng NCC) | Thấp | Khi cần | — | ⏳ Chưa làm |
+| 10 | **Công nợ nhà cung cấp** (đã trả / chưa trả, số nợ từng NCC) | Thấp | Khi cần | — (đã chốt: đầy đủ, QTV + QL ghi thanh toán) | ✅ Xong (09/10/2026) — kèm VAT theo từng dòng, giá vốn sau VAT |
+| 11 | **Nhắc công nợ sắp đến hạn / quá hạn** qua thông báo đẩy cho QTV/QL | Thấp | Khi cần | Báo trước mấy ngày? | ⏳ Chưa làm |
 
 ## Ghi chú ước tính dung lượng ảnh
 

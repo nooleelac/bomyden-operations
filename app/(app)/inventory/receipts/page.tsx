@@ -4,7 +4,7 @@ import { requireInventoryAccess } from "@/lib/auth/session";
 import { isAdmin, isManagerOrAdmin } from "@/lib/auth/roles";
 import { getInventoryBranches } from "@/lib/branches";
 import { createClient } from "@/lib/supabase/server";
-import { formatMoney } from "@/lib/inventory";
+import { formatMoney, paymentBadge } from "@/lib/inventory";
 import { isValidDateString, vnDateString } from "@/lib/time";
 import InventoryNav from "../InventoryNav";
 
@@ -32,7 +32,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
   const query = supabase
     .from("stock_receipts")
     .select(
-      "id, invoice_number, invoice_date, total_amount, status, created_at, branch:branches(name), supplier:suppliers(name), creator:employees!stock_receipts_created_by_fkey(full_name), stock_receipt_lines(count)"
+      "id, invoice_number, invoice_date, total_amount, paid_amount, debt_amount, due_date, status, created_at, branch:branches(name), supplier:suppliers(name), creator:employees!stock_receipts_created_by_fkey(full_name), stock_receipt_lines(count)"
     )
     .gte("invoice_date", from)
     .lt("invoice_date", isValidDateString(to) ? to : from)
@@ -45,6 +45,8 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
 
   const posted = (receipts ?? []).filter((r) => r.status === "posted");
   const monthTotal = posted.reduce((t, r) => t + Number(r.total_amount), 0);
+  const monthDebt = posted.reduce((t, r) => t + Number(r.debt_amount ?? 0), 0);
+  const today = vnDateString();
   const qs = (patch: Record<string, string>) =>
     "?" + new URLSearchParams({ ...(branchId ? { branch: branchId } : {}), month, ...patch }).toString();
 
@@ -82,7 +84,12 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
       </div>
 
       <p className="mb-3 text-sm text-neutral-600">
-        {posted.length} phiếu · Tổng nhập trong tháng <strong className="text-neutral-900">{formatMoney(monthTotal)}</strong>
+        {posted.length} phiếu · Tổng nhập trong tháng (sau VAT) <strong className="text-neutral-900">{formatMoney(monthTotal)}</strong>
+        {monthDebt > 0 && (
+          <>
+            {" "}· Còn nợ <strong className="text-red-700">{formatMoney(monthDebt)}</strong>
+          </>
+        )}
       </p>
 
       {(receipts ?? []).length === 0 ? (
@@ -106,7 +113,10 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
                   <p className={`font-semibold tabular-nums ${r.status === "cancelled" ? "text-neutral-400 line-through" : ""}`}>
                     {formatMoney(r.total_amount)}
                   </p>
-                  {r.status === "cancelled" && <p className="text-xs font-medium text-red-600">Đã hủy</p>}
+                  {(() => {
+                    const badge = paymentBadge(r, today);
+                    return <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span>;
+                  })()}
                 </div>
               </Link>
             </li>

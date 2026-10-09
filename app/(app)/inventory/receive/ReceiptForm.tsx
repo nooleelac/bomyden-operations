@@ -1,10 +1,10 @@
 "use client";
 
 import { startTransition, useActionState, useMemo, useState } from "react";
-import { ITEM_CATEGORIES, formatMoney, formatQty, normName, parseVnNumber, priceChangePercent } from "@/lib/inventory";
+import { ITEM_CATEGORIES, formatMoney, formatQty, lineVat, normName, parseVnNumber, priceChangePercent } from "@/lib/inventory";
 import { initialActionState } from "@/lib/action-state";
 import { saveReceipt, type ReceiptPayload } from "./actions";
-import type { CatalogItem, DraftLine, LastPrices, ReceiptDraft, SupplierOption } from "./types";
+import type { CatalogItem, DraftLine, LastPrices, PaymentStatus, ReceiptDraft, SupplierOption } from "./types";
 
 type Props = {
   branchId: string;
@@ -34,8 +34,22 @@ function newLine(): DraftLine {
     factor: "",
     unitPrice: "",
     amount: "",
+    vatRate: "0",
     matchedBy: null,
   };
+}
+
+const VAT_OPTIONS = ["0", "5", "8", "10"];
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Tiền mặt" },
+  { value: "transfer", label: "Chuyển khoản" },
+  { value: "other", label: "Khác" },
+] as const;
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Thông tin tính toán của 1 dòng (đơn vị kho, hệ số, số lượng quy đổi, lỗi) */
@@ -63,7 +77,13 @@ function analyze(line: DraftLine, byId: Map<string, CatalogItem>) {
 
   const finalAmount = amount ?? (quantity && unitPrice !== null ? quantity * unitPrice : 0);
   const finalPrice = unitPrice ?? (quantity ? finalAmount / quantity : 0);
-  return { item, baseUnit, unitName, isBase, known, factor, quantity, baseQty, amount: finalAmount, unitPrice: finalPrice, error };
+  const vatRate = parseVnNumber(line.vatRate) ?? 0;
+  if (!error && (vatRate < 0 || vatRate > 100)) error = "Thuế suất VAT không hợp lệ.";
+  const vat = lineVat(finalAmount, vatRate);
+  return {
+    item, baseUnit, unitName, isBase, known, factor, quantity, baseQty,
+    amount: finalAmount, unitPrice: finalPrice, vatRate, vat, gross: finalAmount + vat, error,
+  };
 }
 
 export default function ReceiptForm({ branchId, branchName, draft, catalog, suppliers, lastPrices, onCancel }: Props) {
@@ -81,6 +101,10 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   const [invoiceTotal, setInvoiceTotal] = useState(draft.invoiceTotal);
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<DraftLine[]>(draft.lines.length ? draft.lines : [newLine()]);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(draft.paymentStatus);
+  const [paidAmount, setPaidAmount] = useState(draft.paidAmount);
+  const [paymentMethod, setPaymentMethod] = useState(draft.paymentMethod);
+  const [dueDate, setDueDate] = useState(draft.dueDate);
   const [showErrors, setShowErrors] = useState(false);
   const [state, save, saving] = useActionState(
     (_prev: typeof initialActionState, payload: ReceiptPayload) => saveReceipt(payload),
@@ -88,10 +112,28 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   );
 
   const analyzed = lines.map((line) => analyze(line, byId));
-  const sum = analyzed.reduce((total, a) => total + (a.amount || 0), 0);
+  const subtotal = analyzed.reduce((total, a) => total + (a.amount || 0), 0);
+  const vatSum = analyzed.reduce((total, a) => total + a.vat, 0);
+  const sum = subtotal + vatSum;
   const printedTotal = parseVnNumber(invoiceTotal);
+  const printedVat = parseVnNumber(draft.printedVat);
   const totalMismatch = printedTotal !== null && Math.abs(printedTotal - sum) >= 1000;
   const errorCount = analyzed.filter((a) => a.error).length;
+
+  // Thanh toán
+  const supplier = suppliers.find((s) => s.id === supplierId);
+  const partialPaid = parseVnNumber(paidAmount);
+  const paid = paymentStatus === "paid" ? sum : paymentStatus === "partial" ? partialPaid ?? 0 : 0;
+  const debt = Math.max(sum - paid, 0);
+  const defaultDue = supplier?.paymentTermsDays != null && invoiceDate ? addDays(invoiceDate, supplier.paymentTermsDays) : "";
+  let paymentError: string | null = null;
+  if (!paymentStatus) paymentError = "Chọn tình trạng thanh toán.";
+  else if (paymentStatus === "partial" && (!partialPaid || partialPaid <= 0 || partialPaid >= sum)) {
+    paymentError = "Số đã trả phải lớn hơn 0 và nhỏ hơn tổng thanh toán.";
+  } else if (paymentStatus !== "paid" && !supplierId) paymentError = "Phiếu còn nợ: chọn nhà cung cấp để theo dõi công nợ.";
+  else if (paymentStatus !== "paid" && dueDate && invoiceDate && dueDate < invoiceDate) {
+    paymentError = "Hạn thanh toán không được trước ngày hóa đơn.";
+  }
 
   function update(key: string, patch: Partial<DraftLine>) {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -125,7 +167,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   }
 
   function submit() {
-    if (errorCount > 0 || (supplierId === NEW && !newSupplierName.trim()) || !invoiceDate) {
+    if (errorCount > 0 || paymentError || (supplierId === NEW && !newSupplierName.trim()) || !invoiceDate) {
       setShowErrors(true);
       return;
     }
@@ -138,6 +180,11 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
       invoice_date: invoiceDate,
       invoice_total: printedTotal,
       note: note.trim() || null,
+      payment: {
+        paid_amount: Math.round(paid * 100) / 100,
+        method: paymentMethod,
+        due_date: paymentStatus !== "paid" && dueDate ? dueDate : null,
+      },
       lines: lines.map((line, i) => {
         const a = analyzed[i];
         return {
@@ -152,6 +199,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
           factor: a.factor ?? null,
           unit_price: Math.round(a.unitPrice * 100) / 100,
           amount: Math.round(a.amount * 100) / 100,
+          vat_rate: a.vatRate,
         };
       }),
     };
@@ -229,11 +277,25 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
       </section>
 
       <section className="space-y-3">
-        <h2 className="px-1 font-semibold">Mặt hàng ({lines.length})</h2>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <h2 className="font-semibold">Mặt hàng ({lines.length})</h2>
+          <select
+            className="input w-auto py-1.5 text-sm"
+            value=""
+            onChange={(e) => e.target.value && setLines((current) => current.map((l) => ({ ...l, vatRate: e.target.value })))}
+            aria-label="Áp dụng thuế VAT cho tất cả dòng"
+          >
+            <option value="">VAT cho tất cả dòng…</option>
+            {VAT_OPTIONS.map((rate) => (
+              <option key={rate} value={rate}>{rate === "0" ? "0% / KCT" : `${rate}%`}</option>
+            ))}
+          </select>
+        </div>
         {lines.map((line, index) => {
           const a = analyzed[index];
           const last = a.item ? lastPrices[a.item.id] : undefined;
-          const perBase = a.baseQty ? a.amount / a.baseQty : null;
+          // Giá vốn so sánh theo giá SAU VAT
+          const perBase = a.baseQty ? a.gross / a.baseQty : null;
           const change = priceChangePercent(last?.price, perBase);
           return (
             <div key={line.key} className={`card space-y-3 p-4 ${showErrors && a.error ? "border-red-300" : ""}`}>
@@ -380,7 +442,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`amount-${line.key}`}>Thành tiền</label>
+                  <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`amount-${line.key}`}>Thành tiền (chưa VAT)</label>
                   <input
                     id={`amount-${line.key}`}
                     className="input"
@@ -391,11 +453,28 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
                 </div>
               </div>
 
+              <div className="flex items-center gap-2">
+                <label className="shrink-0 text-xs font-medium text-neutral-600" htmlFor={`vat-${line.key}`}>Thuế VAT</label>
+                <select
+                  id={`vat-${line.key}`}
+                  className="input w-28"
+                  value={line.vatRate}
+                  onChange={(e) => update(line.key, { vatRate: e.target.value })}
+                >
+                  {(VAT_OPTIONS.includes(line.vatRate) ? VAT_OPTIONS : [...VAT_OPTIONS, line.vatRate]).map((rate) => (
+                    <option key={rate} value={rate}>{rate === "0" ? "0% / KCT" : `${rate}%`}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-neutral-500 tabular-nums">{a.vat > 0 ? `+ ${formatMoney(a.vat)}` : ""}</span>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-neutral-500">
                 <span>
                   {a.baseQty ? <>Cộng kho: <strong className="text-neutral-800">{formatQty(a.baseQty)} {a.baseUnit}</strong></> : "—"}
                 </span>
-                <span className="tabular-nums">{formatMoney(a.amount)}</span>
+                <span className="tabular-nums">
+                  Sau VAT: <strong className="text-neutral-800">{formatMoney(a.gross)}</strong>
+                </span>
               </div>
               {change !== null && Math.abs(change) >= PRICE_ALERT_PERCENT && (
                 <p className={`rounded-md px-2 py-1 text-xs ${change > 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
@@ -413,16 +492,104 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
       </section>
 
       <section className="card space-y-3 p-4">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold">Tổng các dòng</span>
-          <span className="text-lg font-bold tabular-nums">{formatMoney(sum)}</span>
-        </div>
+        <dl className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-neutral-600">Tiền hàng (chưa VAT)</dt>
+            <dd className="tabular-nums">{formatMoney(subtotal)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-neutral-600">Tiền thuế VAT</dt>
+            <dd className="tabular-nums">{formatMoney(vatSum)}</dd>
+          </div>
+          <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
+            <dt className="font-semibold">Tổng thanh toán</dt>
+            <dd className="text-lg font-bold tabular-nums">{formatMoney(sum)}</dd>
+          </div>
+        </dl>
+        {printedTotal !== null && !totalMismatch && (
+          <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">✓ Khớp tổng in trên hóa đơn.</p>
+        )}
         {totalMismatch && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            ⚠️ Lệch {formatMoney(Math.abs(printedTotal! - sum))} so với tổng in trên hóa đơn ({formatMoney(printedTotal)}). Kiểm tra
-            lại các dòng (có thể do thuế/chiết khấu).
+            ⚠️ Lệch {formatMoney(Math.abs(printedTotal! - sum))} so với tổng in trên hóa đơn ({formatMoney(printedTotal)}).
+            {printedVat !== null && Math.abs(printedVat - vatSum) >= 1000
+              ? ` Tiền thuế trên hóa đơn là ${formatMoney(printedVat)} — kiểm tra lại thuế suất VAT từng dòng.`
+              : " Kiểm tra lại các dòng (có thể do chiết khấu, phí ship)."}
           </p>
         )}
+      </section>
+
+      <section className={`card space-y-3 p-4 ${showErrors && paymentError ? "border-red-300" : ""}`}>
+        <h2 className="font-semibold">Thanh toán</h2>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tình trạng thanh toán">
+          {(
+            [
+              { value: "paid", label: "Đã trả đủ" },
+              { value: "partial", label: "Trả một phần" },
+              { value: "unpaid", label: "Chưa trả (nợ)" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={paymentStatus === option.value}
+              onClick={() => setPaymentStatus(option.value)}
+              className={`rounded-lg border px-2 py-2.5 text-sm font-medium ${
+                paymentStatus === option.value ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {!draft.paymentStatus && draft.scanId && !paymentStatus && (
+          <p className="text-xs text-neutral-500">AI không thấy hóa đơn ghi rõ đã thanh toán hay chưa — vui lòng chọn.</p>
+        )}
+
+        {paymentStatus === "partial" && (
+          <div>
+            <label htmlFor="paid-amount" className="mb-1 block text-sm font-medium text-neutral-700">Số đã trả</label>
+            <input id="paid-amount" className="input" inputMode="decimal" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+          </div>
+        )}
+        {(paymentStatus === "paid" || paymentStatus === "partial") && (
+          <div>
+            <label htmlFor="pay-method" className="mb-1 block text-sm font-medium text-neutral-700">Hình thức trả</label>
+            <select
+              id="pay-method"
+              className="input"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {(paymentStatus === "unpaid" || paymentStatus === "partial") && (
+          <>
+            <p className="text-sm">
+              Còn nợ: <strong className="tabular-nums text-red-700">{formatMoney(debt)}</strong>
+            </p>
+            <div>
+              <label htmlFor="due-date" className="mb-1 block text-sm font-medium text-neutral-700">Hạn thanh toán</label>
+              <input id="due-date" type="date" className="input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              {!dueDate && (
+                <p className="mt-1 text-xs text-neutral-500">
+                  {defaultDue
+                    ? `Để trống = theo hạn nợ của NCC (${supplier!.paymentTermsDays} ngày → ${defaultDue.split("-").reverse().join("/")}).`
+                    : "Để trống nếu không có hạn."}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+        {showErrors && paymentError && <p className="field-error mt-0">{paymentError}</p>}
+      </section>
+
+      <section className="card p-4">
         <div>
           <label htmlFor="note" className="mb-1 block text-sm font-medium text-neutral-700">Ghi chú</label>
           <textarea id="note" className="input" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -431,6 +598,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
 
       {state.message && !state.ok && <p className="alert-error">{state.message}</p>}
       {showErrors && errorCount > 0 && <p className="alert-error">Còn {errorCount} dòng chưa đủ thông tin (viền đỏ).</p>}
+      {showErrors && paymentError && <p className="alert-error">{paymentError}</p>}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 p-3 backdrop-blur">
         <div className="mx-auto flex max-w-2xl gap-2">

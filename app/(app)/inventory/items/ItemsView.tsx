@@ -171,7 +171,7 @@ function ItemDialog({ item, onClose, onDone }: { item: ItemRow | null; onClose: 
 
       {item && item.history.length > 0 && (
         <section className="mt-6 border-t border-neutral-100 pt-4">
-          <h3 className="mb-2 text-sm font-semibold">Lịch sử giá nhập</h3>
+          <h3 className="mb-2 text-sm font-semibold">Lịch sử giá nhập (sau VAT)</h3>
           <ul className="space-y-1 text-sm">
             {item.history.map((h, i) => {
               const [y, m, d] = h.date.split("-");

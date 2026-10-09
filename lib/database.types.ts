@@ -1189,6 +1189,8 @@ export type Database = {
           receipt_id: string
           unit_name: string
           unit_price: number
+          vat_amount: number
+          vat_rate: number
         }
         Insert: {
           amount: number
@@ -1202,6 +1204,8 @@ export type Database = {
           receipt_id: string
           unit_name: string
           unit_price: number
+          vat_amount?: number
+          vat_rate?: number
         }
         Update: {
           amount?: number
@@ -1215,6 +1219,8 @@ export type Database = {
           receipt_id?: string
           unit_name?: string
           unit_price?: number
+          vat_amount?: number
+          vat_rate?: number
         }
         Relationships: [
           {
@@ -1241,16 +1247,21 @@ export type Database = {
           cancelled_by: string | null
           created_at: string
           created_by: string
+          debt_amount: number | null
+          due_date: string | null
           id: string
           invoice_date: string
           invoice_number: string | null
           invoice_total: number | null
           note: string | null
+          paid_amount: number
           photo_path: string | null
           scan_id: string | null
           status: Database["public"]["Enums"]["stock_receipt_status"]
+          subtotal: number
           supplier_id: string | null
           total_amount: number
+          vat_amount: number
         }
         Insert: {
           branch_id: string
@@ -1259,16 +1270,21 @@ export type Database = {
           cancelled_by?: string | null
           created_at?: string
           created_by: string
+          debt_amount?: number | null
+          due_date?: string | null
           id?: string
           invoice_date: string
           invoice_number?: string | null
           invoice_total?: number | null
           note?: string | null
+          paid_amount?: number
           photo_path?: string | null
           scan_id?: string | null
           status?: Database["public"]["Enums"]["stock_receipt_status"]
+          subtotal?: number
           supplier_id?: string | null
           total_amount: number
+          vat_amount?: number
         }
         Update: {
           branch_id?: string
@@ -1277,16 +1293,21 @@ export type Database = {
           cancelled_by?: string | null
           created_at?: string
           created_by?: string
+          debt_amount?: number | null
+          due_date?: string | null
           id?: string
           invoice_date?: string
           invoice_number?: string | null
           invoice_total?: number | null
           note?: string | null
+          paid_amount?: number
           photo_path?: string | null
           scan_id?: string | null
           status?: Database["public"]["Enums"]["stock_receipt_status"]
+          subtotal?: number
           supplier_id?: string | null
           total_amount?: number
+          vat_amount?: number
         }
         Relationships: [
           {
@@ -1335,6 +1356,7 @@ export type Database = {
           is_active: boolean
           name: string
           note: string | null
+          payment_terms_days: number | null
           phone: string | null
           updated_at: string
           updated_by: string | null
@@ -1347,6 +1369,7 @@ export type Database = {
           is_active?: boolean
           name: string
           note?: string | null
+          payment_terms_days?: number | null
           phone?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -1359,6 +1382,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           note?: string | null
+          payment_terms_days?: number | null
           phone?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -1380,11 +1404,113 @@ export type Database = {
           },
         ]
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          branch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          paid_on: string
+          receipt_id: string
+          supplier_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_on: string
+          receipt_id: string
+          supplier_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_on?: string
+          receipt_id?: string
+          supplier_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      set_receipt_due_date: {
+        Args: { p_due_date: string | null; p_receipt_id: string }
+        Returns: undefined
+      }
+      void_supplier_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: undefined
+      }
+      record_supplier_payment: {
+        Args: {
+          p_amount: number
+          p_method: Database["public"]["Enums"]["payment_method"]
+          p_note?: string
+          p_paid_on: string
+          p_receipt_id: string
+        }
+        Returns: string
+      }
       adjust_stock: {
         Args: {
           p_branch_id: string
@@ -1661,6 +1787,7 @@ export type Database = {
       }
     }
     Enums: {
+      payment_method: "cash" | "transfer" | "other"
       stock_movement_kind: "receipt" | "receipt_cancel" | "adjust"
       stock_receipt_status: "posted" | "cancelled"
       notification_kind: "task_due_soon" | "task_overdue" | "task_overdue_report"
@@ -1737,3 +1864,5 @@ export type StockReceipt = Database["public"]["Tables"]["stock_receipts"]["Row"]
 export type StockReceiptLine = Database["public"]["Tables"]["stock_receipt_lines"]["Row"]
 export type StockReceiptStatus = Database["public"]["Enums"]["stock_receipt_status"]
 export type StockMovementKind = Database["public"]["Enums"]["stock_movement_kind"]
+export type PaymentMethod = Database["public"]["Enums"]["payment_method"]
+export type SupplierPayment = Database["public"]["Tables"]["supplier_payments"]["Row"]
