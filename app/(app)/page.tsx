@@ -38,7 +38,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     ...(canManageAttendance(employee.role)
       ? [{ title: "Xếp lịch & duyệt đơn", description: "Xếp ca, công bố lịch, duyệt đơn xin phép", href: "/schedule/manage", icon: "🗓️" }]
       : []),
-    { title: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" },
+    // QTV không được giao việc checklist → chỉ cần "Quản lý checklist"
+    ...(employee.role !== "admin"
+      ? [{ title: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" }]
+      : []),
     ...(canManageAttendance(employee.role)
       ? [{ title: "Quản lý checklist", description: "Mẫu công việc, báo cáo hằng ngày", href: "/checklist/manage", icon: "✅" }]
       : []),
@@ -70,7 +73,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           },
         ]
       : []),
-    { title: "Tài khoản của tôi", description: "Thông tin cá nhân, đổi mật khẩu", href: "/account", icon: "🔐" },
   ];
 
   const isManager = isManagerOrAdmin(employee.role);
