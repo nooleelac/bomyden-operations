@@ -31,11 +31,12 @@ export async function saveMyRegistrations(branchId: string, from: string, to: st
     p_items: parsed.data,
   });
   if (error) return fail(friendlyDbError(error));
-  const result = data as { saved: number; locked: number };
+  const result = data as { saved: number; locked: number; overlap: number };
   revalidatePath("/schedule/register");
   revalidatePath("/schedule/manage");
   return success(
     (result.saved ? `Đã gửi ${result.saved} đăng ký. Quản lý sẽ duyệt và xếp lịch.` : "Đã lưu (không còn đăng ký nào đang chờ trong khoảng này).") +
-      (result.locked ? ` ${result.locked} ngày đã quá hạn nên không đổi được.` : "")
+      (result.locked ? ` ${result.locked} ngày đã quá hạn nên không đổi được.` : "") +
+      (result.overlap ? ` Bỏ qua ${result.overlap} ca trùng giờ với ca khác cùng ngày.` : "")
   );
 }
