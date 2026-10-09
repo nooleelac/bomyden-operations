@@ -165,3 +165,4 @@ npm run build
 - Quyền kiểm kê / xuất: QTV, QL chi nhánh, NV được bật "nhập kho". Báo cáo **Tiêu hao** theo tháng: QTV/QL.
 - **Mức tối thiểu** theo chi nhánh: dưới mức → Tổng quan + lọc trên trang Kho + thông báo 9:00 hằng ngày (pg_cron `bomyden-low-stock`).
 - Giá vốn = giá nhập gần nhất sau VAT, chụp lại lúc lập phiếu.
+- **Nhắc công nợ NCC** 9:00 hằng ngày (pg_cron `bomyden-debt-reminder`): còn 3 ngày, đúng ngày đến hạn, quá hạn nhắc mỗi ngày đến khi trả xong — gộp 1 thông báo / chi nhánh cho QL + QTV.

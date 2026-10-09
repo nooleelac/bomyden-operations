@@ -16,7 +16,7 @@
 | 9 | **Xuất kho / kiểm kê** (trừ tồn theo hàng dùng, phiếu kiểm kê định kỳ, cảnh báo tồn thấp) | Trung bình | Phase sau | Xuất theo ca/ngày hay theo món bán? | ✅ Xong (10/10/2026) — kiểm kê suy ra lượng dùng, phiếu xuất (hủy / chuyển chi nhánh / khác), báo cáo tiêu hao, mức tối thiểu + thông báo 9:00 |
 | 10 | **Công nợ nhà cung cấp** (đã trả / chưa trả, số nợ từng NCC) | Thấp | Khi cần | — (đã chốt: đầy đủ, QTV + QL ghi thanh toán) | ✅ Xong (09/10/2026) — kèm VAT theo từng dòng, giá vốn sau VAT |
 | 12 | **Thông báo đăng ký ca**: báo QL khi NV gửi đăng ký mới; báo NV khi được duyệt / từ chối; nhắc NV part-time chưa đăng ký tuần tới | Trung bình | Khi dùng thật tính năng tự đăng ký | Nhắc vào thứ mấy, mấy giờ? | ✅ Xong (10/10/2026) — báo QL khi NV gửi đăng ký / đơn, báo NV khi duyệt / từ chối, nhắc NV chưa đăng ký tuần tới vào T7 15:00 (hạn chót 2 ngày) |
-| 11 | **Nhắc công nợ sắp đến hạn / quá hạn** qua thông báo đẩy cho QTV/QL | Thấp | Khi cần | Báo trước mấy ngày? | ⏳ Chưa làm |
+| 11 | **Nhắc công nợ sắp đến hạn / quá hạn** qua thông báo đẩy cho QTV/QL | Thấp | Khi cần | — (đã chốt: trước 3 ngày + đúng ngày, quá hạn nhắc mỗi ngày) | ✅ Xong (10/10/2026) — 9:00 hằng ngày, gộp 1 thông báo / chi nhánh cho QL + QTV |
 
 ## Ghi chú ước tính dung lượng ảnh
 

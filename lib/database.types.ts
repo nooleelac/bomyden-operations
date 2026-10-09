@@ -2037,6 +2037,7 @@ export type Database = {
         | "advance_new"
         | "advance_result"
         | "low_stock"
+        | "debt_due"
       salary_advance_status: "pending" | "approved" | "rejected" | "cancelled"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
