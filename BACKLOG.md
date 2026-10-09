@@ -15,7 +15,7 @@
 | 8 | **Cài khóa AI + thử nhập kho thật**: tạo `ANTHROPIC_API_KEY` (console.anthropic.com, nạp ≥ 5 USD), thêm vào `.env.local` + Vercel, deploy, chụp 3–5 hóa đơn thật (in + viết tay) trên điện thoại | Cao | Ngay sau Phase 6 | Haiku 5.5 đọc phiếu viết tay có đủ tốt không? Nếu sai nhiều → `INVOICE_AI_MODEL=claude-sonnet-5-5` | ✅ Xong (09/10/2026) — 9 lượt quét bằng Haiku 5.5, 2 phiếu đã lưu; 2 lỗi đầu là trước bản sửa schema |
 | 9 | **Xuất kho / kiểm kê** (trừ tồn theo hàng dùng, phiếu kiểm kê định kỳ, cảnh báo tồn thấp) | Trung bình | Phase sau | Xuất theo ca/ngày hay theo món bán? | ⏳ Chưa làm |
 | 10 | **Công nợ nhà cung cấp** (đã trả / chưa trả, số nợ từng NCC) | Thấp | Khi cần | — (đã chốt: đầy đủ, QTV + QL ghi thanh toán) | ✅ Xong (09/10/2026) — kèm VAT theo từng dòng, giá vốn sau VAT |
-| 12 | **Thông báo đăng ký ca**: báo QL khi NV gửi đăng ký mới; báo NV khi được duyệt / từ chối; nhắc NV part-time chưa đăng ký tuần tới | Trung bình | Khi dùng thật tính năng tự đăng ký | Nhắc vào thứ mấy, mấy giờ? | ✅ Xong (10/10/2026) — báo QL khi NV gửi đăng ký / đơn, báo NV khi duyệt / từ chối, nhắc NV chưa đăng ký tuần tới vào CN 15:00 |
+| 12 | **Thông báo đăng ký ca**: báo QL khi NV gửi đăng ký mới; báo NV khi được duyệt / từ chối; nhắc NV part-time chưa đăng ký tuần tới | Trung bình | Khi dùng thật tính năng tự đăng ký | Nhắc vào thứ mấy, mấy giờ? | ✅ Xong (10/10/2026) — báo QL khi NV gửi đăng ký / đơn, báo NV khi duyệt / từ chối, nhắc NV chưa đăng ký tuần tới vào T7 15:00 (hạn chót 2 ngày) |
 | 11 | **Nhắc công nợ sắp đến hạn / quá hạn** qua thông báo đẩy cho QTV/QL | Thấp | Khi cần | Báo trước mấy ngày? | ⏳ Chưa làm |
 
 ## Ghi chú ước tính dung lượng ảnh
