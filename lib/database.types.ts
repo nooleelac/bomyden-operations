@@ -62,6 +62,7 @@ type TaskTemplateRow = {
   created_at: string
   created_by: string | null
   description: string | null
+  deleted_at: string | null
   due_time: string
   frequency: Database["public"]["Enums"]["task_frequency"]
   id: string
@@ -1881,6 +1882,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      delete_task_templates: {
+        Args: { p_template_ids: string[] }
+        Returns: { deleted: number; archived: number }
       }
       ensure_task_instances: {
         Args: { p_date?: string }

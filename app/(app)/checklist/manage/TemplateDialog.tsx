@@ -43,13 +43,16 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onDone: (message: string) => void;
+  /** Chỉ khi sửa: xóa mẫu này */
+  onDelete?: () => void;
+  deleting?: boolean;
 };
 
 function Err({ state, name }: { state: ActionState; name: string }) {
   return state.fieldErrors?.[name] ? <p className="field-error">{state.fieldErrors[name]}</p> : null;
 }
 
-export default function TemplateDialog({ template, copyFrom, branches, open, onClose, onDone }: Props) {
+export default function TemplateDialog({ template, copyFrom, branches, open, onClose, onDone, onDelete, deleting }: Props) {
   // Giá trị ban đầu của các ô: từ mẫu đang sửa, hoặc mẫu được sao chép
   const init = template ?? (copyFrom && { ...copyFrom, title: `${copyFrom.title} (bản sao)` });
   const [branchId, setBranchId] = useState(init?.branchId ?? (branches.length === 1 ? branches[0].id : ""));
@@ -188,6 +191,11 @@ export default function TemplateDialog({ template, copyFrom, branches, open, onC
 
         {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
         <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
+          {template && onDelete && (
+            <button type="button" onClick={onDelete} disabled={deleting || pending} className="btn-danger mr-auto">
+              {deleting ? "Đang xóa..." : "Xóa"}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
           <SubmitButton pending={pending} pendingText="Đang lưu...">{template ? "Lưu thay đổi" : "Tạo công việc"}</SubmitButton>
         </div>

@@ -168,6 +168,24 @@ export async function bulkAssignTemplates(_prev: ActionState, formData: FormData
   );
 }
 
+/** Xóa mẫu: chưa có lịch sử → xóa hẳn; đã có việc làm xong / không đạt → ẩn, giữ báo cáo cũ. */
+export async function deleteTemplates(templateIds: string[]): Promise<ActionState> {
+  await requireManager();
+  const ids = z.array(z.uuid()).min(1).max(500).safeParse(templateIds);
+  if (!ids.success) return fail("Chọn ít nhất một công việc.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_task_templates", { p_template_ids: ids.data });
+  if (error) return fail(friendlyDbError(error));
+
+  revalidateChecklist();
+  const parts = [
+    data.deleted > 0 && `Đã xóa ${data.deleted} công việc.`,
+    data.archived > 0 && `${data.archived} công việc đã có lịch sử nên được ẩn đi (báo cáo các ngày cũ vẫn giữ).`,
+  ].filter(Boolean);
+  return success(parts.join(" ") || "Không có công việc nào được xóa.");
+}
+
 export async function reopenTask(instanceId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireManager();
   const reason = String(formData.get("reason") ?? "").trim();

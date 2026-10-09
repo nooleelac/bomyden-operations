@@ -45,6 +45,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
         "id, branch_id, title, description, category, priority, start_time, due_time, frequency, weekdays, month_days, requires_photo, requires_note, primary_employee_id, backup_employee_id, is_active, sort_order, branch:branches(name), primary:employees!task_templates_primary_employee_id_fkey(full_name), backup:employees!task_templates_backup_employee_id_fkey(full_name)"
       )
       .in("branch_id", scope)
+      .is("deleted_at", null)
       .order("is_active", { ascending: false })
       .order("sort_order")
       .order("start_time"),

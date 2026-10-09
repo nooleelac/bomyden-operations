@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import TemplateDialog, { type BranchStaff, type TemplateItem } from "./TemplateDialog";
 import BulkAssignDialog from "./BulkAssignDialog";
-import { reopenTask } from "./actions";
+import { deleteTemplates, reopenTask } from "./actions";
 import { CATEGORY_ICONS, DISPLAY_STATUS, PRIORITY_LABELS, describeSchedule, type DisplayStatus } from "@/lib/checklist";
 import { formatTime } from "@/lib/time";
 
@@ -78,6 +78,22 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
   // "all" | "unassigned" | id nhân viên (người chính hoặc người thay)
   const [filter, setFilter] = useState<string>("all");
   const notify = useCallback((message: string) => setToast(message), []);
+  const [deleting, startDeleting] = useTransition();
+
+  /** Xóa 1 hoặc nhiều mẫu (sau khi hỏi lại) */
+  const removeTemplates = (ids: string[], afterDone?: () => void) => {
+    const titles = templates.filter((t) => ids.includes(t.id)).map((t) => `• ${t.title}`);
+    const list = titles.slice(0, 10).join("\n") + (titles.length > 10 ? `\n… và ${titles.length - 10} việc khác` : "");
+    if (!window.confirm(`Xóa ${ids.length} công việc?\n${list}\n\nViệc chưa làm từ hôm nay sẽ bị hủy. Báo cáo các ngày cũ vẫn được giữ.`)) return;
+    startDeleting(async () => {
+      const result = await deleteTemplates(ids);
+      notify(result.message);
+      if (result.ok) {
+        setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+        afterDone?.();
+      }
+    });
+  };
 
   const unassignedCount = templates.filter((t) => !t.primaryId).length;
   const assignees = [
@@ -276,6 +292,9 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                 <span className="text-sm font-medium">Đã chọn {selected.size}</span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setSelected(new Set())} className="btn-secondary px-3 py-1.5">Bỏ chọn</button>
+                  <button type="button" onClick={() => removeTemplates([...selected])} disabled={deleting} className="btn-danger px-3 py-1.5">
+                    {deleting ? "Đang xóa..." : "Xóa"}
+                  </button>
                   <button type="button" onClick={() => setAssigning(true)} className="btn-primary px-3 py-1.5">Giao việc</button>
                 </div>
               </div>
@@ -288,6 +307,8 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
             copyFrom={copying ?? undefined}
             branches={branches}
             open={editing !== null || copying !== null}
+            deleting={deleting}
+            onDelete={editing && editing !== "new" ? () => removeTemplates([editing.id], () => setEditing(null)) : undefined}
             onClose={() => {
               setEditing(null);
               setCopying(null);
