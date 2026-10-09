@@ -22,7 +22,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const [itemsRes, balancesRes, lastPrices] = await Promise.all([
     supabase.from("inventory_items").select("id, name, category, base_unit, is_active").order("category").order("name"),
     branchId
-      ? supabase.from("stock_balances").select("item_id, quantity, updated_at").eq("branch_id", branchId)
+      ? supabase.from("stock_balances").select("item_id, quantity, min_quantity, updated_at").eq("branch_id", branchId)
       : Promise.resolve({ data: [], error: null }),
     loadLastPrices(),
   ]);
@@ -37,6 +37,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
       category: item.category,
       baseUnit: item.base_unit,
       quantity: Number(balances.get(item.id)?.quantity ?? 0),
+      minQuantity: balances.get(item.id)?.min_quantity == null ? null : Number(balances.get(item.id)?.min_quantity),
       updatedAt: balances.get(item.id)?.updated_at ?? null,
       lastPrice: lastPrices[item.id]?.price ?? null,
     }));
@@ -50,6 +51,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         <h1 className="text-2xl font-bold tracking-tight">Kho</h1>
         <div className="flex flex-wrap gap-2">
           <a href="/inventory/export/stock" className="btn-secondary" download>⬇ Xuất Excel</a>
+          <Link href={`/inventory/counts/new?branch=${branchId ?? ""}`} className="btn-secondary">🔢 Kiểm kê</Link>
+          <Link href={`/inventory/issues/new?branch=${branchId ?? ""}`} className="btn-secondary">➖ Xuất kho</Link>
           <Link href="/inventory/receive" className="btn-primary">📷 Nhập kho từ hóa đơn</Link>
         </div>
       </div>
@@ -72,7 +75,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
               ))}
             </div>
           )}
-          <StockView key={branchId} branchId={branchId!} rows={rows} canAdjust={manager} />
+          <StockView key={branchId} branchId={branchId!} rows={rows} canAdjust={manager} initialLowOnly={params.low === "1"} />
         </>
       )}
     </div>

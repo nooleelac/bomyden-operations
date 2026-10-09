@@ -53,7 +53,7 @@ export default async function ManagerOverview({
     requestsQ = requestsQ.eq("branch_id", branchId);
   }
 
-  const [shiftsRes, attendanceRes, tasksRes, trendRes, correctionsRes, requestsRes, registrationsRes, draftsRes, leavesRes, debtRes, monthRes, advancesRes] =
+  const [shiftsRes, attendanceRes, tasksRes, trendRes, correctionsRes, requestsRes, registrationsRes, draftsRes, leavesRes, debtRes, monthRes, advancesRes, minRes] =
     await Promise.all([
       supabase
         .from("shifts")
@@ -117,6 +117,12 @@ export default async function ManagerOverview({
         .gte("invoice_date", monthStart)
         .in("branch_id", scope),
       canAccessPayroll(actor) ? supabase.rpc("salary_advance_queue") : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from("stock_balances")
+        .select("branch_id, quantity, min_quantity, item:inventory_items!inner(name, is_active)")
+        .not("min_quantity", "is", null)
+        .eq("item.is_active", true)
+        .in("branch_id", scope),
     ]);
 
   if (shiftsRes.error || attendanceRes.error || tasksRes.error) {
@@ -201,6 +207,9 @@ export default async function ManagerOverview({
   const overdueDebtAmount = overdueDebt.reduce((t, r) => t + Number(r.debt_amount ?? 0), 0);
   const monthPurchases = (monthRes.data ?? []).reduce((t, r) => t + Number(r.total_amount), 0);
 
+  const lowStock = (minRes.data ?? []).filter((b) => Number(b.quantity) < Number(b.min_quantity));
+  const lowStockHref = branchId || branches.length === 1 ? `/inventory?branch=${branchId || branches[0].id}&low=1` : "/inventory?low=1";
+
   const branchQuery = branchId ? `branch=${branchId}` : "";
   const withBranch = (path: string) => (branchQuery ? `${path}${path.includes("?") ? "&" : "?"}${branchQuery}` : path);
 
@@ -273,6 +282,15 @@ export default async function ManagerOverview({
       href: "/inventory/debts",
       tone: "bad",
       count: overdueDebt.length,
+    },
+    {
+      key: "low-stock",
+      icon: "📦",
+      text: "Nguyên liệu dưới mức tối thiểu",
+      detail: lowStock.slice(0, 4).map((b) => b.item?.name).filter(Boolean).join(", "),
+      href: lowStockHref,
+      tone: "warn",
+      count: lowStock.length,
     },
     {
       key: "drafts",

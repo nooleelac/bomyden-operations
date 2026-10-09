@@ -1096,11 +1096,153 @@ export type Database = {
           },
         ]
       }
+      stock_counts: {
+        Row: {
+          id: string
+          branch_id: string
+          counted_on: string
+          note: string | null
+          line_count: number
+          used_value: number
+          surplus_value: number
+          created_at: string
+          created_by: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "stock_counts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_counts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_count_lines: {
+        Row: {
+          id: string
+          count_id: string
+          item_id: string
+          system_qty: number
+          counted_qty: number
+          used_qty: number
+          unit_cost: number | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_issues: {
+        Row: {
+          id: string
+          branch_id: string
+          kind: Database["public"]["Enums"]["stock_issue_kind"]
+          to_branch_id: string | null
+          issued_on: string
+          reason: string
+          status: Database["public"]["Enums"]["stock_issue_status"]
+          total_value: number
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancel_reason: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "stock_issues_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_issues_to_branch_id_fkey"
+            columns: ["to_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_issues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_issues_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_issue_lines: {
+        Row: {
+          id: string
+          issue_id: string
+          line_no: number
+          item_id: string
+          quantity: number
+          unit_name: string
+          factor: number
+          base_quantity: number
+          unit_cost: number | null
+          amount: number
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "stock_issue_lines_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "stock_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_issue_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_balances: {
         Row: {
           branch_id: string
           item_id: string
           quantity: number
+          min_quantity: number | null
           updated_at: string
         }
         Insert: {
@@ -1144,6 +1286,8 @@ export type Database = {
           kind: Database["public"]["Enums"]["stock_movement_kind"]
           reason: string | null
           receipt_id: string | null
+          count_id: string | null
+          issue_id: string | null
         }
         Insert: {
           balance_after: number
@@ -1535,6 +1679,22 @@ export type Database = {
         }
         Returns: string
       }
+      create_stock_count: {
+        Args: { p_branch_id: string; p_note: string | null; p_lines: Json }
+        Returns: string
+      }
+      create_stock_issue: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
+      cancel_stock_issue: {
+        Args: { p_issue_id: string; p_reason: string }
+        Returns: undefined
+      }
+      set_stock_min: {
+        Args: { p_branch_id: string; p_item_id: string; p_min: number | null }
+        Returns: undefined
+      }
       adjust_stock: {
         Args: {
           p_branch_id: string
@@ -1860,7 +2020,9 @@ export type Database = {
     }
     Enums: {
       payment_method: "cash" | "transfer" | "other"
-      stock_movement_kind: "receipt" | "receipt_cancel" | "adjust"
+      stock_movement_kind: "receipt" | "receipt_cancel" | "adjust" | "count" | "issue" | "issue_cancel" | "transfer_in" | "transfer_in_cancel"
+      stock_issue_kind: "waste" | "transfer" | "other"
+      stock_issue_status: "posted" | "cancelled"
       stock_receipt_status: "posted" | "cancelled"
       notification_kind:
         | "task_due_soon"
@@ -1874,6 +2036,7 @@ export type Database = {
         | "registration_reminder"
         | "advance_new"
         | "advance_result"
+        | "low_stock"
       salary_advance_status: "pending" | "approved" | "rejected" | "cancelled"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"

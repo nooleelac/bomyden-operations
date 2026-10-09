@@ -156,3 +156,12 @@ npm run typecheck
 npm run lint
 npm run build
 ```
+
+## Kiểm kê & xuất kho
+
+- **Kiểm kê** (khi cần): đếm tồn thực tế (đơn vị kho hoặc đơn vị phụ) → tồn đặt bằng số đếm. Lượng **đã dùng** = tồn sổ − tồn đếm
+  (sổ = lần đếm trước + nhập − xuất). Không hiện tồn sổ lúc đếm; nháp lưu trên máy. Phiếu kiểm kê không hủy được.
+- **Phiếu xuất**: hủy hàng / chuyển chi nhánh (cộng tồn bên nhận) / khác — bắt buộc lý do; QTV/QL chi nhánh xuất được hủy phiếu.
+- Quyền kiểm kê / xuất: QTV, QL chi nhánh, NV được bật "nhập kho". Báo cáo **Tiêu hao** theo tháng: QTV/QL.
+- **Mức tối thiểu** theo chi nhánh: dưới mức → Tổng quan + lọc trên trang Kho + thông báo 9:00 hằng ngày (pg_cron `bomyden-low-stock`).
+- Giá vốn = giá nhập gần nhất sau VAT, chụp lại lúc lập phiếu.

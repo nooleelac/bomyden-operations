@@ -137,3 +137,24 @@ export function formatIsoDate(date: string | null | undefined): string {
   const [y, m, d] = date.split("-");
   return `${d}/${m}/${y}`;
 }
+
+export const ISSUE_KIND_LABELS = { waste: "Hủy hàng", transfer: "Chuyển chi nhánh", other: "Xuất khác" } as const;
+
+export const ISSUE_KIND_HINTS = {
+  waste: "Hàng hư hỏng, hết hạn, đổ bỏ",
+  transfer: "Chuyển hàng sang chi nhánh khác (tự cộng tồn bên nhận)",
+  other: "Biếu tặng, dùng nội bộ, trả lại NCC...",
+} as const;
+
+/** Khóa tìm kiếm không dấu: "Thịt Bò" → "thit bo" (chỉ dùng để lọc trên giao diện). */
+export function searchKey(text: string | null | undefined): string {
+  return normName(text).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+}
+
+/** Tên có chứa mọi từ đã gõ (không dấu, không phân biệt thứ tự): "thit bo" khớp "Thịt lõi vai bò". */
+export function matchesSearch(name: string, query: string): boolean {
+  const words = searchKey(query).split(" ").filter(Boolean);
+  if (words.length === 0) return true;
+  const key = searchKey(name);
+  return words.every((w) => key.includes(w));
+}
