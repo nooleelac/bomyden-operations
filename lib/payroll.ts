@@ -97,7 +97,7 @@ export function periodLabel(period: PayPeriod, start: string, end?: string | nul
 
 /** Ngày chốt sớm hợp lệ: trong kỳ, từ đầu kỳ đến hôm nay. */
 export function isValidEarlyEnd(period: PayPeriod, start: string, end: unknown, today: string): end is string {
-  if (typeof end !== "string" || !/^d{4}-d{2}-d{2}$/.test(end)) return false;
+  if (typeof end !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return false;
   if (Number.isNaN(toUtcDate(end).getTime())) return false;
   return end >= start && end <= today && end <= periodEnd(period, start);
 }
