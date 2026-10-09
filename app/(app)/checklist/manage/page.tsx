@@ -95,7 +95,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     requiresPhoto: t.requires_photo,
     requiresNote: t.requires_note,
     primaryId: t.primary_employee_id,
-    primaryName: t.primary?.full_name ?? "—",
+    primaryName: t.primary?.full_name ?? null,
     backupId: t.backup_employee_id,
     backupName: t.backup?.full_name ?? null,
     isActive: t.is_active,

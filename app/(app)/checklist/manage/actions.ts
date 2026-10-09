@@ -38,7 +38,11 @@ const templateSchema = z
     }),
     requires_photo: z.boolean(),
     requires_note: z.boolean(),
-    primary_employee_id: z.uuid({ message: "Vui lòng chọn người phụ trách chính." }),
+    // Để trống = mẫu chưa giao (giao hàng loạt sau)
+    primary_employee_id: z
+      .string()
+      .transform((v) => v || null)
+      .pipe(z.uuid().nullable()),
     backup_employee_id: z
       .string()
       .transform((v) => v || null)
@@ -48,7 +52,11 @@ const templateSchema = z
   .refine((v) => v.due_time > v.start_time, { path: ["due_time"], message: "Hạn chót phải sau giờ bắt đầu." })
   .refine((v) => v.frequency !== "weekly" || v.weekdays.length > 0, { path: ["weekdays"], message: "Chọn ít nhất một thứ." })
   .refine((v) => v.frequency !== "monthly" || v.month_days.length > 0, { path: ["month_days"], message: "Nhập ít nhất một ngày." })
-  .refine((v) => v.backup_employee_id !== v.primary_employee_id, {
+  .refine((v) => !v.backup_employee_id || v.primary_employee_id, {
+    path: ["backup_employee_id"],
+    message: "Chọn người phụ trách chính trước khi chọn người thay thế.",
+  })
+  .refine((v) => !v.backup_employee_id || v.backup_employee_id !== v.primary_employee_id, {
     path: ["backup_employee_id"],
     message: "Người thay thế phải khác người chính.",
   });
@@ -91,7 +99,11 @@ export async function createTemplate(_prev: ActionState, formData: FormData): Pr
   // Sinh luôn việc hôm nay cho mẫu mới
   await supabase.rpc("ensure_task_instances");
   revalidateChecklist();
-  return success(`Đã tạo công việc "${parsed.data.title}".`);
+  return success(
+    parsed.data.primary_employee_id
+      ? `Đã tạo công việc "${parsed.data.title}".`
+      : `Đã tạo mẫu "${parsed.data.title}" (chưa giao — chỉ sinh việc khi đã giao người phụ trách).`
+  );
 }
 
 export async function updateTemplate(templateId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -112,6 +124,48 @@ export async function updateTemplate(templateId: string, _prev: ActionState, for
   await supabase.rpc("ensure_task_instances");
   revalidateChecklist();
   return success(`Đã cập nhật "${parsed.data.title}". Thay đổi áp dụng cho các việc chưa làm từ hôm nay.`);
+}
+
+const bulkAssignSchema = z.object({
+  template_ids: z.array(z.uuid()).min(1, { message: "Chọn ít nhất một công việc." }).max(500),
+  primary_employee_id: z
+    .string()
+    .transform((v) => v || null)
+    .pipe(z.uuid().nullable()),
+  // "keep" = giữ người thay hiện tại, "" = không có, còn lại là id nhân viên
+  backup: z.union([z.literal("keep"), z.literal(""), z.uuid()]),
+});
+
+/** Giao (hoặc bỏ giao) nhiều mẫu cùng lúc. Lỗi ở 1 mẫu → không mẫu nào bị đổi. */
+export async function bulkAssignTemplates(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const parsed = bulkAssignSchema.safeParse({
+    template_ids: formData.getAll("template_ids").map(String),
+    primary_employee_id: String(formData.get("primary_employee_id") ?? ""),
+    backup: String(formData.get("backup") ?? "keep"),
+  });
+  if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
+  const { template_ids, primary_employee_id, backup } = parsed.data;
+  if (primary_employee_id && backup === primary_employee_id) {
+    return fail("Người thay thế phải khác người chính.", { backup: "Người thay thế phải khác người chính." });
+  }
+
+  const patch: { primary_employee_id: string | null; backup_employee_id?: string | null } = { primary_employee_id };
+  if (!primary_employee_id) patch.backup_employee_id = null;
+  else if (backup !== "keep") patch.backup_employee_id = backup || null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("task_templates").update(patch).in("id", template_ids).select("id");
+  if (error) return fail(friendlyDbError(error));
+  if (!data || data.length === 0) return fail("Bạn không có quyền sửa các công việc này.");
+
+  await supabase.rpc("ensure_task_instances");
+  revalidateChecklist();
+  return success(
+    primary_employee_id
+      ? `Đã giao ${data.length} công việc.`
+      : `Đã bỏ giao ${data.length} công việc (việc chưa làm từ hôm nay đã được hủy).`
+  );
 }
 
 export async function reopenTask(instanceId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {

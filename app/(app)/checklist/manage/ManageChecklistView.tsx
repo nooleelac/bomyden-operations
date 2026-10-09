@@ -6,6 +6,7 @@ import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import TemplateDialog, { type BranchStaff, type TemplateItem } from "./TemplateDialog";
+import BulkAssignDialog from "./BulkAssignDialog";
 import { reopenTask } from "./actions";
 import { CATEGORY_ICONS, DISPLAY_STATUS, PRIORITY_LABELS, describeSchedule, type DisplayStatus } from "@/lib/checklist";
 import { formatTime } from "@/lib/time";
@@ -71,7 +72,35 @@ const ORDER: DisplayStatus[] = ["overdue", "failed", "open", "upcoming", "late",
 export default function ManageChecklistView({ tab, report, templates, branches, dateLabel }: Props) {
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<TemplateItem | "new" | null>(null);
+  const [copying, setCopying] = useState<TemplateItem | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // "all" | "unassigned" | id nhân viên (người chính hoặc người thay)
+  const [filter, setFilter] = useState<string>("all");
   const notify = useCallback((message: string) => setToast(message), []);
+
+  const unassignedCount = templates.filter((t) => !t.primaryId).length;
+  const assignees = [
+    ...new Map(
+      templates.flatMap((t) => [
+        ...(t.primaryId && t.primaryName ? [[t.primaryId, t.primaryName] as const] : []),
+        ...(t.backupId && t.backupName ? [[t.backupId, t.backupName] as const] : []),
+      ])
+    ),
+  ].sort((a, b) => a[1].localeCompare(b[1], "vi"));
+  const visible = templates.filter((t) =>
+    filter === "all" ? true : filter === "unassigned" ? !t.primaryId : t.primaryId === filter || t.backupId === filter
+  );
+  const allVisibleSelected = visible.length > 0 && visible.every((t) => selected.has(t.id));
+  const toggleMany = (ids: string[], on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
 
   useEffect(() => {
     if (!toast) return;
@@ -145,19 +174,68 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
         </section>
       ) : (
         <section>
-          <div className="mb-3 flex justify-end">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
+                {(
+                  [
+                    ["all", `Tất cả (${templates.length})`],
+                    ["unassigned", `Chưa giao (${unassignedCount})`],
+                  ] as const
+                ).map(([value, text]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFilter(value)}
+                    className={`rounded-md px-3 py-1.5 font-medium ${filter === value ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+              {assignees.length > 0 && (
+                <select
+                  aria-label="Lọc theo nhân viên"
+                  value={filter === "all" || filter === "unassigned" ? "" : filter}
+                  onChange={(e) => setFilter(e.target.value || "all")}
+                  className="input w-auto py-1.5 text-sm"
+                >
+                  <option value="">Theo nhân viên…</option>
+                  {assignees.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                </select>
+              )}
+            </div>
             <button type="button" onClick={() => setEditing("new")} className="btn-primary" disabled={branches.length === 0}>
               + Tạo công việc
             </button>
           </div>
-          {templates.length === 0 ? (
-            <div className="card px-6 py-10 text-center text-sm text-neutral-500">Chưa có mẫu công việc nào.</div>
+          {visible.length === 0 ? (
+            <div className="card px-6 py-10 text-center text-sm text-neutral-500">
+              {templates.length === 0 ? "Chưa có mẫu công việc nào." : "Không có mẫu nào khớp bộ lọc."}
+            </div>
           ) : (
-            <ul className="space-y-3">
-              {templates.map((t) => (
-                <li key={t.id} className={`card p-4 ${t.isActive ? "" : "opacity-60"}`}>
+            <>
+            <label className="mb-2 flex cursor-pointer items-center gap-3 px-1 text-sm text-neutral-600">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={() => toggleMany(visible.map((t) => t.id), !allVisibleSelected)}
+                className="h-4 w-4 accent-neutral-900"
+              />
+              Chọn tất cả {visible.length} mẫu đang hiện
+            </label>
+            <ul className={`space-y-3 ${selected.size > 0 ? "pb-20" : ""}`}>
+              {visible.map((t) => (
+                <li key={t.id} className={`card p-4 ${t.isActive ? "" : "opacity-60"} ${selected.has(t.id) ? "ring-2 ring-neutral-900" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 text-sm">
+                    <input
+                      type="checkbox"
+                      aria-label={`Chọn ${t.title}`}
+                      checked={selected.has(t.id)}
+                      onChange={() => toggleMany([t.id], !selected.has(t.id))}
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-neutral-900"
+                    />
+                    <div className="min-w-0 flex-1 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">{CATEGORY_ICONS[t.category] ?? "📌"} {t.title}</span>
                         {t.priority !== "normal" && (
@@ -171,27 +249,64 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                         {t.branchName} · {t.startTime}–{t.dueTime} · {describeSchedule(t.frequency, t.weekdays, t.monthDays)}
                       </p>
                       <p className="mt-0.5 text-neutral-700">
-                        👤 {t.primaryName}
+                        {t.primaryName ? (
+                          <>👤 {t.primaryName}</>
+                        ) : (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Chưa giao</span>
+                        )}
                         {t.backupName && <span className="text-neutral-500"> · thay: {t.backupName}</span>}
                         {t.requiresPhoto && <span className="text-neutral-500"> · 📷</span>}
                         {t.requiresNote && <span className="text-neutral-500"> · 📝</span>}
                       </p>
                     </div>
-                    <button type="button" onClick={() => setEditing(t)} className="btn-secondary shrink-0 px-3 py-1.5">Sửa</button>
+                    <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                      <button type="button" onClick={() => setEditing(t)} className="btn-secondary px-3 py-1.5">Sửa</button>
+                      <button type="button" onClick={() => setCopying(t)} className="btn-secondary px-3 py-1.5">Sao chép</button>
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
+            </>
+          )}
+
+          {selected.size > 0 && (
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+              <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+                <span className="text-sm font-medium">Đã chọn {selected.size}</span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setSelected(new Set())} className="btn-secondary px-3 py-1.5">Bỏ chọn</button>
+                  <button type="button" onClick={() => setAssigning(true)} className="btn-primary px-3 py-1.5">Giao việc</button>
+                </div>
+              </div>
+            </div>
           )}
 
           <TemplateDialog
-            key={editing === "new" ? "new" : editing?.id ?? "none"}
+            key={editing === "new" ? "new" : editing ? editing.id : copying ? `copy-${copying.id}` : "none"}
             template={editing && editing !== "new" ? editing : undefined}
+            copyFrom={copying ?? undefined}
             branches={branches}
-            open={editing !== null}
-            onClose={() => setEditing(null)}
+            open={editing !== null || copying !== null}
+            onClose={() => {
+              setEditing(null);
+              setCopying(null);
+            }}
             onDone={(message) => {
               setEditing(null);
+              setCopying(null);
+              notify(message);
+            }}
+          />
+          <BulkAssignDialog
+            key={assigning ? [...selected].join() : "closed"}
+            selected={templates.filter((t) => selected.has(t.id))}
+            branches={branches}
+            open={assigning}
+            onClose={() => setAssigning(false)}
+            onDone={(message) => {
+              setAssigning(false);
+              setSelected(new Set());
               notify(message);
             }}
           />

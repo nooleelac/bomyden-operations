@@ -67,7 +67,7 @@ type TaskTemplateRow = {
   id: string
   is_active: boolean
   month_days: number[]
-  primary_employee_id: string
+  primary_employee_id: string | null
   priority: Database["public"]["Enums"]["task_priority"]
   requires_note: boolean
   requires_photo: boolean
@@ -811,7 +811,6 @@ export type Database = {
           title: string
           start_time: string
           due_time: string
-          primary_employee_id: string
         }
         Update: Partial<TaskTemplateRow>
         Relationships: [
