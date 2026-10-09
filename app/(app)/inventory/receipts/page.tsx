@@ -55,7 +55,12 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Phiếu nhập kho</h1>
-        <Link href="/inventory/receive" className="btn-primary">📷 Nhập kho từ hóa đơn</Link>
+        <div className="flex flex-wrap gap-2">
+          <a href={`/inventory/export/receipts${qs({})}`} className="btn-secondary" download>
+            ⬇ Xuất Excel tháng {m}/{y}
+          </a>
+          <Link href="/inventory/receive" className="btn-primary">📷 Nhập kho từ hóa đơn</Link>
+        </div>
       </div>
       <InventoryNav active="receipts" isManager={isManagerOrAdmin(me.role)} isAdmin={isAdmin(me.role)} />
 

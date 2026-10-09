@@ -123,6 +123,18 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - Ảnh quét bỏ dở xóa sau 1 ngày; ảnh phiếu nhập giữ 12 tháng (job `cleanup` của Edge Function `ops-jobs`).
 - Không có `ANTHROPIC_API_KEY` → vẫn nhập tay được (ảnh vẫn lưu kèm phiếu).
 
+## Xuất Excel
+
+Route handler trả file .xlsx (`lib/excel.ts`, thư viện `exceljs`), đọc dữ liệu bằng phiên người dùng nên RLS tự giới hạn phạm vi:
+
+| Nút ở trang | Đường dẫn | Ai | Nội dung |
+|---|---|---|---|
+| Kho | `/inventory/export/stock` | Có quyền kho | Tồn từng chi nhánh, giá gần nhất, giá trị tồn |
+| Phiếu nhập | `/inventory/export/receipts?month=&branch=` | Có quyền kho | Phiếu, chi tiết hàng (VAT, giá vốn), thanh toán |
+| Công nợ | `/inventory/export/debts` | QTV / QL | Nợ theo NCC, phiếu còn nợ, số ngày quá hạn |
+| Quản lý chấm công | `/attendance/manage/export?month=&branch=` | QTV / QL | Tổng hợp công theo NV + chi tiết vào/ra |
+| Bảng lương | `/payroll/export?period=&start=` | Quyền lương | Bảng lương kỳ (giống màn hình) + chi tiết các khoản |
+
 ## Dọn dữ liệu thử (an toàn)
 
 Không dùng `session_replication_role = replica` (làm mồ côi bảng `auth.*`). Tắt riêng trigger chặn xóa trong giao dịch,

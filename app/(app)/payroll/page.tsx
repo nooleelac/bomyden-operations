@@ -41,7 +41,12 @@ export default async function PayrollPage({ searchParams }: PageProps<"/payroll"
   return (
     <div>
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
-      <h1 className="mb-4 mt-2 text-2xl font-bold tracking-tight">Bảng lương</h1>
+      <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Bảng lương</h1>
+        <a href={`/payroll/export?period=${period}&start=${start}`} className="btn-secondary" download>
+          ⬇ Xuất Excel kỳ này
+        </a>
+      </div>
       <PayrollNav active="overview" isAdmin={actor.role === "admin"} />
 
       <div className="card mb-5 flex flex-wrap items-center justify-between gap-3 p-3">

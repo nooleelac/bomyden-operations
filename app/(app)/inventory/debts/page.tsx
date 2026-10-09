@@ -88,7 +88,10 @@ export default async function DebtsPage() {
   return (
     <div>
       <Link href="/inventory" className="text-sm text-neutral-500 hover:text-neutral-900">← Kho</Link>
-      <h1 className="mb-4 mt-2 text-2xl font-bold tracking-tight">Công nợ nhà cung cấp</h1>
+      <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Công nợ nhà cung cấp</h1>
+        <a href="/inventory/export/debts" className="btn-secondary" download>⬇ Xuất Excel</a>
+      </div>
       <InventoryNav active="debts" isManager isAdmin={isAdmin(me.role)} />
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">

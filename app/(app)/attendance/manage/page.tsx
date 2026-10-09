@@ -109,11 +109,22 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
   return (
     <div>
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
-      <div className="mb-5 mt-2">
-        <h1 className="text-2xl font-bold tracking-tight">Quản lý chấm công</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          {actor.role === "admin" ? "Tất cả chi nhánh." : "Chi nhánh bạn quản lý."} Mọi lần sửa đều được ghi lại kèm lý do.
-        </p>
+      <div className="mb-5 mt-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Quản lý chấm công</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {actor.role === "admin" ? "Tất cả chi nhánh." : "Chi nhánh bạn quản lý."} Mọi lần sửa đều được ghi lại kèm lý do.
+          </p>
+        </div>
+        {branches.length > 0 && (
+          <a
+            href={`/attendance/manage/export?month=${date.slice(0, 7)}${branchId ? `&branch=${branchId}` : ""}`}
+            className="btn-secondary"
+            download
+          >
+            ⬇ Xuất Excel tháng {date.slice(5, 7)}/{date.slice(0, 4)}
+          </a>
+        )}
       </div>
 
       {branches.length === 0 ? (
