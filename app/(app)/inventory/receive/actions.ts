@@ -78,7 +78,7 @@ export async function scanInvoice(branchId: string, _prev: ScanState, formData: 
       input_tokens: ai.inputTokens ?? null,
       output_tokens: ai.outputTokens ?? null,
       result: ai.ok ? ai.data : null,
-      error: ai.ok ? null : ai.message,
+      error: ai.ok ? null : ai.detail ? `${ai.message} | ${ai.detail}` : ai.message,
     })
     .select("id")
     .single();
@@ -173,7 +173,7 @@ function buildDraft(
 ): ReceiptDraft {
   const supplier = matchSupplier(data.supplier_name, suppliers);
   const byId = new Map(catalog.map((item) => [item.id, item]));
-  const warnings: string[] = data.warning ? [data.warning] : [];
+  const warnings: string[] = data.warning.trim() ? [data.warning.trim()] : [];
   const isoDate = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
 
   let invoiceDate = isoDate(data.invoice_date) ?? base.invoiceDate;
@@ -239,14 +239,14 @@ function buildDraft(
     ...base,
     supplierId: supplier ? supplier.id : data.supplier_name ? "__new" : null,
     newSupplierName: supplier ? "" : data.supplier_name?.trim() ?? "",
-    invoiceNumber: data.invoice_number?.trim() ?? "",
+    invoiceNumber: data.invoice_number.trim(),
     invoiceDate,
     invoiceTotal: num(data.total_amount),
     printedVat: vatTotal ? num(vatTotal) : "",
     paymentStatus: data.payment_status === "unknown" ? null : data.payment_status,
-    paidAmount: data.payment_status === "partial" ? num(data.paid_amount) : "",
-    paymentMethod: data.payment_method ?? "cash",
-    dueDate: isoDate(data.due_date) ?? "",
+    paidAmount: data.payment_status === "partial" && data.paid_amount > 0 ? num(data.paid_amount) : "",
+    paymentMethod: data.payment_method === "unknown" ? "cash" : data.payment_method,
+    dueDate: isoDate(data.due_date.trim()) ?? "",
     warning: warnings.length ? warnings.join(" ") : null,
     lines,
   };

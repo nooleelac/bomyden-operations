@@ -7,19 +7,21 @@ import { z } from "zod";
 // Mô hình đọc hóa đơn. Đổi bằng biến môi trường INVOICE_AI_MODEL (vd: claude-sonnet-5-5) mà không cần sửa code.
 const DEFAULT_MODEL = "claude-haiku-5-5";
 
+// LƯU Ý giới hạn structured outputs: tối đa 16 trường kiểu "union" (nullable / anyOf) trong toàn schema,
+// vượt là API trả 400. Trường nào để trống được bằng "" / 0 / "unknown" thì KHÔNG dùng .nullable().
+// Hiện dùng 11 (5 ở phần đầu + 6 ở mỗi dòng hàng).
 const InvoiceSchema = z.object({
   is_invoice: z.boolean(),
   supplier_name: z.string().nullable(),
-  supplier_phone: z.string().nullable(),
-  invoice_number: z.string().nullable(),
+  invoice_number: z.string(),
   invoice_date: z.string().nullable(),
   subtotal: z.number().nullable(),
   vat_amount: z.number().nullable(),
   total_amount: z.number().nullable(),
   payment_status: z.enum(["paid", "unpaid", "partial", "unknown"]),
-  paid_amount: z.number().nullable(),
-  payment_method: z.enum(["cash", "transfer", "other"]).nullable(),
-  due_date: z.string().nullable(),
+  paid_amount: z.number(),
+  payment_method: z.enum(["cash", "transfer", "other", "unknown"]),
+  due_date: z.string(),
   lines: z.array(
     z.object({
       name: z.string(),
@@ -31,7 +33,7 @@ const InvoiceSchema = z.object({
       catalog_no: z.number().int().nullable(),
     })
   ),
-  warning: z.string().nullable(),
+  warning: z.string(),
 });
 
 export type InvoiceExtraction = z.infer<typeof InvoiceSchema>;
@@ -40,7 +42,7 @@ export type CatalogEntry = { no: number; name: string; baseUnit: string; units: 
 
 export type InvoiceAiResult =
   | { ok: true; data: InvoiceExtraction; model: string; inputTokens: number; outputTokens: number }
-  | { ok: false; message: string; model: string; inputTokens?: number; outputTokens?: number };
+  | { ok: false; message: string; model: string; inputTokens?: number; outputTokens?: number; detail?: string };
 
 const SYSTEM_PROMPT = `Bạn đọc ảnh chụp hóa đơn / phiếu giao hàng / phiếu bán hàng mua nguyên liệu của một nhà hàng ở Việt Nam.
 Ảnh có thể là hóa đơn in, hóa đơn VAT, hoặc phiếu viết tay của chợ / mối hàng; có thể nghiêng, mờ, nhàu.
@@ -73,12 +75,13 @@ THANH TOÁN / CÔNG NỢ:
   "partial" nếu ghi đã trả trước / đặt cọc một phần; "unpaid" nếu ghi "Chưa thanh toán", "Công nợ", "Ghi nợ", có hạn thanh toán,
   hoặc là phiếu giao hàng ghi rõ thanh toán sau; còn lại "unknown".
   Chỉ ghi "Hình thức thanh toán: TM/CK" thì CHƯA đủ để kết luận đã trả → "unknown".
-- "paid_amount": số tiền đã trả nếu ghi rõ, không có thì null.
-- "payment_method": "cash" (TM, tiền mặt), "transfer" (CK, chuyển khoản), "other"; chỉ điền khi ghi rõ một hình thức, không thì null.
-- "due_date": hạn thanh toán (YYYY-MM-DD) nếu có ghi, không có thì null.
+- "paid_amount": số tiền đã trả nếu ghi rõ, không có thì 0.
+- "payment_method": "cash" (TM, tiền mặt), "transfer" (CK, chuyển khoản), "other"; chỉ điền khi ghi rõ một hình thức, không thì "unknown".
+- "due_date": hạn thanh toán (YYYY-MM-DD) nếu có ghi, không có thì chuỗi rỗng "".
 - "catalog_no": nếu mặt hàng chắc chắn là một nguyên liệu trong DANH MỤC bên dưới (cùng loại hàng, có thể khác cách viết)
   thì ghi số thứ tự của nó; nếu không chắc hoặc không có thì null.
-- "warning": ghi ngắn bằng tiếng Việt nếu có chỗ không đọc rõ / nghi ngờ (vd "Dòng 3 mờ, số lượng không chắc"), không có thì null.`;
+- "warning": ghi ngắn bằng tiếng Việt nếu có chỗ không đọc rõ / nghi ngờ (vd "Dòng 3 mờ, số lượng không chắc"), không có thì chuỗi rỗng "".
+- "invoice_number": số hóa đơn / số phiếu, không có thì chuỗi rỗng "".`;
 
 function catalogText(catalog: CatalogEntry[], suppliers: string[]): string {
   const items = catalog.length
@@ -151,13 +154,17 @@ export async function extractInvoice(
     if (error instanceof Anthropic.RateLimitError) {
       return { ok: false, model, message: "AI đang quá tải. Vui lòng thử lại sau ít phút." };
     }
+    // Lỗi gốc (tiếng Anh) được lưu vào invoice_scans.error để tra cứu
+    const detail = error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500);
     if (error instanceof Anthropic.BadRequestError) {
-      // Thường gặp: hết tiền trong tài khoản API, ảnh lỗi
-      return { ok: false, model, message: "AI từ chối yêu cầu (có thể tài khoản API hết số dư). Vui lòng nhập tay và báo Quản trị viên." };
+      if (/credit balance|billing|insufficient/i.test(detail)) {
+        return { ok: false, model, detail, message: "Tài khoản API AI đã hết số dư. Vui lòng nhập tay và báo Quản trị viên nạp thêm." };
+      }
+      return { ok: false, model, detail, message: "AI không xử lý được yêu cầu này (lỗi hệ thống). Vui lòng nhập tay và báo Quản trị viên." };
     }
     if (error instanceof Anthropic.APIConnectionError) {
-      return { ok: false, model, message: "Không kết nối được tới AI. Kiểm tra mạng rồi thử lại." };
+      return { ok: false, model, detail, message: "Không kết nối được tới AI. Kiểm tra mạng rồi thử lại." };
     }
-    return { ok: false, model, message: "AI gặp lỗi khi đọc hóa đơn. Vui lòng thử lại hoặc nhập tay." };
+    return { ok: false, model, detail, message: "AI gặp lỗi khi đọc hóa đơn. Vui lòng thử lại hoặc nhập tay." };
   }
 }
