@@ -1828,6 +1828,7 @@ export type Database = {
         | "request_result"
         | "registration_new"
         | "registration_result"
+        | "registration_reminder"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
