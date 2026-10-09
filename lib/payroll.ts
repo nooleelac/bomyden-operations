@@ -1,6 +1,6 @@
 // Bảng lương: nhãn, định dạng tiền, tính kỳ lương (dùng chung client + server).
 
-import type { PayPeriod, PayType, PayrollAdjustmentKind } from "@/lib/database.types";
+import type { PayPeriod, PayType, PayrollAdjustmentKind, SalaryAdvanceStatus } from "@/lib/database.types";
 
 export const PAY_TYPE_LABELS: Record<PayType, string> = {
   hourly: "Theo giờ",
@@ -117,6 +117,7 @@ export type PayslipLine = {
   unit_amount?: number;
   detail?: string;
   adjustment_id?: string;
+  advance_id?: string;
 };
 
 export type PayslipData = {
@@ -143,6 +144,8 @@ export type PayslipData = {
   deductions_amount: number;
   raw_net_amount: number;
   net_amount: number;
+  /** Tổng ứng lương đã duyệt trừ vào kỳ */
+  advance_amount?: number;
   warnings: { blocking: boolean; message: string }[];
   can_finalize: boolean;
   finalized: boolean;
@@ -155,4 +158,56 @@ export type PayrollOverview = {
   period_end: string;
   items: PayslipData[];
   missing_profiles: { employee_id: string; full_name: string }[];
+};
+
+// ---------------------------------------------------------------------
+// Ứng lương
+// ---------------------------------------------------------------------
+export const ADVANCE_STATUS_LABELS: Record<SalaryAdvanceStatus, string> = {
+  pending: "Chờ duyệt",
+  approved: "Đã duyệt",
+  rejected: "Từ chối",
+  cancelled: "Đã hủy",
+};
+
+export const ADVANCE_STATUS_CLASSES: Record<SalaryAdvanceStatus, string> = {
+  pending: "bg-amber-50 text-amber-800",
+  approved: "bg-emerald-50 text-emerald-700",
+  rejected: "bg-red-50 text-red-700",
+  cancelled: "bg-neutral-100 text-neutral-500",
+};
+
+/** Hạn mức ứng lương của kỳ hiện tại (do hàm DB advance_quota trả về) */
+export type AdvanceQuota = {
+  period_start: string;
+  period_end: string;
+  pay_period: PayPeriod;
+  percent: number;
+  earned: number;
+  limit: number;
+  used: number;
+  available: number;
+  closed: boolean;
+};
+
+export type SalaryAdvanceItem = {
+  id: string;
+  period_start: string;
+  amount: number;
+  reason: string | null;
+  status: SalaryAdvanceStatus;
+  created_at: string;
+  reviewed_at: string | null;
+  review_note: string | null;
+  reviewer_name: string | null;
+};
+
+export type MySalaryAdvances =
+  | { has_profile: false }
+  | { has_profile: true; quota: AdvanceQuota; items: SalaryAdvanceItem[] };
+
+export type SalaryAdvanceQueueItem = SalaryAdvanceItem & {
+  employee_id: string;
+  full_name: string;
+  quota: AdvanceQuota | null;
 };

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { formatMoney, periodLabel } from "@/lib/payroll";
+import { friendlyDbError } from "@/lib/action-state";
+import { formatMoney, periodLabel, type MySalaryAdvances } from "@/lib/payroll";
+import AdvanceSection from "./AdvanceSection";
 
 export const metadata: Metadata = { title: "Phiếu lương của tôi" };
 export const instant = false;
@@ -12,7 +14,7 @@ export default async function MyPayslipsPage() {
   const supabase = await createClient();
 
   // RLS: chỉ thấy phiếu của chính mình, và chỉ khi QTV cho phép xem
-  const [{ data: profile }, { data: slips }] = await Promise.all([
+  const [{ data: profile }, { data: slips }, { data: advData, error: advError }] = await Promise.all([
     supabase.from("payroll_profiles").select("can_view_payslip").eq("employee_id", me.id).maybeSingle(),
     supabase
       .from("payslips")
@@ -20,13 +22,23 @@ export default async function MyPayslipsPage() {
       .eq("employee_id", me.id)
       .order("period_start", { ascending: false })
       .limit(24),
+    supabase.rpc("my_salary_advances"),
   ]);
+  if (advError) throw new Error(friendlyDbError(advError));
+  const advances = advData as unknown as MySalaryAdvances;
 
   return (
     <div className="mx-auto max-w-2xl">
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
       <h1 className="mb-5 mt-2 text-2xl font-bold tracking-tight">Phiếu lương của tôi</h1>
 
+      {advances.has_profile && (
+        <div className="mb-6">
+          <AdvanceSection quota={advances.quota} items={advances.items} />
+        </div>
+      )}
+
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Các kỳ lương đã chốt</h2>
       {!profile?.can_view_payslip ? (
         <div className="card px-6 py-10 text-center text-sm text-neutral-500">
           Bạn chưa được cấp quyền xem phiếu lương. Liên hệ Quản trị viên nếu cần.

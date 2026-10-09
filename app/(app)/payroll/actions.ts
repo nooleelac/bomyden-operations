@@ -186,6 +186,27 @@ export async function finalizePayslip(employeeId: string, periodStart: string, e
 }
 
 // =====================================================================
+// DUYỆT ỨNG LƯƠNG
+// =====================================================================
+export async function reviewAdvance(
+  advanceId: string,
+  approve: boolean,
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requirePayrollAccess();
+  const note = str(formData, "note").trim();
+  if (note.length > 300) return fail("Ghi chú tối đa 300 ký tự.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("review_salary_advance", { p_id: advanceId, p_approve: approve, p_note: note || null });
+  if (error) return fail(friendlyDbError(error));
+
+  revalidatePayroll();
+  return success(approve ? "Đã duyệt — khoản ứng được trừ vào lương kỳ này." : "Đã từ chối đơn ứng lương.");
+}
+
+// =====================================================================
 // CÀI ĐẶT CHUNG (chỉ QTV)
 // =====================================================================
 const settingsSchema = z.object({
@@ -197,6 +218,11 @@ const settingsSchema = z.object({
   early_grace_minutes: z.coerce.number({ message: "Phút ân hạn phải là số." }).int().min(0).max(240),
   early_leave_penalty: money("Phạt về sớm"),
   absent_penalty: money("Phạt nghỉ không phép"),
+  advance_max_percent: z.coerce
+    .number({ message: "Tỷ lệ ứng lương phải là số." })
+    .int({ message: "Tỷ lệ ứng lương phải là số nguyên." })
+    .min(0, { message: "Tối thiểu 0%." })
+    .max(100, { message: "Tối đa 100%." }),
 });
 
 export async function saveSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -210,6 +236,7 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
     early_grace_minutes: str(formData, "early_grace_minutes") || "0",
     early_leave_penalty: str(formData, "early_leave_penalty"),
     absent_penalty: str(formData, "absent_penalty"),
+    advance_max_percent: str(formData, "advance_max_percent") || "0",
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
 
@@ -219,7 +246,7 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
   if (!data?.length) return fail("Bạn không có quyền sửa cài đặt lương.");
 
   revalidatePayroll();
-  return success("Đã lưu mức phạt chung. Áp dụng cho các kỳ chưa chốt.");
+  return success("Đã lưu cài đặt. Áp dụng cho các kỳ chưa chốt.");
 }
 
 export async function setManagerPayrollAccess(employeeId: string, enabled: boolean): Promise<ActionState> {

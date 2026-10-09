@@ -42,9 +42,20 @@ export function SettingsForm({ settings }: { settings: PayrollSettings }) {
           </div>
         ))}
       </div>
+      <div className="border-t border-neutral-100 pt-4">
+        <h2 className="font-semibold">Ứng lương</h2>
+        <div className="mt-3 max-w-xs">
+          <label htmlFor="st-advance" className="mb-1 block text-sm font-medium text-neutral-700">Được ứng tối đa (% lương tạm tính)</label>
+          <input id="st-advance" name="advance_max_percent" type="number" min={0} max={100} defaultValue={settings.advance_max_percent} className="input" />
+          {state.fieldErrors?.advance_max_percent && <p className="field-error">{state.fieldErrors.advance_max_percent}</p>}
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          Tính trên số thực nhận tạm tính của kỳ tới thời điểm xin ứng. Nhập 0 để tắt chức năng ứng lương.
+        </p>
+      </div>
       {state.message && <p role="status" className={state.ok ? "alert-success" : "alert-error"}>{state.message}</p>}
       <div className="flex justify-end">
-        <SubmitButton pending={pending} pendingText="Đang lưu...">Lưu mức phạt</SubmitButton>
+        <SubmitButton pending={pending} pendingText="Đang lưu...">Lưu cài đặt</SubmitButton>
       </div>
     </ActionForm>
   );

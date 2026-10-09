@@ -19,11 +19,10 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
   // RLS: chỉ thấy hồ sơ lương của mình khi QTV đã cho phép xem phiếu lương
   const supabase = await createClient();
-  const { data: ownProfile } = await supabase
-    .from("payroll_profiles")
-    .select("can_view_payslip")
-    .eq("employee_id", employee.id)
-    .maybeSingle();
+  const [{ data: ownProfile }, { data: hasPayrollProfile }] = await Promise.all([
+    supabase.from("payroll_profiles").select("can_view_payslip").eq("employee_id", employee.id).maybeSingle(),
+    supabase.rpc("has_payroll_profile"),
+  ]);
 
   const modules: Module[] = [
     ...(employee.role !== "admin"
@@ -54,8 +53,15 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     ...(canAccessPayroll(employee)
       ? [{ title: "Bảng lương", description: "Tính lương, KPI, thưởng/phạt, chốt kỳ", href: "/payroll", icon: "💰" }]
       : []),
-    ...(ownProfile?.can_view_payslip
-      ? [{ title: "Phiếu lương của tôi", description: "Các kỳ lương đã chốt", href: "/payslips", icon: "🧾" }]
+    ...(hasPayrollProfile
+      ? [
+          {
+            title: "Phiếu lương của tôi",
+            description: ownProfile?.can_view_payslip ? "Các kỳ lương đã chốt, ứng lương" : "Gửi đơn ứng lương",
+            href: "/payslips",
+            icon: "🧾",
+          },
+        ]
       : []),
     { title: "Tài khoản của tôi", description: "Thông tin cá nhân, đổi mật khẩu", href: "/account", icon: "🔐" },
   ];

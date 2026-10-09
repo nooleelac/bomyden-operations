@@ -144,6 +144,7 @@ type PayrollSettingsRow = {
   early_grace_minutes: number
   early_leave_penalty: number
   absent_penalty: number
+  advance_max_percent: number
   updated_at: string
   updated_by: string | null
 }
@@ -1650,6 +1651,30 @@ export type Database = {
         Args: { p_period: Database["public"]["Enums"]["pay_period"]; p_period_start: string }
         Returns: Json
       }
+      has_payroll_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      my_salary_advances: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      request_salary_advance: {
+        Args: { p_amount: number; p_reason?: string | null }
+        Returns: Json
+      }
+      cancel_salary_advance: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      salary_advance_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      review_salary_advance: {
+        Args: { p_id: string; p_approve: boolean; p_note?: string | null }
+        Returns: Json
+      }
       payroll_preview: {
         Args: { p_employee_id: string; p_period_start: string; p_end_date?: string }
         Returns: Json
@@ -1829,6 +1854,9 @@ export type Database = {
         | "registration_new"
         | "registration_result"
         | "registration_reminder"
+        | "advance_new"
+        | "advance_result"
+      salary_advance_status: "pending" | "approved" | "rejected" | "cancelled"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
@@ -1883,6 +1911,7 @@ export type Payslip = PayslipRow
 export type PayType = Database["public"]["Enums"]["pay_type"]
 export type PayPeriod = Database["public"]["Enums"]["pay_period"]
 export type PayrollAdjustmentKind = Database["public"]["Enums"]["payroll_adjustment_kind"]
+export type SalaryAdvanceStatus = Database["public"]["Enums"]["salary_advance_status"]
 export type TaskTemplate = TaskTemplateRow
 export type TaskInstance = TaskInstanceRow
 export type TaskFrequency = Database["public"]["Enums"]["task_frequency"]
