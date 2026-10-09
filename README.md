@@ -21,6 +21,7 @@ app/
     page.tsx             trang chủ
     account/             tài khoản của tôi, đổi mật khẩu
     employees/           quản lý nhân viên (Quản trị viên, Quản lý)
+    inventory/           kho: tồn kho, nhập kho từ ảnh hóa đơn, phiếu nhập, nguyên liệu, nhà cung cấp
 components/              UI dùng chung
 lib/
   auth/roles.ts          chức vụ & quyền (nguồn duy nhất phía app)
@@ -100,6 +101,22 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - **Cài đặt 1 lần cho mỗi project**: deploy Edge Function `ops-jobs` (verify_jwt = false, tự kiểm tra `x-cron-secret`),
   rồi chạy `npm run push:setup` — tạo khóa VAPID + mã cron, lưu vào Supabase Vault, ghi `NEXT_PUBLIC_VAPID_PUBLIC_KEY` vào
   `.env.local` (khi deploy nhớ thêm biến này vào hosting). `-- --rotate` để đổi khóa (mọi thiết bị phải bật lại).
+
+## Kho (nhập kho từ ảnh hóa đơn)
+
+- **Quyền**: QTV (mọi chi nhánh), Quản lý (chi nhánh mình), nhân viên khác khi QTV bật `can_receive_stock` (Kho → Quyền).
+  Nhân viên chỉ nhập phiếu + xem tồn/phiếu; QTV/QL sửa danh mục, nhà cung cấp, hủy phiếu, điều chỉnh tồn.
+- **Luồng**: chụp ảnh → thu nhỏ trên điện thoại (≤2000px) → server tải lên kho riêng tư `invoice-photos` → Claude
+  (`lib/invoice-ai.ts`, mặc định `claude-haiku-5-5`, đổi bằng `INVOICE_AI_MODEL`) trả JSON có cấu trúc →
+  khớp tên hàng (bộ nhớ theo NCC trước, rồi gợi ý của AI) → người dùng xem lại, sửa → `create_stock_receipt` (1 giao dịch).
+- **Đơn vị**: mỗi nguyên liệu 1 đơn vị kho + đơn vị quy đổi (1 thùng = 10 kg). Quy đổi mới và "tên trên hóa đơn → nguyên liệu"
+  được ghi nhớ khi lưu phiếu (`inventory_item_units`, `inventory_aliases`).
+- **Tồn kho** = sổ phát sinh `stock_movements` + số dư `stock_balances` (chưa có xuất kho; QTV/QL "điều chỉnh" kèm lý do).
+- Phiếu đã lưu không sửa; sai thì QTV/QL **hủy** (trừ lại tồn) rồi nhập lại. Cùng NCC + cùng số hóa đơn → từ chối nhập trùng.
+- Lưu đơn giá → lịch sử giá, cảnh báo khi giá lệch ≥ 10% so với lần nhập trước. Chưa có công nợ.
+- Mỗi lượt quét ghi `invoice_scans` (token → chi phí ước tính ở Kho → Quyền); tối đa 50 lượt/người/ngày.
+- Ảnh quét bỏ dở xóa sau 1 ngày; ảnh phiếu nhập giữ 12 tháng (job `cleanup` của Edge Function `ops-jobs`).
+- Không có `ANTHROPIC_API_KEY` → vẫn nhập tay được (ảnh vẫn lưu kèm phiếu).
 
 ## Dọn dữ liệu thử (an toàn)
 

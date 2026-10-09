@@ -45,6 +45,11 @@ export function canAccessPayroll(employee: { role: EmployeeRole; can_manage_payr
   return employee.role === "admin" || (employee.role === "manager" && employee.can_manage_payroll);
 }
 
+/** Được vào Kho: QTV, Quản lý, hoặc nhân viên được QTV bật "nhập kho" (khớp private.has_inventory_access ở DB). */
+export function canAccessInventory(employee: { role: EmployeeRole; can_receive_stock: boolean }): boolean {
+  return isManagerOrAdmin(employee.role) || employee.can_receive_stock;
+}
+
 /** Người này có phải tự chấm công không. */
 export function mustClockIn(employee: { role: EmployeeRole; requires_attendance: boolean }): boolean {
   return employee.role !== "admin" && employee.requires_attendance;

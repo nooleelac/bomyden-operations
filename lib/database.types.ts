@@ -1,4 +1,4 @@
-// FILE SINH TỰ ĐỘNG từ Supabase (project bomyden-ops-v2). Không sửa tay phần Database.
+// FILE SINH TỰ ĐỘNG từ Supabase (project bomyden-ops-ver4). Không sửa tay phần Database.
 // Sinh lại sau mỗi migration:
 //   npx supabase gen types typescript --project-id vhpbycdbprppxpejtkiu > lib/database.types.ts
 // (rồi thêm lại các alias ở cuối file)
@@ -528,6 +528,7 @@ export type Database = {
           phone: string | null
           requires_attendance: boolean
           can_manage_payroll: boolean
+          can_receive_stock: boolean
           role: Database["public"]["Enums"]["employee_role"]
           sort_order: number
           updated_at: string
@@ -547,6 +548,7 @@ export type Database = {
           phone?: string | null
           requires_attendance?: boolean
           can_manage_payroll?: boolean
+          can_receive_stock?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -566,6 +568,7 @@ export type Database = {
           phone?: string | null
           requires_attendance?: boolean
           can_manage_payroll?: boolean
+          can_receive_stock?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
           updated_at?: string
@@ -874,11 +877,535 @@ export type Database = {
           },
         ]
       }
+      inventory_aliases: {
+        Row: {
+          alias_norm: string
+          factor: number
+          id: string
+          item_id: string
+          supplier_id: string | null
+          unit_name: string
+          updated_at: string
+        }
+        Insert: {
+          alias_norm: string
+          factor: number
+          id?: string
+          item_id: string
+          supplier_id?: string | null
+          unit_name: string
+          updated_at?: string
+        }
+        Update: {
+          alias_norm?: string
+          factor?: number
+          id?: string
+          item_id?: string
+          supplier_id?: string | null
+          unit_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_aliases_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_aliases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_item_units: {
+        Row: {
+          factor: number
+          id: string
+          item_id: string
+          unit_name: string
+          updated_at: string
+        }
+        Insert: {
+          factor: number
+          id?: string
+          item_id: string
+          unit_name: string
+          updated_at?: string
+        }
+        Update: {
+          factor?: number
+          id?: string
+          item_id?: string
+          unit_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_units_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          base_unit: string
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          base_unit: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          base_unit?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_scans: {
+        Row: {
+          branch_id: string
+          created_at: string
+          employee_id: string
+          error: string | null
+          id: string
+          input_tokens: number | null
+          model: string | null
+          output_tokens: number | null
+          photo_path: string
+          photo_purged_at: string | null
+          receipt_id: string | null
+          result: Json | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          employee_id: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          photo_path: string
+          photo_purged_at?: string | null
+          receipt_id?: string | null
+          result?: Json | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          employee_id?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          photo_path?: string
+          photo_purged_at?: string | null
+          receipt_id?: string | null
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_scans_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_scans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_scans_receipt_fk"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_balances: {
+        Row: {
+          branch_id: string
+          item_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          item_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          item_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_balances_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_balances_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          balance_after: number
+          branch_id: string
+          change: number
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          kind: Database["public"]["Enums"]["stock_movement_kind"]
+          reason: string | null
+          receipt_id: string | null
+        }
+        Insert: {
+          balance_after: number
+          branch_id: string
+          change: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          kind: Database["public"]["Enums"]["stock_movement_kind"]
+          reason?: string | null
+          receipt_id?: string | null
+        }
+        Update: {
+          balance_after?: number
+          branch_id?: string
+          change?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          kind?: Database["public"]["Enums"]["stock_movement_kind"]
+          reason?: string | null
+          receipt_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_receipt_lines: {
+        Row: {
+          amount: number
+          base_quantity: number
+          factor: number
+          id: string
+          item_id: string
+          line_no: number
+          quantity: number
+          raw_name: string | null
+          receipt_id: string
+          unit_name: string
+          unit_price: number
+        }
+        Insert: {
+          amount: number
+          base_quantity: number
+          factor: number
+          id?: string
+          item_id: string
+          line_no: number
+          quantity: number
+          raw_name?: string | null
+          receipt_id: string
+          unit_name: string
+          unit_price: number
+        }
+        Update: {
+          amount?: number
+          base_quantity?: number
+          factor?: number
+          id?: string
+          item_id?: string
+          line_no?: number
+          quantity?: number
+          raw_name?: string | null
+          receipt_id?: string
+          unit_name?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_receipt_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipt_lines_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_receipts: {
+        Row: {
+          branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string
+          id: string
+          invoice_date: string
+          invoice_number: string | null
+          invoice_total: number | null
+          note: string | null
+          photo_path: string | null
+          scan_id: string | null
+          status: Database["public"]["Enums"]["stock_receipt_status"]
+          supplier_id: string | null
+          total_amount: number
+        }
+        Insert: {
+          branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          invoice_date: string
+          invoice_number?: string | null
+          invoice_total?: number | null
+          note?: string | null
+          photo_path?: string | null
+          scan_id?: string | null
+          status?: Database["public"]["Enums"]["stock_receipt_status"]
+          supplier_id?: string | null
+          total_amount: number
+        }
+        Update: {
+          branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string | null
+          invoice_total?: number | null
+          note?: string | null
+          photo_path?: string | null
+          scan_id?: string | null
+          status?: Database["public"]["Enums"]["stock_receipt_status"]
+          supplier_id?: string | null
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_receipts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipts_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipts_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_scans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          note: string | null
+          phone: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          note?: string | null
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          note?: string | null
+          phone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suppliers_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      adjust_stock: {
+        Args: {
+          p_branch_id: string
+          p_item_id: string
+          p_new_quantity: number
+          p_reason: string
+        }
+        Returns: number
+      }
+      cancel_stock_receipt: {
+        Args: { p_reason: string; p_receipt_id: string }
+        Returns: undefined
+      }
+      can_receive_stock_at: {
+        Args: { p_branch_id: string }
+        Returns: boolean
+      }
+      create_stock_receipt: {
+        Args: { p_payload: Json }
+        Returns: string
+      }
       save_push_subscription: {
         Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }
         Returns: undefined
@@ -1134,6 +1661,8 @@ export type Database = {
       }
     }
     Enums: {
+      stock_movement_kind: "receipt" | "receipt_cancel" | "adjust"
+      stock_receipt_status: "posted" | "cancelled"
       notification_kind: "task_due_soon" | "task_overdue" | "task_overdue_report"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
@@ -1201,3 +1730,10 @@ export type ScheduleRequest = ScheduleRequestRow
 export type ShiftStatus = Database["public"]["Enums"]["shift_status"]
 export type RequestKind = Database["public"]["Enums"]["request_kind"]
 export type RequestStatus = Database["public"]["Enums"]["request_status"]
+export type Supplier = Database["public"]["Tables"]["suppliers"]["Row"]
+export type InventoryItem = Database["public"]["Tables"]["inventory_items"]["Row"]
+export type InventoryItemUnit = Database["public"]["Tables"]["inventory_item_units"]["Row"]
+export type StockReceipt = Database["public"]["Tables"]["stock_receipts"]["Row"]
+export type StockReceiptLine = Database["public"]["Tables"]["stock_receipt_lines"]["Row"]
+export type StockReceiptStatus = Database["public"]["Enums"]["stock_receipt_status"]
+export type StockMovementKind = Database["public"]["Enums"]["stock_movement_kind"]

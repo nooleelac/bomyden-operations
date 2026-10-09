@@ -4,12 +4,12 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canAccessPayroll, isManagerOrAdmin } from "@/lib/auth/roles";
+import { canAccessInventory, canAccessPayroll, isManagerOrAdmin } from "@/lib/auth/roles";
 import type { Employee } from "@/lib/database.types";
 
 export type CurrentEmployee = Pick<
   Employee,
-  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active" | "requires_attendance" | "can_manage_payroll"
+  "id" | "auth_user_id" | "full_name" | "email" | "phone" | "role" | "is_active" | "requires_attendance" | "can_manage_payroll" | "can_receive_stock"
 >;
 
 /**
@@ -28,7 +28,7 @@ export const getCurrentEmployee = cache(async (): Promise<CurrentEmployee | null
 
   const { data: employee, error } = await supabase
     .from("employees")
-    .select("id, auth_user_id, full_name, email, phone, role, is_active, requires_attendance, can_manage_payroll")
+    .select("id, auth_user_id, full_name, email, phone, role, is_active, requires_attendance, can_manage_payroll, can_receive_stock")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -49,6 +49,15 @@ export async function requireEmployee(): Promise<CurrentEmployee> {
 export async function requirePayrollAccess(): Promise<CurrentEmployee> {
   const employee = await requireEmployee();
   if (!canAccessPayroll(employee)) {
+    redirect("/?error=forbidden");
+  }
+  return employee;
+}
+
+/** Bắt buộc có quyền Kho (QTV, Quản lý, hoặc nhân viên được bật "nhập kho"). */
+export async function requireInventoryAccess(): Promise<CurrentEmployee> {
+  const employee = await requireEmployee();
+  if (!canAccessInventory(employee)) {
     redirect("/?error=forbidden");
   }
   return employee;

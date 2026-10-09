@@ -12,6 +12,7 @@
     "push:setup": "node --env-file=.env.local scripts/setup-push.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "next": "16.4.0",

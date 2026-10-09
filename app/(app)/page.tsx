@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
-import { canAccessPayroll, canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
+import { canAccessInventory, canAccessPayroll, canManageAttendance, canManageEmployees, isAdmin, mustClockIn } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import PushToggle from "@/components/PushToggle";
 
@@ -47,6 +47,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       : []),
     ...(isAdmin(employee.role)
       ? [{ title: "Chi nhánh", description: "Vị trí GPS, Wi-Fi chấm công", href: "/branches", icon: "🏠" }]
+      : []),
+    ...(canAccessInventory(employee)
+      ? [{ title: "Kho", description: "Chụp hóa đơn nhập kho, tồn kho, nhà cung cấp", href: "/inventory", icon: "📦" }]
       : []),
     ...(canAccessPayroll(employee)
       ? [{ title: "Bảng lương", description: "Tính lương, KPI, thưởng/phạt, chốt kỳ", href: "/payroll", icon: "💰" }]
