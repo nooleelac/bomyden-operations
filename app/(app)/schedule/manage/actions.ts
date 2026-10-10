@@ -218,6 +218,20 @@ export async function updateShiftTemplate(templateId: string, _prev: ActionState
   return success(`Đã lưu mẫu ca "${parsed.data.name}". Các ca đã xếp không bị thay đổi.`);
 }
 
+/** Xóa mẫu ca: chưa dùng → xóa hẳn; đã có ca / đăng ký dùng → ẩn (lịch cũ giữ nguyên). */
+export async function deleteShiftTemplate(templateId: string, name: string): Promise<ActionState> {
+  await requireManager();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_shift_template", { p_template_id: templateId });
+  if (error) return fail(friendlyDbError(error));
+  revalidateSchedule();
+  return success(
+    data === "archived"
+      ? `Đã xóa mẫu ca "${name}". Các ca đã xếp trước đây vẫn giữ nguyên.`
+      : `Đã xóa mẫu ca "${name}".`
+  );
+}
+
 // =====================================================================
 // DUYỆT ĐƠN
 // =====================================================================

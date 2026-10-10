@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState, useTransition } from "react";
 import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
@@ -11,6 +11,7 @@ import BulkShiftDialog from "./BulkShiftDialog";
 import {
   copyWeek,
   createShiftTemplate,
+  deleteShiftTemplate,
   publishWeek,
   reviewRequest,
   saveScheduleSettings,
@@ -308,6 +309,20 @@ function TemplateDialog({ template, branches, onClose, onDone }: { template?: Te
   const action = template ? updateShiftTemplate.bind(null, template.id) : createShiftTemplate;
   const [state, formAction, pending] = useFormAction(action, (r) => onDone(r.message));
   const label = "mb-1.5 block text-sm font-medium text-neutral-700";
+  const [deleting, startDeleting] = useTransition();
+  const [deleteError, setDeleteError] = useState("");
+  const remove = () => {
+    if (!template) return;
+    if (!window.confirm(`Xóa mẫu ca "${template.name}" (${template.startTime}–${template.endTime})?
+
+Các ca đã xếp trước đây vẫn giữ nguyên.`)) return;
+    setDeleteError("");
+    startDeleting(async () => {
+      const result = await deleteShiftTemplate(template.id, template.name);
+      if (result.ok) onDone(result.message);
+      else setDeleteError(result.message);
+    });
+  };
   return (
     <Dialog open onClose={onClose} title={template ? "Sửa mẫu ca" : "Tạo mẫu ca"} description={template?.branchName}>
       <ActionForm action={formAction} className="space-y-4">
@@ -350,8 +365,14 @@ function TemplateDialog({ template, branches, onClose, onDone }: { template?: Te
             </label>
           )}
         </div>
+        {deleteError && <p role="alert" className="alert-error">{deleteError}</p>}
         {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
         <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
+          {template && (
+            <button type="button" onClick={remove} disabled={deleting || pending} className="btn mr-auto px-3 text-red-700 hover:bg-red-50">
+              {deleting ? "Đang xóa..." : "🗑 Xóa"}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
           <SubmitButton pending={pending} pendingText="Đang lưu...">{template ? "Lưu" : "Tạo mẫu ca"}</SubmitButton>
         </div>

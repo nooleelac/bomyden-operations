@@ -218,6 +218,7 @@ type ShiftTemplateRow = {
   created_by: string | null
   updated_at: string
   updated_by: string | null
+  deleted_at: string | null
 }
 
 type ShiftRow = {
@@ -1990,6 +1991,10 @@ export type Database = {
       attendance_late_grace: {
         Args: { p_employee_ids: string[] }
         Returns: { employee_id: string; grace_minutes: number }[]
+      }
+      delete_shift_template: {
+        Args: { p_template_id: string }
+        Returns: string
       }
       resolve_task_urgent: {
         Args: { p_instance_id: string }

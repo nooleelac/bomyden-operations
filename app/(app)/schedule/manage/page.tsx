@@ -165,6 +165,7 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
       .from("shift_templates")
       .select("id, branch_id, name, start_time, end_time, is_active, sort_order, branch:branches(name)")
       .in("branch_id", branchIds)
+      .is("deleted_at", null)
       .order("is_active", { ascending: false })
       .order("sort_order")
       .order("start_time");
