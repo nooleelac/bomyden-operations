@@ -38,7 +38,8 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
   // Khoảng ngày: ?from=&to= (link cũ dùng ?date= = 1 ngày)
   const single = isValidDateString(params.date) ? params.date : null;
   let from = isValidDateString(params.from) ? params.from : single ?? today;
-  let to = isValidDateString(params.to) ? params.to : single ?? from;
+  // Bộ lọc bỏ "to" khỏi link khi = hôm nay → thiếu "to" nghĩa là đến hôm nay
+  let to = isValidDateString(params.to) ? params.to : single ?? today;
   if (to > today) to = today;
   if (from > to) from = to;
   if (from < addDays(to, -(MAX_RANGE_DAYS - 1))) from = addDays(to, -(MAX_RANGE_DAYS - 1));
