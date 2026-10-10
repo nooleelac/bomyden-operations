@@ -12,6 +12,8 @@ import type { TaskFrequency, TaskPriority } from "@/lib/database.types";
 
 export type BranchStaff = { id: string; name: string; staff: { id: string; name: string }[] };
 
+export type TaskSetItem = { id: string; branchId: string; branchName: string; name: string };
+
 export type TemplateItem = {
   id: string;
   branchId: string;
@@ -29,6 +31,8 @@ export type TemplateItem = {
   requiresNote: boolean;
   /** Giao theo ca (ai có ca trùng giờ việc thì nhận) */
   assignByShift: boolean;
+  /** Bộ việc (nhóm mẫu) */
+  setId: string | null;
   primaryId: string | null;
   primaryName: string | null;
   backupId: string | null;
@@ -42,6 +46,7 @@ type Props = {
   /** Tạo mẫu mới dựa trên nội dung mẫu có sẵn (sao chép) */
   copyFrom?: TemplateItem;
   branches: BranchStaff[];
+  sets: TaskSetItem[];
   open: boolean;
   onClose: () => void;
   onDone: (message: string) => void;
@@ -54,7 +59,7 @@ function Err({ state, name }: { state: ActionState; name: string }) {
   return state.fieldErrors?.[name] ? <p className="field-error">{state.fieldErrors[name]}</p> : null;
 }
 
-export default function TemplateDialog({ template, copyFrom, branches, open, onClose, onDone, onDelete, deleting }: Props) {
+export default function TemplateDialog({ template, copyFrom, branches, sets, open, onClose, onDone, onDelete, deleting }: Props) {
   // Giá trị ban đầu của các ô: từ mẫu đang sửa, hoặc mẫu được sao chép
   const init = template ?? (copyFrom && { ...copyFrom, title: `${copyFrom.title} (bản sao)` });
   const [branchId, setBranchId] = useState(init?.branchId ?? (branches.length === 1 ? branches[0].id : ""));
@@ -63,6 +68,7 @@ export default function TemplateDialog({ template, copyFrom, branches, open, onC
   const action = template ? updateTemplate.bind(null, template.id) : createTemplate;
   const [state, formAction, pending] = useFormAction(action, (r) => onDone(r.message));
   const staff = branches.find((b) => b.id === branchId)?.staff ?? [];
+  const branchSets = sets.filter((s) => s.branchId === branchId);
   const label = "mb-1.5 block text-sm font-medium text-neutral-700";
 
   return (
@@ -190,6 +196,16 @@ export default function TemplateDialog({ template, copyFrom, branches, open, onC
             Bắt buộc ghi chú khi hoàn thành
           </label>
           <p className="text-xs text-neutral-500">Báo &quot;Không đạt&quot; luôn phải ghi lý do.</p>
+        </div>
+
+        <div>
+          <label htmlFor="tp-set" className={label}>Bộ việc</label>
+          <select key={`s-${branchId}`} id="tp-set" name="set_id" defaultValue={init?.setId ?? ""} className="input">
+            <option value="">— Không thuộc bộ nào —</option>
+            {branchSets.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-neutral-500">Gom các việc hay giao cùng nhau (VD &quot;Mở ca&quot;) để giao cả bộ một lần.</p>
+          <Err state={state} name="set_id" />
         </div>
 
         <div>

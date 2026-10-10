@@ -73,6 +73,7 @@ type TaskTemplateRow = {
   priority: Database["public"]["Enums"]["task_priority"]
   requires_note: boolean
   requires_photo: boolean
+  set_id: string | null
   sort_order: number
   start_time: string
   title: string
@@ -188,6 +189,16 @@ type ScheduleSettingsRow = {
   early_per_month: number
   swap_per_month: number
   register_deadline_days: number
+  updated_at: string
+  updated_by: string | null
+}
+
+type TaskSetRow = {
+  id: string
+  branch_id: string
+  name: string
+  created_at: string
+  created_by: string | null
   updated_at: string
   updated_by: string | null
 }
@@ -631,6 +642,20 @@ export type Database = {
         Update: Partial<Omit<ScheduleSettingsRow, "id">>
         Relationships: []
       }
+      task_sets: {
+        Row: TaskSetRow
+        Insert: { branch_id: string; name: string }
+        Update: Partial<Pick<TaskSetRow, "name">>
+        Relationships: [
+          {
+            foreignKeyName: "task_sets_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_templates: {
         Row: ShiftTemplateRow
         Insert: { branch_id: string; name: string; start_time: string; end_time: string; is_active?: boolean; sort_order?: number }
@@ -817,6 +842,13 @@ export type Database = {
         }
         Update: Partial<TaskTemplateRow>
         Relationships: [
+          {
+            foreignKeyName: "task_templates_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "task_sets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_templates_branch_id_fkey"
             columns: ["branch_id"]
@@ -1884,6 +1916,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      delete_task_set: {
+        Args: { p_set_id: string }
+        Returns: undefined
       }
       delete_task_templates: {
         Args: { p_template_ids: string[] }

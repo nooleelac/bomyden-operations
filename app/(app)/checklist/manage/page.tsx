@@ -8,7 +8,7 @@ import { isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
 import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ManageChecklistView, { type ReportItem } from "./ManageChecklistView";
-import type { BranchStaff, TemplateItem } from "./TemplateDialog";
+import type { BranchStaff, TaskSetItem, TemplateItem } from "./TemplateDialog";
 
 export const metadata: Metadata = { title: "Quản lý checklist" };
 export const instant = false;
@@ -30,7 +30,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
   if (date === today) await supabase.rpc("ensure_task_instances");
 
   const dayRange = vnDayRange(date);
-  const [reportRes, templatesRes, staffRes, shiftsRes] = await Promise.all([
+  const [reportRes, templatesRes, staffRes, shiftsRes, setsRes] = await Promise.all([
     supabase
       .from("task_instances")
       .select(
@@ -43,7 +43,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     supabase
       .from("task_templates")
       .select(
-        "id, branch_id, title, description, category, priority, start_time, due_time, frequency, weekdays, month_days, requires_photo, requires_note, assign_by_shift, primary_employee_id, backup_employee_id, is_active, sort_order, branch:branches(name), primary:employees!task_templates_primary_employee_id_fkey(full_name), backup:employees!task_templates_backup_employee_id_fkey(full_name)"
+        "id, branch_id, title, description, category, priority, start_time, due_time, frequency, weekdays, month_days, requires_photo, requires_note, assign_by_shift, set_id, primary_employee_id, backup_employee_id, is_active, sort_order, branch:branches(name), primary:employees!task_templates_primary_employee_id_fkey(full_name), backup:employees!task_templates_backup_employee_id_fkey(full_name)"
       )
       .in("branch_id", scope)
       .is("deleted_at", null)
@@ -63,9 +63,10 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
       .in("branch_id", scope)
       .lt("start_at", dayRange.end)
       .gt("end_at", dayRange.start),
+    supabase.from("task_sets").select("id, branch_id, name, branch:branches(name)").in("branch_id", scope).order("name"),
   ]);
 
-  if (reportRes.error || templatesRes.error || staffRes.error || shiftsRes.error) {
+  if (reportRes.error || templatesRes.error || staffRes.error || shiftsRes.error || setsRes.error) {
     throw new Error("Không tải được dữ liệu checklist.");
   }
 
@@ -115,6 +116,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     requiresPhoto: t.requires_photo,
     requiresNote: t.requires_note,
     assignByShift: t.assign_by_shift,
+    setId: t.set_id,
     primaryId: t.primary_employee_id,
     primaryName: t.primary?.full_name ?? null,
     backupId: t.backup_employee_id,
@@ -122,6 +124,8 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     isActive: t.is_active,
     sortOrder: t.sort_order,
   }));
+
+  const sets: TaskSetItem[] = setsRes.data.map((s) => ({ id: s.id, branchId: s.branch_id, branchName: s.branch?.name ?? "", name: s.name }));
 
   const branchStaff: BranchStaff[] = branches.map((b) => ({
     id: b.id,
@@ -175,7 +179,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             <button type="submit" className="btn-primary">Xem</button>
           </form>
 
-          <ManageChecklistView tab={tab} report={report} templates={templates} branches={branchStaff} dateLabel={dateLabel} />
+          <ManageChecklistView tab={tab} report={report} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
         </>
       )}
     </div>

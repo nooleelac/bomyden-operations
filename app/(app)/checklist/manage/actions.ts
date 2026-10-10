@@ -50,6 +50,11 @@ const templateSchema = z
       .transform((v) => v || null)
       .pipe(z.uuid().nullable()),
     sort_order: z.coerce.number().int().min(0).max(9999).default(0),
+    // Bộ việc (tùy chọn, cùng chi nhánh)
+    set_id: z
+      .string()
+      .transform((v) => v || null)
+      .pipe(z.uuid().nullable()),
   })
   .refine((v) => v.due_time > v.start_time, { path: ["due_time"], message: "Hạn chót phải sau giờ bắt đầu." })
   .refine((v) => v.frequency !== "weekly" || v.weekdays.length > 0, { path: ["weekdays"], message: "Chọn ít nhất một thứ." })
@@ -82,6 +87,7 @@ function readTemplate(formData: FormData) {
     primary_employee_id: byShift ? "" : str("primary_employee_id"),
     backup_employee_id: byShift ? "" : str("backup_employee_id"),
     sort_order: str("sort_order") || "0",
+    set_id: str("set_id"),
   });
 }
 
@@ -176,6 +182,70 @@ export async function bulkAssignTemplates(_prev: ActionState, formData: FormData
         ? `Đã giao ${data.length} công việc.`
         : `Đã bỏ giao ${data.length} công việc (việc chưa làm từ hôm nay đã được hủy).`
   );
+}
+
+const setName = z.string().trim().min(1, { message: "Vui lòng nhập tên bộ việc." }).max(50, { message: "Tên bộ việc tối đa 50 ký tự." });
+
+/** Tạo bộ việc (nhóm mẫu trong 1 chi nhánh, VD "Mở ca"). Có thể đưa luôn các mẫu đang chọn vào bộ. */
+export async function createTaskSet(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const branchId = String(formData.get("branch_id") ?? "");
+  const name = setName.safeParse(String(formData.get("name") ?? ""));
+  if (!z.uuid().safeParse(branchId).success) return fail("Vui lòng chọn chi nhánh.", { branch_id: "Chọn chi nhánh." });
+  if (!name.success) return fail(name.error.issues[0].message, { name: name.error.issues[0].message });
+  const templateIds = z.array(z.uuid()).max(500).safeParse(formData.getAll("template_ids").map(String));
+  if (!templateIds.success) return fail("Danh sách công việc không hợp lệ.");
+
+  const supabase = await createClient();
+  const { data: set, error } = await supabase.from("task_sets").insert({ branch_id: branchId, name: name.data }).select("id, name").single();
+  if (error) return fail(friendlyDbError(error));
+
+  let added = 0;
+  if (templateIds.data.length > 0) {
+    const { data, error: addError } = await supabase.from("task_templates").update({ set_id: set.id }).in("id", templateIds.data).select("id");
+    if (addError) return fail(`Đã tạo bộ "${set.name}" nhưng chưa thêm được công việc: ${friendlyDbError(addError)}`);
+    added = data.length;
+  }
+  revalidateChecklist();
+  return success(added > 0 ? `Đã tạo bộ "${set.name}" với ${added} công việc.` : `Đã tạo bộ "${set.name}".`);
+}
+
+export async function renameTaskSet(setId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const name = setName.safeParse(String(formData.get("name") ?? ""));
+  if (!name.success) return fail(name.error.issues[0].message, { name: name.error.issues[0].message });
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("task_sets").update({ name: name.data }).eq("id", setId).select("name").maybeSingle();
+  if (error) return fail(friendlyDbError(error));
+  if (!data) return fail("Bạn không có quyền sửa bộ việc này.");
+  revalidateChecklist();
+  return success(`Đã đổi tên thành "${data.name}".`);
+}
+
+/** Xóa bộ: chỉ gỡ nhóm, các mẫu công việc vẫn giữ nguyên. */
+export async function deleteTaskSet(setId: string): Promise<ActionState> {
+  await requireManager();
+  if (!z.uuid().safeParse(setId).success) return fail("Bộ việc không hợp lệ.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_task_set", { p_set_id: setId });
+  if (error) return fail(friendlyDbError(error));
+  revalidateChecklist();
+  return success("Đã xóa bộ việc. Các công việc trong bộ vẫn được giữ.");
+}
+
+/** Đưa nhiều mẫu vào 1 bộ (hoặc gỡ khỏi bộ khi setId = null). */
+export async function moveTemplatesToSet(templateIds: string[], setId: string | null): Promise<ActionState> {
+  await requireManager();
+  const ids = z.array(z.uuid()).min(1).max(500).safeParse(templateIds);
+  if (!ids.success || (setId !== null && !z.uuid().safeParse(setId).success)) return fail("Dữ liệu không hợp lệ.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("task_templates").update({ set_id: setId }).in("id", ids.data).select("id");
+  if (error) return fail(friendlyDbError(error));
+  if (!data || data.length === 0) return fail("Bạn không có quyền sửa các công việc này.");
+  revalidateChecklist();
+  return success(setId ? `Đã đưa ${data.length} công việc vào bộ.` : `Đã gỡ ${data.length} công việc khỏi bộ.`);
 }
 
 /** Xóa mẫu: chưa có lịch sử → xóa hẳn; đã có việc làm xong / không đạt → ẩn, giữ báo cáo cũ. */

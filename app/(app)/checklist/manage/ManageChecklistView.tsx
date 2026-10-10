@@ -5,7 +5,8 @@ import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
-import TemplateDialog, { type BranchStaff, type TemplateItem } from "./TemplateDialog";
+import TemplateDialog, { type BranchStaff, type TaskSetItem, type TemplateItem } from "./TemplateDialog";
+import { MoveToSetDialog, TaskSetsPanel } from "./TaskSets";
 import BulkAssignDialog from "./BulkAssignDialog";
 import { deleteTemplates, reopenTask } from "./actions";
 import { CATEGORY_ICONS, DISPLAY_STATUS, PRIORITY_LABELS, describeSchedule, type DisplayStatus } from "@/lib/checklist";
@@ -37,6 +38,7 @@ type Props = {
   tab: "report" | "templates";
   report: ReportItem[];
   templates: TemplateItem[];
+  sets: TaskSetItem[];
   branches: BranchStaff[];
   dateLabel: string;
 };
@@ -72,11 +74,13 @@ function ReopenButton({ id, title, onDone }: { id: string; title: string; onDone
 
 const ORDER: DisplayStatus[] = ["overdue", "failed", "open", "upcoming", "late", "done"];
 
-export default function ManageChecklistView({ tab, report, templates, branches, dateLabel }: Props) {
+export default function ManageChecklistView({ tab, report, templates, sets, branches, dateLabel }: Props) {
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<TemplateItem | "new" | null>(null);
   const [copying, setCopying] = useState<TemplateItem | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [movingToSet, setMovingToSet] = useState(false);
+  const setNames = new Map(sets.map((x) => [x.id, x.name]));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // "all" | "unassigned" | id nhân viên (người chính hoặc người thay)
   const [filter, setFilter] = useState<string>("all");
@@ -116,7 +120,9 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
         ? isUnassigned(t)
         : filter === "shift"
           ? t.assignByShift
-          : t.primaryId === filter || t.backupId === filter
+          : filter.startsWith("set:")
+            ? t.setId === filter.slice(4)
+            : t.primaryId === filter || t.backupId === filter
   );
   const allVisibleSelected = visible.length > 0 && visible.every((t) => selected.has(t.id));
   const toggleMany = (ids: string[], on: boolean) =>
@@ -210,6 +216,17 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
         </section>
       ) : (
         <section>
+          <TaskSetsPanel
+            sets={sets}
+            templates={templates}
+            branches={branches}
+            notify={notify}
+            onSelect={(ids) => toggleMany(ids, true)}
+            onAssign={(ids) => {
+              setSelected(new Set(ids));
+              setAssigning(true);
+            }}
+          />
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
@@ -233,12 +250,23 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
               {assignees.length > 0 && (
                 <select
                   aria-label="Lọc theo nhân viên"
-                  value={["all", "unassigned", "shift"].includes(filter) ? "" : filter}
+                  value={["all", "unassigned", "shift"].includes(filter) || filter.startsWith("set:") ? "" : filter}
                   onChange={(e) => setFilter(e.target.value || "all")}
                   className="input w-auto py-1.5 text-sm"
                 >
                   <option value="">Theo nhân viên…</option>
                   {assignees.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                </select>
+              )}
+              {sets.length > 0 && (
+                <select
+                  aria-label="Lọc theo bộ việc"
+                  value={filter.startsWith("set:") ? filter : ""}
+                  onChange={(e) => setFilter(e.target.value || "all")}
+                  className="input w-auto py-1.5 text-sm"
+                >
+                  <option value="">Theo bộ việc…</option>
+                  {sets.map((x) => <option key={x.id} value={`set:${x.id}`}>{x.name}</option>)}
                 </select>
               )}
             </div>
@@ -284,6 +312,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                       </div>
                       <p className="mt-1 text-neutral-500">
                         {t.branchName} · {t.startTime}–{t.dueTime} · {describeSchedule(t.frequency, t.weekdays, t.monthDays)}
+                        {t.setId && setNames.has(t.setId) && <span className="text-neutral-700"> · 📁 {setNames.get(t.setId)}</span>}
                       </p>
                       <p className="mt-0.5 text-neutral-700">
                         {t.assignByShift ? (
@@ -318,6 +347,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
                   <button type="button" onClick={() => removeTemplates([...selected])} disabled={deleting} className="btn-danger px-3 py-1.5">
                     {deleting ? "Đang xóa..." : "Xóa"}
                   </button>
+                  <button type="button" onClick={() => setMovingToSet(true)} className="btn-secondary px-3 py-1.5">Đưa vào bộ</button>
                   <button type="button" onClick={() => setAssigning(true)} className="btn-primary px-3 py-1.5">Giao việc</button>
                 </div>
               </div>
@@ -329,6 +359,7 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
             template={editing && editing !== "new" ? editing : undefined}
             copyFrom={copying ?? undefined}
             branches={branches}
+            sets={sets}
             open={editing !== null || copying !== null}
             deleting={deleting}
             onDelete={editing && editing !== "new" ? () => removeTemplates([editing.id], () => setEditing(null)) : undefined}
@@ -339,6 +370,19 @@ export default function ManageChecklistView({ tab, report, templates, branches, 
             onDone={(message) => {
               setEditing(null);
               setCopying(null);
+              notify(message);
+            }}
+          />
+          <MoveToSetDialog
+            key={movingToSet ? `move-${[...selected].join()}` : "move-closed"}
+            selected={templates.filter((t) => selected.has(t.id))}
+            sets={sets}
+            branches={branches}
+            open={movingToSet}
+            onClose={() => setMovingToSet(false)}
+            onDone={(message) => {
+              setMovingToSet(false);
+              setSelected(new Set());
               notify(message);
             }}
           />
