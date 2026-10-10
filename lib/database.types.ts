@@ -1987,6 +1987,10 @@ export type Database = {
         Args: { p_date?: string }
         Returns: number
       }
+      attendance_late_grace: {
+        Args: { p_employee_ids: string[] }
+        Returns: { employee_id: string; grace_minutes: number }[]
+      }
       resolve_task_urgent: {
         Args: { p_instance_id: string }
         Returns: TaskInstanceRow

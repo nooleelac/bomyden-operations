@@ -38,14 +38,14 @@ function presets(today: string) {
 }
 
 /**
- * Bộ lọc báo cáo / mẫu checklist: đổi là tự tải lại (không cần nút "Xem").
+ * Bộ lọc lịch sử dùng chung (báo cáo checklist, chấm công): đổi là tự tải lại (không cần nút "Xem").
  * - Nhân viên: chọn nhiều người.
  * - Ngày: khoảng Từ–Đến (tối đa maxDays ngày) + phím chọn nhanh, nút ‹ › lùi/tới nguyên khoảng.
  * Ô ngày tự vẽ nhãn gọn ("Hôm nay", "T2, 06/10/2026"); ô chọn ngày gốc nằm trong suốt phía trên
  * → bấm vẫn mở bộ chọn ngày của điện thoại, không bị chữ dài "ngày 11 thg 10, 2026" của iPhone.
  */
-export default function ReportFilters({
-  tab,
+export default function HistoryFilters({
+  mode,
   branches,
   staff,
   branchId,
@@ -56,7 +56,8 @@ export default function ReportFilters({
   maxDays,
   query,
 }: {
-  tab: "report" | "templates";
+  /** full = chi nhánh + nhân viên + khoảng ngày; branchOnly = chỉ chi nhánh */
+  mode: "full" | "branchOnly";
   branches: Option[];
   staff: Option[];
   branchId: string;
@@ -92,7 +93,7 @@ export default function ReportFilters({
     go({ from: f, to: t });
   };
 
-  const isReport = tab === "report";
+  const isReport = mode === "full";
   if (branches.length === 0 && !isReport) return null;
 
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;

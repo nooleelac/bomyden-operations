@@ -73,7 +73,7 @@ const PAYROLL: LiveTable[] = [
 /** Tiền tố đường dẫn → bảng cần theo dõi (khớp tiền tố dài nhất) */
 const ROUTES: [prefix: string, tables: LiveTable[]][] = [
   ["/checklist", ["task_instances", "task_templates", "task_sets", "shifts", "attendance_records", ...STAFF]],
-  ["/attendance", ["attendance_records", "attendance_corrections", "shifts", ...STAFF]],
+  ["/attendance", ["attendance_records", "attendance_corrections", "shifts", "schedule_requests", ...STAFF]],
   ["/schedule", [...SCHEDULE, "attendance_records", ...STAFF]],
   ["/employees", [...STAFF, "payroll_profiles"]],
   ["/branches", STAFF],

@@ -8,7 +8,7 @@ import { isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
 import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ManageChecklistView, { type ReportItem } from "./ManageChecklistView";
-import ReportFilters from "./ReportFilters";
+import HistoryFilters from "@/components/HistoryFilters";
 import type { BranchStaff, TaskSetItem, TemplateItem } from "./TemplateDialog";
 
 export const metadata: Metadata = { title: "Quản lý checklist" };
@@ -226,8 +226,8 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             </Link>
           </div>
 
-          <ReportFilters
-            tab={tab}
+          <HistoryFilters
+            mode={tab === "report" ? "full" : "branchOnly"}
             branches={branches.map((b) => ({ id: b.id, name: b.name }))}
             staff={staffOptions}
             branchId={branchId}
