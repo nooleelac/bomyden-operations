@@ -55,6 +55,7 @@ export default function HistoryFilters({
   today,
   maxDays,
   query,
+  staffFieldLabel = "Nhân viên",
 }: {
   /** full = chi nhánh + nhân viên + khoảng ngày; branchOnly = chỉ chi nhánh */
   mode: "full" | "branchOnly";
@@ -68,6 +69,8 @@ export default function HistoryFilters({
   maxDays: number;
   /** Tham số URL hiện tại (giữ nguyên tab, lọc gấp...) */
   query: Record<string, string>;
+  /** Nhãn ô chọn người (mặc định "Nhân viên") */
+  staffFieldLabel?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -120,7 +123,7 @@ export default function HistoryFilters({
           </select>
         </Field>
         {isReport && (
-          <Field label="Nhân viên" htmlFor="cf-emp">
+          <Field label={staffFieldLabel} htmlFor="cf-emp">
             <button
               id="cf-emp"
               type="button"

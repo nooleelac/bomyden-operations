@@ -432,6 +432,7 @@ export type Database = {
           action: string
           actor_auth_uid: string | null
           actor_employee_id: string | null
+          branch_id: string | null
           created_at: string
           id: number
           new_data: Json | null
@@ -439,11 +440,13 @@ export type Database = {
           old_data: Json | null
           record_id: string | null
           table_name: string
+          target_employee_id: string | null
         }
         Insert: {
           action: string
           actor_auth_uid?: string | null
           actor_employee_id?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: never
           new_data?: Json | null
@@ -451,11 +454,13 @@ export type Database = {
           old_data?: Json | null
           record_id?: string | null
           table_name: string
+          target_employee_id?: string | null
         }
         Update: {
           action?: string
           actor_auth_uid?: string | null
           actor_employee_id?: string | null
+          branch_id?: string | null
           created_at?: string
           id?: never
           new_data?: Json | null
@@ -463,11 +468,26 @@ export type Database = {
           old_data?: Json | null
           record_id?: string | null
           table_name?: string
+          target_employee_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "audit_logs_actor_employee_id_fkey"
             columns: ["actor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_target_employee_id_fkey"
+            columns: ["target_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]

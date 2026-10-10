@@ -5,6 +5,7 @@
 export type LiveTable =
   | "app_settings"
   | "attendance_corrections"
+  | "audit_logs"
   | "attendance_records"
   | "branches"
   | "employee_branches"
@@ -82,6 +83,7 @@ const ROUTES: [prefix: string, tables: LiveTable[]][] = [
   ["/payslips", ["payslips", "salary_advances", "payroll_adjustments", "payroll_profiles"]],
   ["/notifications", ["notifications"]],
   ["/account", ["employees", "employee_branches"]],
+  ["/audit-log", ["audit_logs"]],
 ];
 
 /** Trang chủ (Tổng quan) */

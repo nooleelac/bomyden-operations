@@ -45,6 +45,7 @@ export const getModules = cache(async (employee: CurrentEmployee): Promise<AppMo
       icon: "🧾",
     },
     isAdmin(employee.role) && { title: "Thương hiệu", short: "Thương hiệu", description: "Logo, tên app, màu sắc", href: "/settings/branding", icon: "🎨" },
+    isAdmin(employee.role) && { title: "Nhật ký thao tác", short: "Nhật ký", description: "Ai đã thêm, sửa, xóa, duyệt gì — lúc nào", href: "/audit-log", icon: "📜" },
   ];
   return list.filter((m): m is AppModule => Boolean(m));
 });
