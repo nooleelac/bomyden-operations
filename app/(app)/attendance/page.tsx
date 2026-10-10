@@ -147,7 +147,23 @@ export default async function AttendancePage() {
       )}
 
       <section className="mt-8">
-        <h2 className="mb-3 font-semibold">Lịch sử {HISTORY_DAYS} ngày</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Lịch sử {HISTORY_DAYS} ngày</h2>
+          {/* Tải file Excel chấm công 1 tháng để đối chiếu */}
+          <form action="/attendance/export" method="get" className="flex items-center gap-2">
+            <label htmlFor="export-month" className="sr-only">Tháng</label>
+            <input
+              id="export-month"
+              name="month"
+              type="month"
+              defaultValue={today.slice(0, 7)}
+              max={today.slice(0, 7)}
+              required
+              className="input w-auto py-1.5 text-sm"
+            />
+            <button type="submit" className="btn-secondary whitespace-nowrap">⬇ Excel</button>
+          </form>
+        </div>
         {records.length === 0 ? (
           <div className="card px-6 py-10 text-center text-sm text-neutral-500">Chưa có ca làm nào.</div>
         ) : (
