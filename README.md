@@ -53,11 +53,14 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 
 - **Mẫu công việc** (`task_templates`) theo chi nhánh: giờ bắt đầu/hạn chót, lặp hằng ngày / theo thứ / theo ngày trong tháng
   (ngày 29–31 không có trong tháng → chạy ngày cuối tháng), 1 người chính + 1 người thay thế, bắt buộc ảnh/ghi chú tùy mẫu.
-- **Việc theo ngày** (`task_instances`) sinh tự động, idempotent (`ensure_task_instances`, unique theo mẫu + ngày).
+- **Việc theo ngày** (`task_instances`) sinh tự động, idempotent (`ensure_task_instances`, unique theo mẫu + ngày):
+  cron `bomyden-ensure-tasks` mỗi 10 phút + ngay khi tạo/sửa/giao/nhập mẫu (trang không gọi lúc mở để tải nhanh).
   Nội dung được "chụp" lúc sinh; sửa mẫu chỉ áp dụng cho việc chưa làm từ hôm nay.
 - **Đánh dấu** qua server (`complete_task_instance` chỉ `service_role` gọi): người chính, hoặc người thay thế khi người chính
   không chấm công hôm đó; phải đang trong ca tại chi nhánh của việc. "Không đạt" luôn cần lý do.
-- **Ảnh** thu nhỏ trên điện thoại (≤1600px JPEG) → kho riêng tư `task-photos`, chỉ xem qua link ký tạm thời 1 giờ.
+- **Ảnh** thu nhỏ trên điện thoại (≤1600px JPEG) → kho riêng tư `task-photos`, chỉ xem qua link ký tạm thời 2 giờ
+  (cache theo từng ảnh tối đa 1 giờ → trang tự cập nhật không làm tải lại ảnh).
+- **Nhật ký cron** (`cron.job_run_details`) chỉ giữ 7 ngày (cron `bomyden-cron-history-cleanup`, 03:30).
 - **Quản lý**: báo cáo theo ngày (quá hạn / không đạt / cần làm / xong / xong trễ), yêu cầu làm lại kèm lý do.
 
 ## Bảng lương

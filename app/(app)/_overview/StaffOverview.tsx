@@ -16,8 +16,6 @@ export default async function StaffOverview({ me, today, compact = false }: { me
   const needsClock = mustClockIn(me);
   const supabase = await createClient();
 
-  await supabase.rpc("ensure_task_instances");
-
   const [shiftsRes, openRes, tasksRes, peerRes, myRequestsRes] = await Promise.all([
     supabase
       .from("shifts")

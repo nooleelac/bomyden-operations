@@ -20,9 +20,7 @@ export default async function ChecklistPage() {
   const now = getRequestTime();
   const today = vnDateString(new Date(now));
 
-  // Sinh việc hôm nay nếu chưa có (idempotent)
-  await supabase.rpc("ensure_task_instances");
-
+  // Việc hôm nay do cron sinh sẵn (bomyden-ensure-tasks, mỗi 10 phút) và ngay khi sửa mẫu
   const range = vnDayRange(today);
   const [{ data: allTasks, error }, { data: openShift }, { data: myShifts }] = await Promise.all([
     supabase

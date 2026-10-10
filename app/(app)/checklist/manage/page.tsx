@@ -48,7 +48,6 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
   const urgentOnly = params.urgent === "1";
 
   const supabase = await createClient();
-  if (to === today) await supabase.rpc("ensure_task_instances");
 
   const rangeStart = vnDayRange(from).start;
   const rangeEnd = vnDayRange(to).end;

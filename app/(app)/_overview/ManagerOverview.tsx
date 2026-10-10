@@ -35,8 +35,6 @@ export default async function ManagerOverview({
   const showBranch = !branchId && branches.length > 1;
   const supabase = await createClient();
 
-  await supabase.rpc("ensure_task_instances");
-
   // Đơn/yêu cầu: RLS đã giới hạn theo chi nhánh quản lý; lọc thêm khi chọn 1 chi nhánh
   let correctionsQ = supabase
     .from("attendance_corrections")
