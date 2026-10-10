@@ -60,7 +60,8 @@ export default function ReportFilters({
     startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
   };
 
-  const showBranch = branches.length > 1;
+  // Luôn cho chọn chi nhánh (kể cả khi chỉ quản lý 1 chi nhánh — giống bộ lọc cũ)
+  const showBranch = branches.length > 0;
   const isReport = tab === "report";
   if (!showBranch && !isReport) return null;
 
