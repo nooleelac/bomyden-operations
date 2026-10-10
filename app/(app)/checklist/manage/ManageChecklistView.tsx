@@ -16,6 +16,7 @@ import { formatTime } from "@/lib/time";
 
 export type ReportItem = {
   id: string;
+  taskDate: string;
   /** Việc giao theo ca + người đang có ca trùng giờ việc */
   byShift: boolean;
   shiftStaff: string[];
@@ -49,6 +50,8 @@ type Props = {
   dateLabel: string;
   /** Chỉ hiện việc báo cần gấp (?urgent=1) */
   urgentOnly: boolean;
+  /** Đang xem nhiều ngày → nhóm theo ngày + bảng tổng hợp theo nhân viên */
+  multiDay: boolean;
   urgentHref: string;
   allHref: string;
 };
@@ -104,7 +107,7 @@ function ResolveUrgentButton({ id, onDone }: { id: string; onDone: (m: string) =
 
 const ORDER: DisplayStatus[] = ["overdue", "failed", "open", "upcoming", "late", "done"];
 
-export default function ManageChecklistView({ tab, report, templates, sets, branches, dateLabel, urgentOnly, urgentHref, allHref }: Props) {
+export default function ManageChecklistView({ tab, report, templates, sets, branches, dateLabel, urgentOnly, urgentHref, allHref, multiDay }: Props) {
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<TemplateItem | "new" | null>(null);
   const [copying, setCopying] = useState<TemplateItem | null>(null);
@@ -179,6 +182,10 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
     // Việc báo gấp chưa xử lý luôn lên đầu
     (a, b) => Number(openUrgent(b)) - Number(openUrgent(a)) || ORDER.indexOf(a.displayStatus) - ORDER.indexOf(b.displayStatus) || a.dueAt.localeCompare(b.dueAt)
   );
+  // Nhóm theo ngày (mới nhất trước)
+  const byDay = new Map<string, ReportItem[]>();
+  for (const r of sorted) byDay.set(r.taskDate, [...(byDay.get(r.taskDate) ?? []), r]);
+  const groups = [...byDay].sort((a, b) => b[0].localeCompare(a[0]));
 
   return (
     <>
@@ -218,8 +225,13 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
               {urgentOnly ? "Không có việc báo gấp" : "Không có công việc nào"} {dateLabel}.
             </div>
           ) : (
+            <div className="space-y-5">
+              {multiDay && <StaffSummary report={report} />}
+              {groups.map(([day, items]) => (
+              <section key={day}>
+              {multiDay && <DayHeader day={day} items={items} />}
             <ul className="card divide-y divide-neutral-100 overflow-hidden">
-              {sorted.map((item) => {
+              {items.map((item) => {
                 const status = DISPLAY_STATUS[item.displayStatus];
                 const urgentOpen = openUrgent(item);
                 return (
@@ -227,7 +239,7 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                     {item.photoUrl && (
                       <a href={item.photoUrl} target="_blank" rel="noreferrer" className="shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.photoUrl} alt="Ảnh hoàn thành" className="h-16 w-16 rounded-lg object-cover" />
+                        <img src={item.photoUrl} alt="Ảnh hoàn thành" loading="lazy" className="h-16 w-16 rounded-lg object-cover" />
                       </a>
                     )}
                     {item.photoPurged && (
@@ -285,6 +297,9 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                 );
               })}
             </ul>
+              </section>
+              ))}
+            </div>
           )}
         </section>
       ) : (
@@ -496,5 +511,95 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
         </p>
       )}
     </>
+  );
+}
+
+const WEEKDAY_NAMES = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+
+/** Tiêu đề ngày khi xem nhiều ngày: "Thứ hai, 06/10/2026 · 8/10 xong" */
+function DayHeader({ day, items }: { day: string; items: ReportItem[] }) {
+  const [y, m, d] = day.split("-");
+  const weekday = WEEKDAY_NAMES[new Date(`${day}T00:00:00Z`).getUTCDay()];
+  const finished = items.filter((i) => i.displayStatus === "done" || i.displayStatus === "late").length;
+  const bad = items.filter((i) => i.displayStatus === "failed" || i.displayStatus === "overdue").length;
+  return (
+    <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
+      <h3 className="text-sm font-semibold">
+        {weekday}, <span className="tabular-nums">{d}/{m}/{y}</span>
+      </h3>
+      <p className="shrink-0 text-xs text-neutral-500">
+        <span className="tabular-nums">{finished}/{items.length}</span> xong
+        {bad > 0 && <span className="ml-1.5 font-medium text-red-700">· {bad} lỗi</span>}
+      </p>
+    </div>
+  );
+}
+
+/** Người chịu trách nhiệm một việc: người đã đánh dấu, chưa đánh dấu thì người được giao / người trong ca */
+function responsibleOf(item: ReportItem): string[] {
+  if (item.completedByName) return [item.completedByName];
+  if (item.byShift) return item.shiftStaff;
+  return item.primaryName && item.primaryName !== "—" ? [item.primaryName] : [];
+}
+
+/** Bảng tổng hợp theo nhân viên cho khoảng nhiều ngày */
+function StaffSummary({ report }: { report: ReportItem[] }) {
+  type Row = { name: string; done: number; late: number; failed: number; overdue: number; total: number };
+  const rows = new Map<string, Row>();
+  for (const item of report) {
+    if (item.displayStatus === "upcoming" || item.displayStatus === "open") continue; // chưa tới hạn → chưa tính
+    for (const name of responsibleOf(item)) {
+      const row = rows.get(name) ?? { name, done: 0, late: 0, failed: 0, overdue: 0, total: 0 };
+      if (item.displayStatus === "done") row.done++;
+      else if (item.displayStatus === "late") row.late++;
+      else if (item.displayStatus === "failed") row.failed++;
+      else if (item.displayStatus === "overdue") row.overdue++;
+      row.total++;
+      rows.set(name, row);
+    }
+  }
+  const list = [...rows.values()].sort((a, b) => b.failed + b.overdue - (a.failed + a.overdue) || a.name.localeCompare(b.name, "vi"));
+  if (list.length === 0) return null;
+
+  return (
+    <section className="card overflow-hidden">
+      <h3 className="border-b border-neutral-100 px-4 py-3 text-sm font-semibold">Tổng hợp theo nhân viên</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-neutral-50 text-xs text-neutral-500">
+              <th className="px-3 py-2 text-left font-medium sm:px-4">Nhân viên</th>
+              <th className="px-1.5 py-2 text-right font-medium sm:px-2">Đúng</th>
+              <th className="px-1.5 py-2 text-right font-medium sm:px-2">Trễ</th>
+              <th className="px-1.5 py-2 text-right font-medium sm:px-2">Lỗi</th>
+              <th className="px-3 py-2 text-right font-medium sm:px-4">Tỉ lệ</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100">
+            {list.map((r) => {
+              const rate = r.total ? Math.round((r.done / r.total) * 100) : 0;
+              return (
+                <tr key={r.name}>
+                  <td className="max-w-0 truncate px-3 py-2.5 font-medium sm:px-4">{r.name}</td>
+                  <td className="w-1 px-1.5 py-2.5 text-right tabular-nums text-emerald-700 sm:px-2">{r.done}</td>
+                  <td className="w-1 px-1.5 py-2.5 text-right tabular-nums text-amber-700 sm:px-2">{r.late || "—"}</td>
+                  <td className={`w-1 px-1.5 py-2.5 text-right tabular-nums sm:px-2 ${r.failed + r.overdue ? "font-semibold text-red-700" : "text-neutral-400"}`}>
+                    {r.failed + r.overdue || "—"}
+                  </td>
+                  <td className="w-1 px-3 py-2.5 text-right sm:px-4">
+                    <span className={`inline-block min-w-12 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${rate >= 90 ? "bg-emerald-50 text-emerald-700" : rate >= 70 ? "bg-amber-50 text-amber-800" : "bg-red-50 text-red-700"}`}>
+                      {rate}%
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t border-neutral-100 px-4 py-2 text-xs text-neutral-500">
+        Đúng = xong đúng hạn · Lỗi = không đạt + quá hạn chưa làm · Tỉ lệ = đúng hạn / tổng việc đã tới hạn.
+      </p>
+    </section>
   );
 }

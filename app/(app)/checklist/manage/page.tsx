@@ -14,6 +14,18 @@ import type { BranchStaff, TaskSetItem, TemplateItem } from "./TemplateDialog";
 export const metadata: Metadata = { title: "Quản lý checklist" };
 export const instant = false;
 
+/** Báo cáo xem tối đa 31 ngày một lần */
+const MAX_RANGE_DAYS = 31;
+
+function addDays(date: string, days: number) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+const REPORT_COLUMNS =
+  "id, task_date, branch_id, by_shift, title, category, start_at, due_at, status, completed_at, completed_by, note, photo_path, photo_purged_at, primary_employee_id, backup_employee_id, is_urgent, urgent_resolved_at, branch:branches(name), resolver:employees!task_instances_urgent_resolved_by_fkey(full_name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)";
+
 export default async function ManageChecklistPage({ searchParams }: PageProps<"/checklist/manage">) {
   const actor = await requireManager();
   const params = await searchParams;
@@ -24,24 +36,49 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
   const branchId = typeof params.branch === "string" && branchIds.includes(params.branch) ? params.branch : "";
   const now = getRequestTime();
   const today = vnDateString(new Date(now));
-  const date = isValidDateString(params.date) ? params.date : today;
+  // Khoảng ngày: ?from=&to= (link cũ / thông báo dùng ?date= = 1 ngày)
+  const single = isValidDateString(params.date) ? params.date : null;
+  let from = isValidDateString(params.from) ? params.from : single ?? today;
+  let to = isValidDateString(params.to) ? params.to : single ?? from;
+  if (to > today) to = today;
+  if (from > to) from = to;
+  if (from < addDays(to, -(MAX_RANGE_DAYS - 1))) from = addDays(to, -(MAX_RANGE_DAYS - 1));
   const scope = branchId ? [branchId] : branchIds;
   const urgentOnly = params.urgent === "1";
 
   const supabase = await createClient();
-  if (date === today) await supabase.rpc("ensure_task_instances");
+  if (to === today) await supabase.rpc("ensure_task_instances");
 
-  const dayRange = vnDayRange(date);
-  const [reportRes, templatesRes, staffRes, shiftsRes, setsRes] = await Promise.all([
+  const rangeStart = vnDayRange(from).start;
+  const rangeEnd = vnDayRange(to).end;
+
+  // Nhiều ngày × nhiều việc có thể vượt 1000 dòng/lần đọc của Supabase → đọc theo trang
+  const pageSize = 1000;
+  const fetchPage = (offset: number) =>
     supabase
       .from("task_instances")
-      .select(
-        "id, branch_id, by_shift, title, category, start_at, due_at, status, completed_at, completed_by, note, photo_path, photo_purged_at, primary_employee_id, backup_employee_id, is_urgent, urgent_resolved_at, branch:branches(name), resolver:employees!task_instances_urgent_resolved_by_fkey(full_name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
-      )
-      .eq("task_date", date)
+      .select(REPORT_COLUMNS)
+      .gte("task_date", from)
+      .lte("task_date", to)
       .neq("status", "cancelled")
       .in("branch_id", scope)
-      .order("due_at"),
+      .order("task_date", { ascending: false })
+      .order("due_at")
+      .order("id")
+      .range(offset, offset + pageSize - 1);
+  type ReportRow = NonNullable<Awaited<ReturnType<typeof fetchPage>>["data"]>[number];
+  const loadReport = async () => {
+    const rows: ReportRow[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await fetchPage(offset);
+      if (error) return { data: null, error };
+      rows.push(...data);
+      if (data.length < pageSize) return { data: rows, error: null };
+    }
+  };
+
+  const [reportRes, templatesRes, staffRes, shiftsRes, setsRes] = await Promise.all([
+    tab === "report" ? loadReport() : Promise.resolve({ data: [], error: null }),
     supabase
       .from("task_templates")
       .select(
@@ -57,14 +94,14 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
       .select("branch_id, employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, is_active)")
       .in("branch_id", branchIds)
       .eq("employee.is_active", true),
-    // Ca đã công bố trong ngày → biết ai nhận việc "giao theo ca"
+    // Ca đã công bố trong khoảng ngày → biết ai nhận việc "giao theo ca"
     supabase
       .from("shifts")
       .select("branch_id, start_at, end_at, employee:employees!shifts_employee_id_fkey(id, full_name, is_active)")
       .eq("status", "published")
       .in("branch_id", scope)
-      .lt("start_at", dayRange.end)
-      .gt("end_at", dayRange.start),
+      .lt("start_at", rangeEnd)
+      .gt("end_at", rangeStart),
     supabase.from("task_sets").select("id, branch_id, name, branch:branches(name)").in("branch_id", scope).order("name"),
   ]);
 
@@ -86,17 +123,21 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
         .map((row) => [row.employee.id, { id: row.employee.id, name: row.employee.full_name }] as const)
     ).values(),
   ].sort((a, b) => a.name.localeCompare(b.name, "vi"));
-  const employeeId = typeof params.emp === "string" && staffOptions.some((s) => s.id === params.emp) ? params.emp : "";
+  // ?emp=id1,id2 → nhiều nhân viên
+  const staffIds = new Set(staffOptions.map((s) => s.id));
+  const employeeIds = (typeof params.emp === "string" ? params.emp.split(",") : []).filter((id) => staffIds.has(id));
+  const picked = new Set(employeeIds);
   // Việc liên quan tới nhân viên: người chính / người thay / người đánh dấu / có ca trùng giờ (việc theo ca)
-  const involves = (r: (typeof reportRes.data)[number]) =>
-    !employeeId ||
-    r.primary_employee_id === employeeId ||
-    r.backup_employee_id === employeeId ||
-    r.completed_by === employeeId ||
-    (r.by_shift && shiftEmployeesOf(r).some((e) => e.id === employeeId));
+  const involves = (r: ReportRow) =>
+    picked.size === 0 ||
+    (r.primary_employee_id !== null && picked.has(r.primary_employee_id)) ||
+    (r.backup_employee_id !== null && picked.has(r.backup_employee_id)) ||
+    (r.completed_by !== null && picked.has(r.completed_by)) ||
+    (r.by_shift && shiftEmployeesOf(r).some((e) => picked.has(e.id)));
 
-  const report: ReportItem[] = reportRes.data.filter(involves).map((r) => ({
+  const report: ReportItem[] = (reportRes.data as ReportRow[]).filter(involves).map((r) => ({
     id: r.id,
+    taskDate: r.task_date,
     byShift: r.by_shift,
     shiftStaff: r.by_shift ? shiftStaffOf(r) : [],
     title: r.title,
@@ -112,7 +153,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     note: r.note,
     photoUrl: r.photo_path && !r.photo_purged_at ? photoUrls.get(r.photo_path) ?? null : null,
     photoPurged: Boolean(r.photo_purged_at),
-    canReopen: date === today && (r.status === "done" || r.status === "failed"),
+    canReopen: r.task_date === today && (r.status === "done" || r.status === "failed"),
     isUrgent: r.is_urgent,
     urgentResolvedAt: r.urgent_resolved_at,
     urgentResolvedByName: r.resolver?.full_name ?? null,
@@ -154,10 +195,16 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
       .sort((x, y) => x.name.localeCompare(y.name, "vi")),
   }));
 
-  const [y, m, d] = date.split("-");
-  const dateLabel = date === today ? "hôm nay" : `ngày ${d}/${m}/${y}`;
-  const query = (next: Record<string, string>) =>
-    "?" + new URLSearchParams({ ...(branchId && { branch: branchId }), ...(date !== today && { date }), ...next }).toString();
+  const fmt = (s: string) => s.split("-").reverse().join("/");
+  const dateLabel = from === to ? (from === today ? "hôm nay" : `ngày ${fmt(from)}`) : `từ ${fmt(from)} đến ${fmt(to)}`;
+  // Tham số lọc hiện tại (giữ khi chuyển tab / bật lọc việc gấp)
+  const filters: Record<string, string> = {
+    ...(branchId && { branch: branchId }),
+    ...(employeeIds.length > 0 && { emp: employeeIds.join(",") }),
+    ...(from !== today && { from }),
+    ...(to !== today && { to }),
+  };
+  const query = (next: Record<string, string>) => "?" + new URLSearchParams({ ...filters, ...next }).toString();
 
   return (
     <div>
@@ -184,19 +231,15 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             branches={branches.map((b) => ({ id: b.id, name: b.name }))}
             staff={staffOptions}
             branchId={branchId}
-            employeeId={employeeId}
-            date={date}
+            employeeIds={employeeIds}
+            from={from}
+            to={to}
             today={today}
-            query={{
-              ...(tab !== "report" && { tab }),
-              ...(branchId && { branch: branchId }),
-              ...(employeeId && { emp: employeeId }),
-              ...(date !== today && { date }),
-              ...(urgentOnly && { urgent: "1" }),
-            }}
+            maxDays={MAX_RANGE_DAYS}
+            query={{ ...filters, ...(tab !== "report" && { tab }), ...(urgentOnly && { urgent: "1" }) }}
           />
 
-          <ManageChecklistView tab={tab} report={report} urgentOnly={urgentOnly} urgentHref={query({ ...(employeeId && { emp: employeeId }), urgent: "1" })} allHref={query({ ...(employeeId && { emp: employeeId }) })} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
+          <ManageChecklistView tab={tab} report={report} urgentOnly={urgentOnly} urgentHref={query({ urgent: "1" })} allHref={query({})} multiDay={from !== to} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
         </>
       )}
     </div>
