@@ -76,6 +76,7 @@ const ROUTES: [prefix: string, tables: LiveTable[]][] = [
   ["/checklist", ["task_instances", "task_templates", "task_sets", "shifts", "attendance_records", ...STAFF]],
   ["/attendance", ["attendance_records", "attendance_corrections", "shifts", "schedule_requests", ...STAFF]],
   ["/schedule", [...SCHEDULE, "attendance_records", ...STAFF]],
+  ["/requests", ["schedule_requests", "shifts", ...STAFF]],
   ["/employees", [...STAFF, "payroll_profiles"]],
   ["/branches", STAFF],
   ["/inventory", [...INVENTORY, ...STAFF]],

@@ -5,7 +5,7 @@ import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
-import { createRequest } from "./actions";
+import { createRequest } from "../schedule/actions";
 import { REQUEST_KIND_LABELS, dayLabel } from "@/lib/schedule";
 import type { ActionState } from "@/lib/action-state";
 import type { RequestKind } from "@/lib/database.types";

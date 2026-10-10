@@ -9,6 +9,7 @@ import { fail, friendlyDbError, success, zodFieldErrors, type ActionState } from
 function revalidateSchedule() {
   revalidatePath("/schedule");
   revalidatePath("/schedule/manage");
+  revalidatePath("/requests");
 }
 
 const reason = z.string().trim().min(3, { message: "Nhập lý do (ít nhất 3 ký tự)." }).max(500, { message: "Lý do tối đa 500 ký tự." });

@@ -95,9 +95,9 @@ export default async function StaffOverview({ me, today, compact = false }: { me
   }
 
   const actions: ActionItem[] = [
-    { key: "peer", icon: "🔁", text: "Đồng nghiệp nhờ đổi / nhường ca", detail: "Cần bạn đồng ý hoặc từ chối", href: "/schedule", tone: "bad", count: peerRes.count ?? 0 },
+    { key: "peer", icon: "🔁", text: "Đồng nghiệp nhờ đổi / nhường ca", detail: "Cần bạn đồng ý hoặc từ chối", href: "/requests", tone: "bad", count: peerRes.count ?? 0 },
     { key: "overdue", icon: "📋", text: "Việc checklist đã quá hạn", href: "/checklist", tone: "bad", count: overdue.length },
-    { key: "mine", icon: "📝", text: "Đơn của tôi đang chờ duyệt", href: "/schedule", tone: "info", count: myRequestsRes.count ?? 0 },
+    { key: "mine", icon: "📝", text: "Đơn của tôi đang chờ duyệt", href: "/requests", tone: "info", count: myRequestsRes.count ?? 0 },
   ];
 
   return (
@@ -138,7 +138,7 @@ export default async function StaffOverview({ me, today, compact = false }: { me
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title={compact ? "Việc của tôi" : "Cần làm"}>
+        <SectionCard title={compact ? "Việc của tôi" : "Cần làm"} action={{ href: "/requests?new=1", label: "+ Gửi đơn" }}>
           <ActionList items={actions} emptyText="Không có việc tồn đọng." />
           {nextTasks.length > 0 && (
             <ul className="divide-y divide-neutral-100 border-t border-neutral-100">

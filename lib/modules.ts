@@ -26,7 +26,8 @@ export const getModules = cache(async (employee: CurrentEmployee): Promise<AppMo
   const manage = canManageAttendance(employee.role);
   const notAdmin = employee.role !== "admin";
   const list: (AppModule | false)[] = [
-    notAdmin && { title: "Lịch làm việc", short: "Lịch", description: "Ca làm của chi nhánh, xin nghỉ / trễ / đổi ca", href: "/schedule", icon: "📅" },
+    notAdmin && { title: "Lịch làm việc", short: "Lịch", description: "Ca làm của chi nhánh theo tuần", href: "/schedule", icon: "📅" },
+    notAdmin && { title: "Đơn xin phép", short: "Gửi đơn", description: "Xin nghỉ, đi trễ, về sớm, đổi / nhường ca", href: "/requests", icon: "📝" },
     manage && { title: "Xếp lịch & duyệt đơn", short: "Xếp lịch", description: "Xếp ca, công bố lịch, duyệt đơn xin phép", href: "/schedule/manage", icon: "🗓️" },
     // QTV không được giao việc checklist → chỉ cần "Quản lý checklist"
     notAdmin && { title: "Checklist", short: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" },
