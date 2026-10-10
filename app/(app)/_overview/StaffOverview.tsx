@@ -7,7 +7,6 @@ import { formatDuration, formatTime, isForgotten, minutesBetween } from "@/lib/t
 import { addDays, dayLabel, hm } from "@/lib/schedule";
 import { DISPLAY_STATUS, displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
-import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 const UPCOMING_DAYS = 14;
 
@@ -103,7 +102,6 @@ export default async function StaffOverview({ me, today, compact = false }: { me
 
   return (
     <div className="space-y-4">
-      <RealtimeRefresh channel="staff-overview" watch={[{ table: "task_instances", filter: `task_date=eq.${today}` }]} />
       {clock && (
         <Link
           href="/attendance"

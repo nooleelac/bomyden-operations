@@ -5,7 +5,7 @@ import { ROLE_LABELS } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import PushSync from "@/components/PushSync";
 import SignOutButton from "@/components/SignOutButton";
-import RealtimeRefresh from "@/components/RealtimeRefresh";
+import LiveSync from "@/components/LiveSync";
 
 // Mọi trang trong (app) phụ thuộc người đang đăng nhập → render theo từng request.
 export const instant = false;
@@ -42,8 +42,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <PushSync employeeId={employee.id} />
-      {/* Realtime: chuông thông báo tự cập nhật; mở lại app thì tải lại dữ liệu trang */}
-      <RealtimeRefresh channel="bell" watch={[{ table: "notifications", filter: `employee_id=eq.${employee.id}` }]} refreshOnResume />
+      {/* Realtime cho mọi trang: dữ liệu liên quan thay đổi → tự cập nhật */}
+      <LiveSync employeeId={employee.id} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{children}</main>
     </div>
   );
