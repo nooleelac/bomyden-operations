@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireManager } from "@/lib/auth/session";
 import { PRIORITIES, TASK_CATEGORIES, parseMonthDays } from "@/lib/checklist";
 import { fail, friendlyDbError, success, zodFieldErrors, type ActionState } from "@/lib/action-state";
+import { getManageableBranches } from "@/lib/branches";
+import { parseImportFile, type ImportPreviewRow } from "@/lib/checklist-import";
 
 function revalidateChecklist() {
   revalidatePath("/checklist");
@@ -277,4 +279,65 @@ export async function reopenTask(instanceId: string, _prev: ActionState, formDat
 
   revalidateChecklist();
   return success("Đã mở lại công việc. Nhân viên sẽ thấy yêu cầu làm lại.");
+}
+
+export type ImportState = ActionState & {
+  /** Đã kiểm tra xong, chưa nhập */
+  checked?: boolean;
+  preview?: ImportPreviewRow[];
+  errors?: { line: number; message: string }[];
+};
+
+/**
+ * Nhập mẫu từ Excel. mode = "check": đọc + kiểm tra, trả danh sách xem trước / lỗi theo dòng.
+ * mode = "import": đọc + kiểm tra lại, không lỗi mới nhập (tất cả hoặc không).
+ */
+export async function importTemplatesFromExcel(_prev: ImportState, formData: FormData): Promise<ImportState> {
+  const actor = await requireManager();
+  const branchId = String(formData.get("branch_id") ?? "");
+  const mode = formData.get("mode") === "import" ? "import" : "check";
+  const file = formData.get("file");
+  const branches = await getManageableBranches(actor);
+  if (!branches.some((b) => b.id === branchId)) return fail("Vui lòng chọn chi nhánh.", { branch_id: "Chọn chi nhánh." });
+  if (!(file instanceof File) || file.size === 0) return fail("Vui lòng chọn file Excel.", { file: "Chọn file .xlsx." });
+  if (file.size > 3 * 1024 * 1024) return fail("File quá lớn (tối đa 3 MB).", { file: "File tối đa 3 MB." });
+
+  const supabase = await createClient();
+  const [staffRes, existingRes] = await Promise.all([
+    supabase
+      .from("employee_branches")
+      .select("employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, is_active)")
+      .eq("branch_id", branchId)
+      .eq("employee.is_active", true),
+    supabase
+      .from("task_templates")
+      .select("title, primary_employee_id, assign_by_shift")
+      .eq("branch_id", branchId)
+      .eq("is_active", true)
+      .is("deleted_at", null),
+  ]);
+  if (staffRes.error || existingRes.error) return fail("Không tải được dữ liệu chi nhánh.");
+
+  const result = await parseImportFile(await file.arrayBuffer(), {
+    staff: staffRes.data.map((r) => ({ id: r.employee.id, name: r.employee.full_name })),
+    existing: existingRes.data.map((t) => ({ title: t.title, primaryId: t.primary_employee_id, assignByShift: t.assign_by_shift })),
+  });
+  if (result.errors.length > 0) {
+    return {
+      ok: false,
+      message: `Có ${result.errors.length} lỗi — sửa trong file rồi tải lại. Chưa có công việc nào được nhập.`,
+      errors: result.errors.slice(0, 100),
+      preview: result.preview,
+    };
+  }
+  if (mode === "check") {
+    return { ok: false, checked: true, message: `File hợp lệ: ${result.rows.length} công việc sẵn sàng nhập.`, preview: result.preview };
+  }
+
+  const { data, error } = await supabase.rpc("import_task_templates", { p_branch_id: branchId, p_rows: result.rows as never });
+  if (error) return { ok: false, message: `Chưa nhập được: ${friendlyDbError(error)}`, preview: result.preview };
+
+  await supabase.rpc("ensure_task_instances");
+  revalidateChecklist();
+  return { ...success(`Đã nhập ${data} công việc.`) };
 }

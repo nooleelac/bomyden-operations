@@ -7,6 +7,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import TemplateDialog, { type BranchStaff, type TaskSetItem, type TemplateItem } from "./TemplateDialog";
 import { MoveToSetDialog, TaskSetsPanel } from "./TaskSets";
+import ImportDialog from "./ImportDialog";
 import BulkAssignDialog from "./BulkAssignDialog";
 import { deleteTemplates, reopenTask } from "./actions";
 import { CATEGORY_ICONS, DISPLAY_STATUS, PRIORITY_LABELS, describeSchedule, type DisplayStatus } from "@/lib/checklist";
@@ -80,6 +81,7 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
   const [copying, setCopying] = useState<TemplateItem | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [movingToSet, setMovingToSet] = useState(false);
+  const [importing, setImporting] = useState(false);
   const setNames = new Map(sets.map((x) => [x.id, x.name]));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // "all" | "unassigned" | id nhân viên (người chính hoặc người thay)
@@ -270,9 +272,14 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                 </select>
               )}
             </div>
-            <button type="button" onClick={() => setEditing("new")} className="btn-primary" disabled={branches.length === 0}>
-              + Tạo công việc
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setImporting(true)} className="btn-secondary" disabled={branches.length === 0}>
+                Nhập Excel
+              </button>
+              <button type="button" onClick={() => setEditing("new")} className="btn-primary" disabled={branches.length === 0}>
+                + Tạo công việc
+              </button>
+            </div>
           </div>
           {visible.length === 0 ? (
             <div className="card px-6 py-10 text-center text-sm text-neutral-500">
@@ -370,6 +377,16 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
             onDone={(message) => {
               setEditing(null);
               setCopying(null);
+              notify(message);
+            }}
+          />
+          <ImportDialog
+            key={importing ? "import-open" : "import-closed"}
+            branches={branches}
+            open={importing}
+            onClose={() => setImporting(false)}
+            onDone={(message) => {
+              setImporting(false);
               notify(message);
             }}
           />

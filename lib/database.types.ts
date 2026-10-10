@@ -1917,6 +1917,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      import_task_templates: {
+        Args: { p_branch_id: string; p_rows: Json }
+        Returns: number
+      }
       delete_task_set: {
         Args: { p_set_id: string }
         Returns: undefined
