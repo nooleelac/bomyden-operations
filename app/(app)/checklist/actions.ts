@@ -24,6 +24,7 @@ export async function completeTask(
   const me = await requireEmployee();
   const note = String(formData.get("note") ?? "").trim().slice(0, 1000);
   const photo = formData.get("photo");
+  const urgent = formData.get("urgent") === "1";
 
   const supabase = await createClient();
   const { data: task } = await supabase
@@ -36,6 +37,9 @@ export async function completeTask(
 
   if (status === "failed" && note.length < 3) {
     return fail("Vui lòng ghi lý do không hoàn thành được.", { note: "Ghi lý do (ít nhất 3 ký tự)." });
+  }
+  if (urgent && note.length < 3) {
+    return fail("Báo cần gấp thì ghi rõ việc cần quản lý xử lý.", { note: "Ghi rõ việc cần xử lý (ít nhất 3 ký tự)." });
   }
 
   let photoPath: string | null = null;
@@ -64,6 +68,7 @@ export async function completeTask(
     p_status: status,
     p_note: note || undefined,
     p_photo_path: photoPath ?? undefined,
+    p_urgent: urgent,
   });
 
   if (error) {
@@ -73,5 +78,6 @@ export async function completeTask(
 
   revalidatePath("/checklist");
   revalidatePath("/checklist/manage");
+  if (urgent) return success("Đã gửi báo cần gấp cho Quản lý.");
   return success(status === "done" ? "Đã đánh dấu hoàn thành." : "Đã báo không đạt. Quản lý sẽ thấy ngay.");
 }

@@ -9,7 +9,8 @@ import TemplateDialog, { type BranchStaff, type TaskSetItem, type TemplateItem }
 import { MoveToSetDialog, TaskSetsPanel } from "./TaskSets";
 import ImportDialog from "./ImportDialog";
 import BulkAssignDialog from "./BulkAssignDialog";
-import { deleteTemplates, reopenTask } from "./actions";
+import Link from "next/link";
+import { deleteTemplates, reopenTask, resolveUrgentTask } from "./actions";
 import { CATEGORY_ICONS, DISPLAY_STATUS, PRIORITY_LABELS, describeSchedule, type DisplayStatus } from "@/lib/checklist";
 import { formatTime } from "@/lib/time";
 
@@ -33,6 +34,10 @@ export type ReportItem = {
   /** Ảnh đã được tự dọn (quá 3 tháng) */
   photoPurged: boolean;
   canReopen: boolean;
+  /** NV báo cần gấp; đã xử lý lúc / bởi ai */
+  isUrgent: boolean;
+  urgentResolvedAt: string | null;
+  urgentResolvedByName: string | null;
 };
 
 type Props = {
@@ -42,6 +47,10 @@ type Props = {
   sets: TaskSetItem[];
   branches: BranchStaff[];
   dateLabel: string;
+  /** Chỉ hiện việc báo cần gấp (?urgent=1) */
+  urgentOnly: boolean;
+  urgentHref: string;
+  allHref: string;
 };
 
 function ReopenButton({ id, title, onDone }: { id: string; title: string; onDone: (m: string) => void }) {
@@ -52,8 +61,8 @@ function ReopenButton({ id, title, onDone }: { id: string; title: string; onDone
   });
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-neutral-500 hover:text-neutral-900 hover:underline">
-        Yêu cầu làm lại
+      <button type="button" onClick={() => setOpen(true)} className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
+        ↺ Yêu cầu làm lại
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Yêu cầu làm lại" description={title}>
         <ActionForm action={action} className="space-y-4">
@@ -73,9 +82,29 @@ function ReopenButton({ id, title, onDone }: { id: string; title: string; onDone
   );
 }
 
+/** QL/QTV xác nhận đã xử lý việc nhân viên báo gấp */
+function ResolveUrgentButton({ id, onDone }: { id: string; onDone: (m: string) => void }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await resolveUrgentTask(id);
+          onDone(result.message);
+        })
+      }
+      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+    >
+      {pending ? "Đang lưu..." : "✓ Đã xử lý"}
+    </button>
+  );
+}
+
 const ORDER: DisplayStatus[] = ["overdue", "failed", "open", "upcoming", "late", "done"];
 
-export default function ManageChecklistView({ tab, report, templates, sets, branches, dateLabel }: Props) {
+export default function ManageChecklistView({ tab, report, templates, sets, branches, dateLabel, urgentOnly, urgentHref, allHref }: Props) {
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<TemplateItem | "new" | null>(null);
   const [copying, setCopying] = useState<TemplateItem | null>(null);
@@ -144,49 +173,80 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
   }, [toast]);
 
   const counts = Object.fromEntries(ORDER.map((s) => [s, report.filter((r) => r.displayStatus === s).length])) as Record<DisplayStatus, number>;
-  const sorted = [...report].sort(
-    (a, b) => ORDER.indexOf(a.displayStatus) - ORDER.indexOf(b.displayStatus) || a.dueAt.localeCompare(b.dueAt)
+  const openUrgent = (r: ReportItem) => r.isUrgent && !r.urgentResolvedAt;
+  const urgentCount = report.filter(openUrgent).length;
+  const sorted = [...report].filter((r) => !urgentOnly || r.isUrgent).sort(
+    // Việc báo gấp chưa xử lý luôn lên đầu
+    (a, b) => Number(openUrgent(b)) - Number(openUrgent(a)) || ORDER.indexOf(a.displayStatus) - ORDER.indexOf(b.displayStatus) || a.dueAt.localeCompare(b.dueAt)
   );
 
   return (
     <>
       {tab === "report" ? (
         <section>
+          {(urgentCount > 0 || urgentOnly) && (
+            <div className={`mb-4 flex items-center gap-3 rounded-2xl border p-3 ${urgentCount ? "border-red-200 bg-red-50" : "border-neutral-200 bg-white"}`}>
+              <span className="text-2xl" aria-hidden="true">🚨</span>
+              <p className="min-w-0 flex-1 text-sm">
+                {urgentCount ? (
+                  <span className="font-semibold text-red-700">{urgentCount} việc nhân viên báo cần gấp chưa xử lý</span>
+                ) : (
+                  <span className="text-neutral-600">Không còn việc gấp nào chưa xử lý</span>
+                )}
+              </p>
+              <Link
+                href={urgentOnly ? allHref : urgentHref}
+                scroll={false}
+                className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${urgentOnly ? "border border-neutral-300 bg-white text-neutral-700" : "bg-red-600 text-white"}`}
+              >
+                {urgentOnly ? "Xem tất cả" : "Chỉ xem việc gấp"}
+              </Link>
+            </div>
+          )}
+
           <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
             {ORDER.map((s) => (
-              <div key={s} className={`rounded-xl px-3 py-2 text-center ${DISPLAY_STATUS[s].className}`}>
-                <p className="text-xl font-bold">{counts[s]}</p>
-                <p className="text-xs">{DISPLAY_STATUS[s].label}</p>
+              <div key={s} className={`rounded-xl px-2 py-2.5 text-center ${DISPLAY_STATUS[s].className}`}>
+                <p className="text-xl font-bold tabular-nums">{counts[s]}</p>
+                <p className="text-xs leading-tight">{DISPLAY_STATUS[s].label}</p>
               </div>
             ))}
           </div>
 
           {sorted.length === 0 ? (
-            <div className="card px-6 py-10 text-center text-sm text-neutral-500">Không có công việc nào {dateLabel}.</div>
+            <div className="card px-6 py-10 text-center text-sm text-neutral-500">
+              {urgentOnly ? "Không có việc báo gấp" : "Không có công việc nào"} {dateLabel}.
+            </div>
           ) : (
-            <ul className="card divide-y divide-neutral-100">
+            <ul className="card divide-y divide-neutral-100 overflow-hidden">
               {sorted.map((item) => {
                 const status = DISPLAY_STATUS[item.displayStatus];
+                const urgentOpen = openUrgent(item);
                 return (
-                  <li key={item.id} className="flex gap-3 p-4">
+                  <li key={item.id} className={`flex gap-3 p-4 ${urgentOpen ? "bg-red-50/60 shadow-[inset_4px_0_0_var(--color-red-600)]" : ""}`}>
                     {item.photoUrl && (
                       <a href={item.photoUrl} target="_blank" rel="noreferrer" className="shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.photoUrl} alt="Ảnh hoàn thành" className="h-14 w-14 rounded-md object-cover" />
+                        <img src={item.photoUrl} alt="Ảnh hoàn thành" className="h-16 w-16 rounded-lg object-cover" />
                       </a>
                     )}
                     {item.photoPurged && (
-                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-center text-[10px] leading-tight text-neutral-400" title="Ảnh cũ hơn 3 tháng đã được tự xóa">
+                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-center text-[10px] leading-tight text-neutral-400" title="Ảnh cũ hơn 3 tháng đã được tự xóa">
                         Ảnh đã dọn
                       </span>
                     )}
                     <div className="min-w-0 flex-1 text-sm">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-semibold">{CATEGORY_ICONS[item.category] ?? "📌"} {item.title}</span>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
+                        {item.isUrgent && (
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${urgentOpen ? "bg-red-600 text-white" : "bg-neutral-100 text-neutral-500 line-through"}`}>
+                            🚨 Cần gấp
+                          </span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-neutral-500">
-                        {item.branchName} · {formatTime(item.startAt)}–{formatTime(item.dueAt)} ·{" "}
+                        {item.branchName} · <span className="tabular-nums">{formatTime(item.startAt)}–{formatTime(item.dueAt)}</span> ·{" "}
                         {item.byShift ? (
                           item.shiftStaff.length > 0 ? (
                             <>🕒 Ca: {item.shiftStaff.join(", ")}</>
@@ -199,14 +259,25 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                         {item.backupName && <span> (thay: {item.backupName})</span>}
                       </p>
                       {item.completedAt && (
-                        <p className="mt-0.5 text-neutral-700">
-                          {item.completedByName} · {formatTime(item.completedAt)}
-                          {item.note && <span className="text-neutral-500"> — {item.note}</span>}
+                        <p className="mt-1 text-xs text-neutral-500">
+                          ✓ {item.completedByName} · <span className="tabular-nums">{formatTime(item.completedAt)}</span>
                         </p>
                       )}
-                      {item.canReopen && (
-                        <div className="mt-1">
-                          <ReopenButton id={item.id} title={item.title} onDone={notify} />
+                      {item.note && (
+                        // Ghi chú của nhân viên: luôn nổi bật màu đỏ để QL/QTV không bỏ sót
+                        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-medium text-red-700">
+                          📝 {item.note}
+                        </p>
+                      )}
+                      {item.isUrgent && item.urgentResolvedAt && (
+                        <p className="mt-1.5 text-xs text-emerald-700">
+                          ✓ Đã xử lý{item.urgentResolvedByName ? ` bởi ${item.urgentResolvedByName}` : ""} · <span className="tabular-nums">{formatTime(item.urgentResolvedAt)}</span>
+                        </p>
+                      )}
+                      {(urgentOpen || item.canReopen) && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                          {urgentOpen && <ResolveUrgentButton id={item.id} onDone={notify} />}
+                          {item.canReopen && <ReopenButton id={item.id} title={item.title} onDone={notify} />}
                         </div>
                       )}
                     </div>

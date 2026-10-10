@@ -281,6 +281,18 @@ export async function reopenTask(instanceId: string, _prev: ActionState, formDat
   return success("Đã mở lại công việc. Nhân viên sẽ thấy yêu cầu làm lại.");
 }
 
+/** QL/QTV đánh dấu đã xử lý việc nhân viên báo cần gấp. */
+export async function resolveUrgentTask(instanceId: string): Promise<ActionState> {
+  await requireManager();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_task_urgent", { p_instance_id: instanceId });
+  if (error) return fail(friendlyDbError(error));
+
+  revalidateChecklist();
+  revalidatePath("/");
+  return success("Đã đánh dấu xử lý việc gấp.");
+}
+
 export type ImportState = ActionState & {
   /** Đã kiểm tra xong, chưa nhập */
   checked?: boolean;

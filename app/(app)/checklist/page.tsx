@@ -28,7 +28,7 @@ export default async function ChecklistPage() {
     supabase
       .from("task_instances")
       .select(
-        "id, branch_id, title, description, category, priority, start_at, due_at, requires_photo, requires_note, status, completed_by, completed_at, note, photo_path, reopen_reason, by_shift, primary_employee_id, backup_employee_id, branch:branches(name)"
+        "id, branch_id, title, description, category, priority, start_at, due_at, requires_photo, requires_note, status, completed_by, completed_at, note, photo_path, reopen_reason, is_urgent, urgent_resolved_at, by_shift, primary_employee_id, backup_employee_id, branch:branches(name)"
       )
       .eq("task_date", today)
       .neq("status", "cancelled")
@@ -100,6 +100,8 @@ export default async function ChecklistPage() {
       note: t.note,
       photoUrl: t.photo_path ? photoUrls.get(t.photo_path) ?? null : null,
       reopenReason: t.reopen_reason,
+      isUrgent: t.is_urgent,
+      urgentResolved: Boolean(t.urgent_resolved_at),
       role,
       primaryName: t.primary_employee_id ? names.get(t.primary_employee_id) ?? "" : "",
       blockedReason,

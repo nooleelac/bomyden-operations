@@ -8,6 +8,7 @@ import { isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
 import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ManageChecklistView, { type ReportItem } from "./ManageChecklistView";
+import ReportFilters from "./ReportFilters";
 import type { BranchStaff, TaskSetItem, TemplateItem } from "./TemplateDialog";
 
 export const metadata: Metadata = { title: "Quản lý checklist" };
@@ -25,6 +26,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
   const today = vnDateString(new Date(now));
   const date = isValidDateString(params.date) ? params.date : today;
   const scope = branchId ? [branchId] : branchIds;
+  const urgentOnly = params.urgent === "1";
 
   const supabase = await createClient();
   if (date === today) await supabase.rpc("ensure_task_instances");
@@ -34,7 +36,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     supabase
       .from("task_instances")
       .select(
-        "id, branch_id, by_shift, title, category, start_at, due_at, status, completed_at, note, photo_path, photo_purged_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
+        "id, branch_id, by_shift, title, category, start_at, due_at, status, completed_at, completed_by, note, photo_path, photo_purged_at, primary_employee_id, backup_employee_id, is_urgent, urgent_resolved_at, branch:branches(name), resolver:employees!task_instances_urgent_resolved_by_fkey(full_name), primary:employees!task_instances_primary_employee_id_fkey(full_name), backup:employees!task_instances_backup_employee_id_fkey(full_name), completer:employees!task_instances_completed_by_fkey(full_name)"
       )
       .eq("task_date", date)
       .neq("status", "cancelled")
@@ -58,7 +60,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     // Ca đã công bố trong ngày → biết ai nhận việc "giao theo ca"
     supabase
       .from("shifts")
-      .select("branch_id, start_at, end_at, employee:employees!shifts_employee_id_fkey(full_name, is_active)")
+      .select("branch_id, start_at, end_at, employee:employees!shifts_employee_id_fkey(id, full_name, is_active)")
       .eq("status", "published")
       .in("branch_id", scope)
       .lt("start_at", dayRange.end)
@@ -72,15 +74,28 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
 
   const photoUrls = await signTaskPhotos(reportRes.data.map((r) => (r.photo_purged_at ? null : r.photo_path)));
 
-  const shiftStaffOf = (r: { branch_id: string; start_at: string; due_at: string }) => [
-    ...new Set(
-      shiftsRes.data
-        .filter((s) => s.employee?.is_active && shiftCoversTask(s, r))
-        .map((s) => s.employee!.full_name)
-    ),
-  ];
+  const shiftEmployeesOf = (r: { branch_id: string; start_at: string; due_at: string }) =>
+    shiftsRes.data.filter((s) => s.employee?.is_active && shiftCoversTask(s, r)).map((s) => s.employee!);
+  const shiftStaffOf = (r: { branch_id: string; start_at: string; due_at: string }) => [...new Set(shiftEmployeesOf(r).map((e) => e.full_name))];
 
-  const report: ReportItem[] = reportRes.data.map((r) => ({
+  // Nhân viên để lọc báo cáo: người thuộc chi nhánh đang xem
+  const staffOptions = [
+    ...new Map(
+      staffRes.data
+        .filter((row) => row.employee && scope.includes(row.branch_id))
+        .map((row) => [row.employee.id, { id: row.employee.id, name: row.employee.full_name }] as const)
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  const employeeId = typeof params.emp === "string" && staffOptions.some((s) => s.id === params.emp) ? params.emp : "";
+  // Việc liên quan tới nhân viên: người chính / người thay / người đánh dấu / có ca trùng giờ (việc theo ca)
+  const involves = (r: (typeof reportRes.data)[number]) =>
+    !employeeId ||
+    r.primary_employee_id === employeeId ||
+    r.backup_employee_id === employeeId ||
+    r.completed_by === employeeId ||
+    (r.by_shift && shiftEmployeesOf(r).some((e) => e.id === employeeId));
+
+  const report: ReportItem[] = reportRes.data.filter(involves).map((r) => ({
     id: r.id,
     byShift: r.by_shift,
     shiftStaff: r.by_shift ? shiftStaffOf(r) : [],
@@ -98,6 +113,9 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     photoUrl: r.photo_path && !r.photo_purged_at ? photoUrls.get(r.photo_path) ?? null : null,
     photoPurged: Boolean(r.photo_purged_at),
     canReopen: date === today && (r.status === "done" || r.status === "failed"),
+    isUrgent: r.is_urgent,
+    urgentResolvedAt: r.urgent_resolved_at,
+    urgentResolvedByName: r.resolver?.full_name ?? null,
   }));
 
   const templates: TemplateItem[] = templatesRes.data.map((t) => ({
@@ -161,25 +179,24 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             </Link>
           </div>
 
-          <form method="get" className="card mb-5 grid grid-cols-2 items-end gap-3 p-4 sm:flex sm:flex-wrap">
-            <input type="hidden" name="tab" value={tab} />
-            <div className={`min-w-0 sm:min-w-40 sm:flex-1 ${tab === "report" ? "" : "col-span-2"}`}>
-              <label htmlFor="cf-branch" className="mb-1 block text-xs font-medium text-neutral-600">Chi nhánh</label>
-              <select id="cf-branch" name="branch" defaultValue={branchId} className="input">
-                <option value="">Tất cả</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </div>
-            {tab === "report" && (
-              <div className="min-w-0 sm:min-w-40 sm:flex-1">
-                <label htmlFor="cf-date" className="mb-1 block text-xs font-medium text-neutral-600">Ngày</label>
-                <input id="cf-date" name="date" type="date" defaultValue={date} max={today} className="input" />
-              </div>
-            )}
-            <button type="submit" className="btn-primary col-span-2 sm:col-span-1">Xem</button>
-          </form>
+          <ReportFilters
+            tab={tab}
+            branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+            staff={staffOptions}
+            branchId={branchId}
+            employeeId={employeeId}
+            date={date}
+            today={today}
+            query={{
+              ...(tab !== "report" && { tab }),
+              ...(branchId && { branch: branchId }),
+              ...(employeeId && { emp: employeeId }),
+              ...(date !== today && { date }),
+              ...(urgentOnly && { urgent: "1" }),
+            }}
+          />
 
-          <ManageChecklistView tab={tab} report={report} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
+          <ManageChecklistView tab={tab} report={report} urgentOnly={urgentOnly} urgentHref={query({ ...(employeeId && { emp: employeeId }), urgent: "1" })} allHref={query({ ...(employeeId && { emp: employeeId }) })} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
         </>
       )}
     </div>

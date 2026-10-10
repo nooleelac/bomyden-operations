@@ -70,7 +70,7 @@ export default async function ManagerOverview({
         .order("check_in_at"),
       supabase
         .from("task_instances")
-        .select("id, by_shift, title, status, start_at, due_at, completed_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name)")
+        .select("id, by_shift, title, status, start_at, due_at, completed_at, note, is_urgent, urgent_resolved_at, branch:branches(name), primary:employees!task_instances_primary_employee_id_fkey(full_name)")
         .eq("task_date", today)
         .neq("status", "cancelled")
         .in("branch_id", scope)
@@ -213,7 +213,18 @@ export default async function ManagerOverview({
   const branchQuery = branchId ? `branch=${branchId}` : "";
   const withBranch = (path: string) => (branchQuery ? `${path}${path.includes("?") ? "&" : "?"}${branchQuery}` : path);
 
+  const urgentTasks = tasks.filter((t) => t.is_urgent && !t.urgent_resolved_at);
+
   const actions: ActionItem[] = [
+    {
+      key: "urgent-tasks",
+      icon: "🚨",
+      text: "Nhân viên báo cần gấp",
+      detail: urgentTasks.map((t) => `${t.title}${t.note ? `: ${t.note}` : ""}`).join(" · "),
+      href: withBranch("/checklist/manage?urgent=1"),
+      tone: "bad",
+      count: urgentTasks.length,
+    },
     {
       key: "missing",
       icon: "🚨",

@@ -93,6 +93,7 @@ type TaskInstanceRow = {
   description: string | null
   due_at: string
   id: string
+  is_urgent: boolean
   note: string | null
   photo_path: string | null
   photo_purged_at: string | null
@@ -109,6 +110,8 @@ type TaskInstanceRow = {
   template_id: string
   title: string
   updated_at: string
+  urgent_resolved_at: string | null
+  urgent_resolved_by: string | null
 }
 
 type PayrollProfileRow = {
@@ -934,6 +937,13 @@ export type Database = {
         Insert: never
         Update: never
         Relationships: [
+          {
+            foreignKeyName: "task_instances_urgent_resolved_by_fkey"
+            columns: ["urgent_resolved_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_instances_branch_id_fkey"
             columns: ["branch_id"]
@@ -1951,6 +1961,7 @@ export type Database = {
           p_note?: string
           p_photo_path?: string
           p_status: Database["public"]["Enums"]["task_status"]
+          p_urgent?: boolean
         }
         Returns: TaskInstanceRow
         SetofOptions: {
@@ -1975,6 +1986,16 @@ export type Database = {
       ensure_task_instances: {
         Args: { p_date?: string }
         Returns: number
+      }
+      resolve_task_urgent: {
+        Args: { p_instance_id: string }
+        Returns: TaskInstanceRow
+        SetofOptions: {
+          from: "*"
+          to: "task_instances"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       reopen_task_instance: {
         Args: { p_instance_id: string; p_reason: string }
@@ -2116,6 +2137,7 @@ export type Database = {
       notification_kind:
         | "task_due_soon"
         | "task_no_staff"
+        | "task_urgent"
         | "task_overdue"
         | "task_overdue_report"
         | "request_new"

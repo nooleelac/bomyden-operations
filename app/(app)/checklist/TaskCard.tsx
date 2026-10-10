@@ -26,6 +26,9 @@ export type TaskCardData = {
   note: string | null;
   photoUrl: string | null;
   reopenReason: string | null;
+  /** NV đã báo cần gấp / QL đã xử lý chưa */
+  isUrgent: boolean;
+  urgentResolved: boolean;
   /** Vai trò của người đang xem với việc này */
   role: "primary" | "backup" | "shift";
   primaryName: string;
@@ -39,9 +42,11 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
   const [mode, setMode] = useState<Mode>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [urgent, setUrgent] = useState(false);
   const close = () => {
     setMode(null);
     setPreview(null);
+    setUrgent(false);
   };
 
   const after = (message: string) => {
@@ -113,6 +118,11 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
             <p>
               {task.completedByName} · {formatTime(task.completedAt)}
             </p>
+            {task.isUrgent && (
+              <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${task.urgentResolved ? "bg-emerald-50 text-emerald-700" : "bg-red-600 text-white"}`}>
+                {task.urgentResolved ? "✓ Quản lý đã xử lý" : "🚨 Đã báo cần gấp"}
+              </p>
+            )}
             {task.note && <p className="mt-0.5 text-neutral-800">{task.note}</p>}
           </div>
         </div>
@@ -165,10 +175,14 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
             </div>
           )}
 
+          <UrgentToggle checked={urgent} onChange={setUrgent} />
+
           <div>
             <label htmlFor={`note-${task.id}`} className="mb-1.5 block text-sm font-medium text-neutral-700">
               {mode === "failed" ? (
                 <>Lý do không hoàn thành <span className="text-red-600">*</span></>
+              ) : urgent ? (
+                <>Việc cần quản lý xử lý gấp <span className="text-red-600">*</span></>
               ) : task.requiresNote ? (
                 <>Ghi chú <span className="text-red-600">*</span></>
               ) : (
@@ -180,8 +194,10 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
               name="note"
               rows={3}
               maxLength={1000}
-              required={mode === "failed" || task.requiresNote}
-              placeholder={mode === "failed" ? "Ví dụ: Hết nước rửa chén, đã báo quản lý." : ""}
+              required={mode === "failed" || urgent || task.requiresNote}
+              placeholder={
+                urgent ? "Ví dụ: Sắp hết thịt bò, cần nhập gấp trước ca tối." : mode === "failed" ? "Ví dụ: Hết nước rửa chén, đã báo quản lý." : ""
+              }
               className="input"
             />
             {state.fieldErrors?.note && <p className="field-error">{state.fieldErrors.note}</p>}
@@ -202,5 +218,30 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
         </form>
       </Dialog>
     </li>
+  );
+}
+
+/** Công tắc "Cần gấp": báo đẩy ngay cho Quản lý / QTV, ghi chú hiện đỏ trong báo cáo. */
+function UrgentToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label
+      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${
+        checked ? "border-red-300 bg-red-50" : "border-neutral-200 hover:border-neutral-300"
+      }`}
+    >
+      <input type="checkbox" name="urgent" value="1" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span className="text-xl" aria-hidden="true">🚨</span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm font-semibold ${checked ? "text-red-700" : "text-neutral-800"}`}>Cần gấp</span>
+        <span className="block text-xs text-neutral-500">Báo ngay cho Quản lý xử lý việc tồn đọng</span>
+      </span>
+      {/* Công tắc trượt */}
+      <span
+        aria-hidden="true"
+        className={`relative h-6 w-11 shrink-0 rounded-full transition peer-focus-visible:ring-2 peer-focus-visible:ring-red-400 ${checked ? "bg-red-600" : "bg-neutral-300"}`}
+      >
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? "left-5.5" : "left-0.5"}`} />
+      </span>
+    </label>
   );
 }
