@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "admin:create": "node --env-file=.env.local scripts/create-first-admin.mjs",
-    "push:setup": "node --env-file=.env.local scripts/setup-push.mjs"
+    "push:setup": "node --env-file=.env.local scripts/setup-push.mjs",
+    "test:payroll": "node --env-file=.env.local scripts/test-payroll.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",

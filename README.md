@@ -74,6 +74,11 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
   `payslips.data`, khóa cứng (không sửa/xóa). Tính đến từng đồng, làm tròn thực nhận đến 1.000đ.
 - **Quyền**: QTV; Quản lý được QTV bật `can_manage_payroll` → NV chi nhánh mình (không gồm mình & Quản lý khác);
   NV xem phiếu đã chốt khi QTV bật `can_view_payslip`. Một công thức duy nhất trong DB (`private.compute_payslip`).
+- **Kiểm thử tự động**: `npm run test:payroll` (thêm `-- --all` để in mọi phép kiểm) — 14 tình huống / 58 phép kiểm
+  (theo giờ, tăng ca, theo ca, cố định, nghỉ có lương, trễ, về sớm, nghỉ không phép, checklist, điều chỉnh, ứng lương,
+  chốt sớm, chặn chốt). Chạy trên DB thật nhưng dữ liệu thử bị hủy ngay (`public.service_run_payroll_tests`, chỉ secret key).
+  **Sửa công thức lương → luôn chạy lại**; đổi quy tắc tính có chủ đích → cập nhật số mong đợi trong
+  `private.payroll_test_suite` (migration mới).
 
 ## Lịch làm việc & đơn xin phép
 
