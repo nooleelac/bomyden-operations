@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { brandingStyle, getBranding } from "@/lib/branding";
 import "./globals.css";
 
@@ -39,7 +41,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const branding = await getBranding();
   return (
     <html lang="vi" className={`${beVietnam.variable} h-full`} style={brandingStyle(branding)}>
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        {children}
+        {/* Thống kê lượt xem + tốc độ thật trên điện thoại nhân viên (xem ở Vercel → Analytics / Speed Insights) */}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
