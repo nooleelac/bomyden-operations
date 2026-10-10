@@ -42,6 +42,28 @@ canvas {
   max-width: 100%;
 }
 
+/* Ô ngày / giờ trên iPhone: Safari đặt chiều rộng tối thiểu riêng (bỏ qua width: 100%) và cao hơn ô khác
+   → tràn khung, lệch hàng. Bỏ giao diện gốc để ô co theo khung như mọi ô nhập khác. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+input::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+
+input::-webkit-datetime-edit {
+  padding: 0;
+}
+
 /* Ô nhập ≥ 16px trên điện thoại để iPhone không tự phóng to */
 @media (max-width: 39.999rem) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
@@ -58,7 +80,7 @@ canvas {
 }
 
 @utility input {
-  @apply block w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-neutral-100 sm:text-sm;
+  @apply block min-h-11 w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-neutral-100 sm:text-sm;
 }
 
 @utility btn {

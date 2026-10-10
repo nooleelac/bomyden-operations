@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 import { getBranding } from "@/lib/branding";
 
 // Cho phép "Thêm vào màn hình chính" — bắt buộc trên iPhone để nhận thông báo đẩy.
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  // Không build sẵn: tên / màu / biểu tượng đổi theo thương hiệu
+  await connection();
   const b = await getBranding();
   const v = `?v=${b.version}`;
   return {

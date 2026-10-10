@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { connection } from "next/server";
 import { getBranding } from "@/lib/branding";
 import { readableOn } from "@/lib/branding-shared";
 
@@ -12,17 +13,19 @@ const VARIANTS = {
   badge: { size: 96, pad: 0 },
 } as const;
 
-export function generateStaticParams() {
-  return Object.keys(VARIANTS).map((size) => ({ size }));
-}
-
-export async function GET(_request: Request, { params }: RouteContext<"/icons/[size]">) {
+export async function GET(request: Request, { params }: RouteContext<"/icons/[size]">) {
+  // Không build sẵn thành ảnh tĩnh: logo đổi thì biểu tượng phải đổi theo
+  await connection();
   const { size: key } = await params;
   const variant = VARIANTS[key as keyof typeof VARIANTS];
   if (!variant) return new Response("Not found", { status: 404 });
   const { size, pad } = variant;
   const b = await getBranding();
-  const headers = { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" };
+  // Link có ?v=<phiên bản> (đổi mỗi lần QTV lưu) → cache lâu; link trần (thông báo đẩy) → cache ngắn
+  const versioned = new URL(request.url).searchParams.has("v");
+  const headers = {
+    "Cache-Control": versioned ? "public, max-age=31536000, immutable" : "public, max-age=300, stale-while-revalidate=3600",
+  };
 
   // Huy hiệu thông báo Android: hình đơn sắc, chỉ lấy độ trong suốt
   if (key === "badge") {

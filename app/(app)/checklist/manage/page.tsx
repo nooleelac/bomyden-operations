@@ -161,9 +161,9 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             </Link>
           </div>
 
-          <form method="get" className="card mb-5 flex flex-wrap items-end gap-3 p-4">
+          <form method="get" className="card mb-5 grid grid-cols-2 items-end gap-3 p-4 sm:flex sm:flex-wrap">
             <input type="hidden" name="tab" value={tab} />
-            <div className="min-w-40 flex-1">
+            <div className={`min-w-0 sm:min-w-40 sm:flex-1 ${tab === "report" ? "" : "col-span-2"}`}>
               <label htmlFor="cf-branch" className="mb-1 block text-xs font-medium text-neutral-600">Chi nhánh</label>
               <select id="cf-branch" name="branch" defaultValue={branchId} className="input">
                 <option value="">Tất cả</option>
@@ -171,12 +171,12 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
               </select>
             </div>
             {tab === "report" && (
-              <div className="min-w-40 flex-1">
+              <div className="min-w-0 sm:min-w-40 sm:flex-1">
                 <label htmlFor="cf-date" className="mb-1 block text-xs font-medium text-neutral-600">Ngày</label>
                 <input id="cf-date" name="date" type="date" defaultValue={date} max={today} className="input" />
               </div>
             )}
-            <button type="submit" className="btn-primary">Xem</button>
+            <button type="submit" className="btn-primary col-span-2 sm:col-span-1">Xem</button>
           </form>
 
           <ManageChecklistView tab={tab} report={report} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
