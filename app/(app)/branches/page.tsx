@@ -18,7 +18,11 @@ export default async function BranchesPage() {
       .select("id, name, address, latitude, longitude, radius_m, wifi_ips, is_active")
       .order("is_active", { ascending: false })
       .order("name"),
-    supabase.from("employee_branches").select("branch_id, employees!inner(is_active)").eq("employees.is_active", true),
+    // Bảng gán có 2 liên kết tới nhân viên (người được gán / người tạo) → phải ghi rõ khóa, nếu không truy vấn lỗi và đếm ra 0
+    supabase
+      .from("employee_branches")
+      .select("branch_id, employees!employee_branches_employee_id_fkey!inner(is_active)")
+      .eq("employees.is_active", true),
   ]);
 
   if (error) throw new Error("Không tải được danh sách chi nhánh.");

@@ -1992,6 +1992,10 @@ export type Database = {
         Args: { p_employee_ids: string[] }
         Returns: { employee_id: string; grace_minutes: number }[]
       }
+      delete_branch: {
+        Args: { p_branch_id: string }
+        Returns: undefined
+      }
       delete_shift_template: {
         Args: { p_template_id: string }
         Returns: string

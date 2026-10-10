@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
 import BranchFormFields, { type BranchFormDefaults } from "./BranchFormFields";
-import { createBranch, updateBranch } from "./actions";
+import { createBranch, deleteBranch, updateBranch } from "./actions";
 import type { ActionState } from "@/lib/action-state";
 
 export type BranchItem = {
@@ -52,6 +52,20 @@ function BranchDialog({
     setFormKey((key) => key + 1);
     onDone(result.message);
   });
+  const [deleting, startDeleting] = useTransition();
+  const [deleteError, setDeleteError] = useState("");
+  const remove = () => {
+    if (!branch) return;
+    if (!window.confirm(`Xóa chi nhánh "${branch.name}"?
+
+Chỉ xóa được khi chi nhánh chưa có chấm công, lịch làm, kho hay checklist đã làm. Nhân viên được gán sẽ được gỡ khỏi chi nhánh này.`)) return;
+    setDeleteError("");
+    startDeleting(async () => {
+      const result = await deleteBranch(branch.id, branch.name);
+      if (result.ok) onDone(result.message);
+      else setDeleteError(result.message);
+    });
+  };
 
   return (
     <Dialog
@@ -68,8 +82,14 @@ function BranchDialog({
           currentIp={currentIp}
           showActive={Boolean(branch)}
         />
+        {deleteError && <p role="alert" className="alert-error">{deleteError}</p>}
         {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
         <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
+          {branch && (
+            <button type="button" onClick={remove} disabled={deleting || pending} className="btn mr-auto px-3 text-red-700 hover:bg-red-50">
+              {deleting ? "Đang xóa..." : "🗑 Xóa"}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>
           <SubmitButton pending={pending} pendingText="Đang lưu...">
             {branch ? "Lưu thay đổi" : "Tạo chi nhánh"}
@@ -132,7 +152,7 @@ export default function BranchesView({ branches, currentIp }: { branches: Branch
                       <span className={`rounded-full px-2.5 py-1 ${hasWifi ? "bg-emerald-50 text-emerald-800" : "bg-neutral-100 text-neutral-600"}`}>
                         {hasWifi ? `📶 ${branch.wifi_ips.length} IP Wi-Fi` : "📶 Chưa có Wi-Fi"}
                       </span>
-                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-700">
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-neutral-700" title="Số nhân viên đang làm được gán vào chi nhánh này (trang Nhân viên)">
                         👥 {branch.employee_count} nhân viên
                       </span>
                     </div>

@@ -115,3 +115,15 @@ export async function updateBranch(
   revalidatePath("/branches");
   return success(`Đã cập nhật chi nhánh "${parsed.data.name}".`);
 }
+
+/** Xóa chi nhánh — chỉ khi chưa phát sinh dữ liệu (CSDL kiểm tra và báo lý do nếu không xóa được). */
+export async function deleteBranch(branchId: string, name: string): Promise<ActionState> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_branch", { p_branch_id: branchId });
+  if (error) return fail(friendlyDbError(error));
+
+  revalidatePath("/branches");
+  revalidatePath("/", "layout");
+  return success(`Đã xóa chi nhánh "${name}".`);
+}
