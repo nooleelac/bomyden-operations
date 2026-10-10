@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { resizeImage } from "@/components/image-resize";
+import { withNetworkGuard } from "@/lib/action-state";
 import { scanInvoice } from "./actions";
 import ReceiptForm from "./ReceiptForm";
 import type { BranchRef } from "@/lib/branches";
@@ -40,7 +41,7 @@ export default function ReceiveView({ branches, catalog, suppliers, lastPrices, 
   const [preparing, setPreparing] = useState(false);
   const [manual, setManual] = useState<ReceiptDraft | null>(null);
   const [state, scan, scanning] = useActionState(
-    (prev: ScanState, formData: FormData) => scanInvoice(branchId, prev, formData),
+    withNetworkGuard((prev: ScanState, formData: FormData) => scanInvoice(branchId, prev, formData)),
     { ok: false, message: "" } as ScanState
   );
   // Đổi key mỗi lần quét xong để form xác nhận khởi tạo lại từ bản nháp mới

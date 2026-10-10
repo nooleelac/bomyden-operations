@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useRef, useState } from "react";
 import Dialog from "@/components/Dialog";
+import { withNetworkGuard } from "@/lib/action-state";
 import { importTemplatesFromExcel, type ImportState } from "./actions";
 import type { BranchStaff } from "./TemplateDialog";
 
@@ -22,11 +23,11 @@ export default function ImportDialog({ branches, defaultBranchId, open, onClose,
   const [branchId, setBranchId] = useState(defaultBranchId ?? (branches.length === 1 ? branches[0].id : ""));
   // Đổi file / chi nhánh → ẩn kết quả kiểm tra cũ
   const [stale, setStale] = useState(true);
-  const [state, action, pending] = useActionState(async (prev: ImportState, formData: FormData) => {
+  const [state, action, pending] = useActionState(withNetworkGuard(async (prev: ImportState, formData: FormData) => {
     const result = await importTemplatesFromExcel(prev, formData);
     if (result.ok) onDone(result.message);
     return result;
-  }, { ok: false, message: "" } as ImportState);
+  }), { ok: false, message: "" } as ImportState);
 
   const submit = (mode: "check" | "import") => {
     const form = formRef.current;

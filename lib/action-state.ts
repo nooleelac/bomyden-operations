@@ -18,6 +18,31 @@ export function success(message: string): ActionState {
   return { ok: true, message, successKey: Date.now() };
 }
 
+export const OFFLINE_MESSAGE = "Mất kết nối mạng — chưa gửi được. Kiểm tra Wi-Fi / 4G rồi bấm lại (thông tin đã nhập vẫn còn).";
+
+/** Lỗi do mất mạng khi gọi server (trình duyệt báo khác nhau: "Failed to fetch", "Load failed", "NetworkError…"). */
+export function isNetworkError(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  return error instanceof TypeError && /fetch|network|load failed/i.test(error.message);
+}
+
+/**
+ * Bọc server action phía trình duyệt: mất mạng → trả lỗi dễ hiểu thay vì văng ra màn "Đã có lỗi xảy ra"
+ * (giữ nguyên form, người dùng bấm lại khi có mạng). Lỗi khác vẫn ném ra như cũ.
+ */
+export function withNetworkGuard<S extends ActionState, A extends unknown[]>(
+  action: (...args: A) => Promise<S>
+): (...args: A) => Promise<S> {
+  return async (...args) => {
+    try {
+      return await action(...args);
+    } catch (error) {
+      if (isNetworkError(error)) return fail(OFFLINE_MESSAGE) as S;
+      throw error;
+    }
+  };
+}
+
 /** Gom lỗi zod thành { field: message } (lấy lỗi đầu tiên của mỗi field). */
 export function zodFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   const errors: Record<string, string> = {};

@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useMemo, useState } from "react";
 import { ITEM_CATEGORIES, formatMoney, formatQty, lineVat, normName, parseVnNumber, priceChangePercent } from "@/lib/inventory";
-import { initialActionState } from "@/lib/action-state";
+import { initialActionState, withNetworkGuard } from "@/lib/action-state";
 import { saveReceipt, type ReceiptPayload } from "./actions";
 import type { CatalogItem, DraftLine, LastPrices, PaymentStatus, ReceiptDraft, SupplierOption } from "./types";
 
@@ -107,7 +107,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   const [dueDate, setDueDate] = useState(draft.dueDate);
   const [showErrors, setShowErrors] = useState(false);
   const [state, save, saving] = useActionState(
-    (_prev: typeof initialActionState, payload: ReceiptPayload) => saveReceipt(payload),
+    withNetworkGuard((_prev: typeof initialActionState, payload: ReceiptPayload) => saveReceipt(payload)),
     initialActionState
   );
 

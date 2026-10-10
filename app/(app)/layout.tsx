@@ -8,6 +8,7 @@ import { getModules, pickNavModules } from "@/lib/modules";
 import PushSync from "@/components/PushSync";
 import SignOutButton from "@/components/SignOutButton";
 import LiveSync from "@/components/LiveSync";
+import NetworkStatus from "@/components/NetworkStatus";
 import BrandMark from "@/components/BrandMark";
 import BottomNav, { Avatar } from "@/components/BottomNav";
 
@@ -51,6 +52,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <PushSync employeeId={employee.id} />
       {/* Realtime cho mọi trang: dữ liệu liên quan thay đổi → tự cập nhật */}
       <LiveSync employeeId={employee.id} />
+      <NetworkStatus />
       <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-5 pb-[calc(var(--nav-h)+1.5rem)] sm:pt-8 md:pb-8">
         {children}
       </main>

@@ -2,13 +2,13 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { changeOwnPassword } from "./actions";
-import { initialActionState } from "@/lib/action-state";
+import { initialActionState, withNetworkGuard } from "@/lib/action-state";
 import { PASSWORD_MIN_LENGTH } from "@/lib/validation/constants";
 import ActionForm from "@/components/ActionForm";
 import SubmitButton from "@/components/SubmitButton";
 
 export default function ChangePasswordForm() {
-  const [state, formAction, pending] = useActionState(changeOwnPassword, initialActionState);
+  const [state, formAction, pending] = useActionState(withNetworkGuard(changeOwnPassword), initialActionState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

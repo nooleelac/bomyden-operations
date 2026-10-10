@@ -2,12 +2,12 @@
 
 import { useActionState } from "react";
 import { signIn } from "./actions";
-import { initialActionState } from "@/lib/action-state";
+import { initialActionState, withNetworkGuard } from "@/lib/action-state";
 import ActionForm from "@/components/ActionForm";
 import SubmitButton from "@/components/SubmitButton";
 
 export default function LoginForm({ next }: { next: string }) {
-  const [state, formAction, pending] = useActionState(signIn, initialActionState);
+  const [state, formAction, pending] = useActionState(withNetworkGuard(signIn), initialActionState);
 
   return (
     <ActionForm action={formAction} className="space-y-5">
