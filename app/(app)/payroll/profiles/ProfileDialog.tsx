@@ -106,7 +106,7 @@ export default function ProfileDialog({
 
         <fieldset className="rounded-xl border border-neutral-200 p-3">
           <label className="flex cursor-pointer items-center gap-3 text-sm font-medium">
-            <input type="checkbox" name="overtime_enabled" checked={overtime} onChange={(e) => setOvertime(e.target.checked)} className="h-4 w-4 accent-neutral-900" />
+            <input type="checkbox" name="overtime_enabled" checked={overtime} onChange={(e) => setOvertime(e.target.checked)} className="h-4 w-4 accent-brand" />
             Tính tăng ca (giờ vượt chuẩn mỗi ngày)
           </label>
           {overtime ? (
@@ -152,7 +152,7 @@ export default function ProfileDialog({
 
         {isAdmin && (
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm">
-            <input type="checkbox" name="can_view_payslip" defaultChecked={p?.can_view_payslip ?? false} className="mt-0.5 h-4 w-4 accent-neutral-900" />
+            <input type="checkbox" name="can_view_payslip" defaultChecked={p?.can_view_payslip ?? false} className="mt-0.5 h-4 w-4 accent-brand" />
             <span>
               <span className="block font-medium">Cho nhân viên xem phiếu lương</span>
               <span className="block text-xs text-neutral-500">Chỉ xem được các kỳ đã chốt.</span>

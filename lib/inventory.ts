@@ -17,6 +17,13 @@ export function formatMoney(value: number | string | null | undefined): string {
   return `${moneyFormat.format(Math.round(Number(value ?? 0)))} đ`;
 }
 
+const compactMoneyFormat = new Intl.NumberFormat("vi-VN", { notation: "compact", maximumFractionDigits: 1 });
+
+/** Số tiền rút gọn cho ô nhỏ trên điện thoại: 12,5 Tr đ */
+export function formatMoneyCompact(value: number | string | null | undefined): string {
+  return `${compactMoneyFormat.format(Math.round(Number(value ?? 0)))} đ`;
+}
+
 /** Chuẩn hóa tên để so khớp (khớp private.norm_name ở DB). */
 export function normName(text: string | null | undefined): string {
   return (text ?? "").trim().replace(/\s+/g, " ").toLowerCase();

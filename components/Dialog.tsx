@@ -28,12 +28,14 @@ export default function Dialog({ open, onClose, title, description, children }: 
       onClick={(event) => {
         if (event.target === ref.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-0 text-left shadow-xl"
+      className="mx-auto mb-0 mt-auto w-full max-w-full rounded-t-3xl bg-white p-0 text-left shadow-xl open:animate-[sheet-up_0.22s_ease-out] sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-lg sm:rounded-2xl sm:open:animate-[pop-in_0.15s_ease-out]"
     >
       {open && (
-        <div className="max-h-[85dvh] overflow-y-auto p-5 sm:p-6">
+        <div className="max-h-[90dvh] overflow-y-auto overscroll-contain px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-h-[85dvh] sm:p-6">
+          {/* Thanh kéo (trang trí) của tấm trượt trên điện thoại */}
+          <div aria-hidden="true" className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-200 sm:hidden" />
           <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
               {description && <p className="mt-1 text-sm text-neutral-500">{description}</p>}
             </div>

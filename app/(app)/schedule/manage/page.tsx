@@ -193,13 +193,13 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
       <Link href="/schedule" className="text-sm text-neutral-500 hover:text-neutral-900">← Lịch làm việc</Link>
       <h1 className="mb-4 mt-2 text-2xl font-bold tracking-tight">Xếp lịch & duyệt đơn</h1>
 
-      <nav className="mb-4 flex flex-wrap rounded-lg border border-neutral-200 bg-white p-1 text-sm" aria-label="Mục quản lý lịch">
+      <nav className="mb-4 flex max-w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white p-1 text-sm [scrollbar-width:none]" aria-label="Mục quản lý lịch">
         {tabs.map((t) => (
           <Link
             key={t.key}
             href={tabHref(t.key)}
             aria-current={tab === t.key ? "page" : undefined}
-            className={`rounded-md px-3 py-1.5 font-medium ${tab === t.key ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-medium ${tab === t.key ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
           >
             {t.label}
           </Link>

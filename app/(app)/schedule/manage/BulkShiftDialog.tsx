@@ -111,7 +111,7 @@ export default function BulkShiftDialog({ branchId, branchName, weekStart, today
                   type="button"
                   aria-pressed={on}
                   onClick={() => setRange({ from: p.from, to: p.to })}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${on ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700"}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${on ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 text-neutral-700"}`}
                 >
                   {p.label}
                 </button>
@@ -137,7 +137,7 @@ export default function BulkShiftDialog({ branchId, branchName, weekStart, today
                   type="button"
                   aria-pressed={on}
                   onClick={() => toggleWeekday(w)}
-                  className={`rounded-lg border py-1.5 text-xs font-medium ${on ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-400 line-through"}`}
+                  className={`rounded-lg border py-1.5 text-xs font-medium ${on ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 text-neutral-400 line-through"}`}
                 >
                   {WEEKDAY_SHORT[w]}
                 </button>
@@ -166,7 +166,7 @@ export default function BulkShiftDialog({ branchId, branchName, weekStart, today
                   type="button"
                   aria-pressed={on}
                   onClick={() => setActiveId(t.id)}
-                  className={`rounded-lg border px-3 py-1.5 text-left text-sm ${on ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700"}`}
+                  className={`rounded-lg border px-3 py-1.5 text-left text-sm ${on ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 text-neutral-700"}`}
                 >
                   <span className="font-medium">{t.name}</span>
                   <span className={`ml-1 text-xs ${on ? "text-neutral-300" : "text-neutral-500"}`}>{t.startTime}–{t.endTime}</span>
@@ -217,7 +217,7 @@ export default function BulkShiftDialog({ branchId, branchName, weekStart, today
                       type="checkbox"
                       checked={activePicked.includes(s.id)}
                       onChange={() => toggle(s.id)}
-                      className="h-4 w-4 accent-neutral-900"
+                      className="h-4 w-4 accent-brand"
                     />
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
                     {otherCa.length > 0 && (

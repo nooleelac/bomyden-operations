@@ -39,13 +39,13 @@ export function StatTile({
   return (
     <Link
       href={href}
-      className={`card group flex flex-col p-4 transition hover:border-neutral-400 hover:shadow-md ${tone === "bad" ? "border-red-200" : ""}`}
+      className={`card group flex min-w-0 flex-col p-3.5 transition active:scale-[0.98] sm:p-4 hover:border-neutral-400 hover:shadow-md ${tone === "bad" ? "border-red-200" : ""}`}
     >
       <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</span>
       <span className={`mt-1.5 text-2xl font-bold tabular-nums sm:text-3xl ${TONE_TEXT[tone]}`}>{value}</span>
       {progress !== undefined && (
         <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-neutral-100" aria-hidden="true">
-          <span className="block h-full rounded-full bg-neutral-900" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <span className="block h-full rounded-full bg-brand" style={{ width: `${Math.round(progress * 100)}%` }} />
         </span>
       )}
       {sub && <span className="mt-1.5 text-xs text-neutral-500">{sub}</span>}

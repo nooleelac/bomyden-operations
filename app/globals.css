@@ -2,14 +2,53 @@
 
 @theme inline {
   --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
+  /* Màu thương hiệu: QTV đổi ở Cài đặt → Thương hiệu (gắn vào <html> ở app/layout.tsx) */
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-header: var(--header);
+  --color-header-fg: var(--header-fg);
+}
+
+:root {
+  --brand: #171717;
+  --brand-fg: #ffffff;
+  --header: #171717;
+  --header-fg: #ffffff;
+  /* Chiều cao thanh điều hướng dưới (chỉ có trên điện thoại) — thanh/thông báo cố định đặt phía trên nó */
+  --nav-h: 0px;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   @apply bg-neutral-100 text-neutral-900 antialiased;
+  /* Không bao giờ cuộn ngang cả trang trên điện thoại */
+  overflow-x: clip;
+  /* Chữ dài (email, tên, mã) tự xuống dòng thay vì tràn khung */
+  overflow-wrap: anywhere;
+}
+
+/* Bảng đã có khung cuộn ngang riêng → giữ chữ trong ô nguyên vẹn */
+table {
+  overflow-wrap: normal;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Ô nhập ≥ 16px trên điện thoại để iPhone không tự phóng to */
+@media (max-width: 39.999rem) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: max(1rem, 1em);
+  }
 }
 
 /* ---------- Thành phần dùng chung ---------- */
@@ -19,15 +58,15 @@ body {
 }
 
 @utility input {
-  @apply block w-full rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 disabled:bg-neutral-100 sm:text-sm;
+  @apply block w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3.5 py-2.5 text-base text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-neutral-100 sm:text-sm;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100;
 }
 
 @utility btn-primary {
-  @apply btn bg-neutral-900 text-white hover:bg-neutral-700;
+  @apply btn bg-brand text-brand-fg hover:brightness-110;
 }
 
 @utility btn-secondary {
@@ -54,6 +93,25 @@ body {
   @apply mt-1.5 text-sm text-red-600;
 }
 
+/* Thanh cuộn ngang gọn (tab, chip chi nhánh) */
+@utility scroll-x {
+  @apply -mx-4 flex overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden;
+}
+
 dialog::backdrop {
   background: rgb(0 0 0 / 0.45);
+}
+
+/* Hộp thoại = tấm trượt từ dưới lên trên điện thoại */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }

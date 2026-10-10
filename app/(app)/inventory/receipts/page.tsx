@@ -55,7 +55,7 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">← Trang chủ</Link>
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Phiếu nhập kho</h1>
-        <div className="flex flex-wrap gap-2">
+        <div className="scroll-x gap-2 sm:flex-wrap">
           <a href={`/inventory/export/receipts${qs({})}`} className="btn-secondary" download>
             ⬇ Xuất Excel tháng {m}/{y}
           </a>
@@ -71,15 +71,15 @@ export default async function ReceiptsPage({ searchParams }: PageProps<"/invento
           <Link href={qs({ month: nextMonth })} className="px-3 py-2 hover:bg-neutral-50" aria-label="Tháng sau">›</Link>
         </div>
         {branches.length > 1 && (
-          <div className="flex flex-wrap gap-2">
-            <Link href={`?month=${month}`} className={`rounded-full border px-3 py-1 text-sm ${!branchId ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white"}`}>
+          <div className="scroll-x gap-2 sm:flex-wrap">
+            <Link href={`?month=${month}`} className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm ${!branchId ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 bg-white"}`}>
               Tất cả
             </Link>
             {branches.map((b) => (
               <Link
                 key={b.id}
                 href={`?branch=${b.id}&month=${month}`}
-                className={`rounded-full border px-3 py-1 text-sm ${b.id === branchId ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white"}`}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm ${b.id === branchId ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 bg-white"}`}
               >
                 {b.name}
               </Link>

@@ -56,7 +56,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/payroll"
             <Link
               key={p}
               href={href(p, periodStartOf(p, today))}
-              className={`rounded-md px-3 py-1.5 font-medium ${period === p ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+              className={`rounded-md px-3 py-1.5 font-medium ${period === p ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
             >
               {p === "monthly" ? "Kỳ tháng" : "Kỳ tuần"}
             </Link>

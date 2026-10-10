@@ -162,7 +162,7 @@ export default function BranchesView({ branches, currentIp }: { branches: Branch
       />
 
       {toast && (
-        <p role="status" className="alert-success fixed inset-x-4 bottom-4 z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96">
+        <p role="status" className="alert-success fixed inset-x-4 bottom-[calc(var(--nav-h)+1rem)] z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96">
           {toast}
         </p>
       )}

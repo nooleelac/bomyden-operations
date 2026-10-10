@@ -36,7 +36,7 @@ export default async function CountDetailPage({ params }: PageProps<"/inventory/
         {count.note && ` · ${count.note}`}
       </p>
 
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="card p-4">
           <p className="text-xs text-neutral-500">Nguyên liệu đã đếm</p>
           <p className="mt-1 text-xl font-bold tabular-nums">{count.line_count}</p>

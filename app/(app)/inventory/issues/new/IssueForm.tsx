@@ -83,7 +83,7 @@ export default function IssueForm({
           {kinds.map((k) => (
             <label
               key={k}
-              className={`cursor-pointer rounded-xl border p-3 text-sm transition ${kind === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 hover:border-neutral-400"}`}
+              className={`cursor-pointer rounded-xl border p-3 text-sm transition ${kind === k ? "border-brand bg-brand text-brand-fg" : "border-neutral-200 hover:border-neutral-400"}`}
             >
               <input type="radio" name="kind" value={k} checked={kind === k} onChange={() => setKind(k)} className="sr-only" />
               <span className="block font-semibold">{ISSUE_KIND_LABELS[k]}</span>

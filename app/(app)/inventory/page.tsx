@@ -63,12 +63,12 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
       ) : (
         <>
           {branches.length > 1 && (
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="scroll-x mb-4 gap-2 sm:flex-wrap">
               {branches.map((b) => (
                 <Link
                   key={b.id}
                   href={`/inventory?branch=${b.id}`}
-                  className={`rounded-full border px-3 py-1 text-sm font-medium ${b.id === branchId ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700"}`}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium ${b.id === branchId ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 bg-white text-neutral-700"}`}
                 >
                   {b.name}
                 </Link>

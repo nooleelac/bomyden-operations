@@ -243,7 +243,7 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                     key={value}
                     type="button"
                     onClick={() => setFilter(value)}
-                    className={`rounded-md px-3 py-1.5 font-medium ${filter === value ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+                    className={`rounded-md px-3 py-1.5 font-medium ${filter === value ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
                   >
                     {text}
                   </button>
@@ -292,20 +292,20 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
                 type="checkbox"
                 checked={allVisibleSelected}
                 onChange={() => toggleMany(visible.map((t) => t.id), !allVisibleSelected)}
-                className="h-4 w-4 accent-neutral-900"
+                className="h-4 w-4 accent-brand"
               />
               Chọn tất cả {visible.length} mẫu đang hiện
             </label>
             <ul className={`space-y-3 ${selected.size > 0 ? "pb-20" : ""}`}>
               {visible.map((t) => (
-                <li key={t.id} className={`card p-4 ${t.isActive ? "" : "opacity-60"} ${selected.has(t.id) ? "ring-2 ring-neutral-900" : ""}`}>
+                <li key={t.id} className={`card p-4 ${t.isActive ? "" : "opacity-60"} ${selected.has(t.id) ? "ring-2 ring-brand" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <input
                       type="checkbox"
                       aria-label={`Chọn ${t.title}`}
                       checked={selected.has(t.id)}
                       onChange={() => toggleMany([t.id], !selected.has(t.id))}
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-neutral-900"
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-brand"
                     />
                     <div className="min-w-0 flex-1 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
@@ -346,7 +346,7 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
           )}
 
           {selected.size > 0 && (
-            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="fixed inset-x-0 bottom-(--nav-h) z-40 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
               <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
                 <span className="text-sm font-medium">Đã chọn {selected.size}</span>
                 <div className="flex gap-2">
@@ -420,7 +420,7 @@ export default function ManageChecklistView({ tab, report, templates, sets, bran
       )}
 
       {toast && (
-        <p role="status" className="alert-success fixed inset-x-4 bottom-4 z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96">
+        <p role="status" className="alert-success fixed inset-x-4 bottom-[calc(var(--nav-h)+1rem)] z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96">
           {toast}
         </p>
       )}

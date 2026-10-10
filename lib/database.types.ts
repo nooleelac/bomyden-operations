@@ -296,6 +296,49 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: boolean
+          brand_name: string
+          short_name: string
+          tagline: string
+          primary_color: string
+          header_color: string
+          logo_path: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          brand_name?: string
+          short_name?: string
+          tagline?: string
+          primary_color?: string
+          header_color?: string
+          logo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          brand_name?: string
+          short_name?: string
+          tagline?: string
+          primary_color?: string
+          header_color?: string
+          logo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_corrections: {
         Row: AttendanceCorrectionRow
         Insert: {

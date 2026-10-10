@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { brandingStyle, getBranding } from "@/lib/branding";
 import "./globals.css";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -8,23 +9,36 @@ const beVietnam = Be_Vietnam_Pro({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Bò Mỹ Đen — Vận hành",
-    template: "%s · Bò Mỹ Đen",
-  },
-  description: "Hệ thống quản lý vận hành quán Bò Mỹ Đen",
-  robots: { index: false, follow: false },
-  appleWebApp: { capable: true, title: "Bò Mỹ Đen", statusBarStyle: "black" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getBranding();
+  const v = `?v=${b.version}`;
+  return {
+    title: { default: `${b.brandName} — Vận hành`, template: `%s · ${b.brandName}` },
+    description: `Hệ thống quản lý vận hành ${b.brandName}`,
+    robots: { index: false, follow: false },
+    appleWebApp: { capable: true, title: b.brandName, statusBarStyle: "black" },
+    icons: {
+      icon: [{ url: `/icons/192${v}`, type: "image/png", sizes: "192x192" }],
+      apple: [{ url: `/icons/apple${v}`, sizes: "180x180" }],
+    },
+  };
+}
 
-export const viewport: Viewport = {
-  themeColor: "#171717",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const b = await getBranding();
+  return {
+    themeColor: b.headerColor,
+    width: "device-width",
+    initialScale: 1,
+    // Cho phép dùng vùng tai thỏ / thanh home (đã chừa khoảng an toàn bằng env(safe-area-inset-*))
+    viewportFit: "cover",
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const branding = await getBranding();
   return (
-    <html lang="vi" className={`${beVietnam.variable} h-full`}>
+    <html lang="vi" className={`${beVietnam.variable} h-full`} style={brandingStyle(branding)}>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

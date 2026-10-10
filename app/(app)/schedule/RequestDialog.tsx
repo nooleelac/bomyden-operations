@@ -58,7 +58,7 @@ export default function RequestDialog({ myId, today, upcoming, colleagues, open,
           {(Object.keys(REQUEST_KIND_LABELS) as RequestKind[]).map((k) => (
             <label
               key={k}
-              className={`cursor-pointer rounded-lg border px-3 py-2 text-center font-medium ${kind === k ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700"}`}
+              className={`cursor-pointer rounded-lg border px-3 py-2 text-center font-medium ${kind === k ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 text-neutral-700"}`}
             >
               <input type="radio" name="kind" value={k} checked={kind === k} onChange={() => setKind(k)} className="sr-only" />
               {REQUEST_KIND_LABELS[k]}

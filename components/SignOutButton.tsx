@@ -5,7 +5,7 @@ import { getCurrentSubscription } from "@/components/push";
 import { removePushSubscription } from "@/app/(app)/notifications/actions";
 
 /** Đăng xuất: gỡ thiết bị khỏi tài khoản trước để không nhận thông báo của người khác. */
-export default function SignOutButton() {
+export default function SignOutButton({ variant = "header" }: { variant?: "header" | "light" }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, setPending] = useState(false);
 
@@ -30,7 +30,11 @@ export default function SignOutButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-white/20 px-3 py-2 text-sm font-medium hover:bg-white/10 disabled:opacity-60"
+        className={
+          variant === "light"
+            ? "btn-secondary w-full text-red-700"
+            : "rounded-lg border border-current/20 px-3 py-2 text-sm font-medium hover:bg-current/10 disabled:opacity-60"
+        }
       >
         {pending ? "Đang thoát..." : "Đăng xuất"}
       </button>

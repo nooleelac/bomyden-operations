@@ -120,7 +120,7 @@ export default function TemplateDialog({ template, copyFrom, branches, sets, ope
           <legend className={label}>Lặp lại</legend>
           <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
             {(["daily", "weekly", "monthly"] as const).map((f) => (
-              <label key={f} className={`cursor-pointer rounded-md px-3 py-1.5 font-medium ${frequency === f ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+              <label key={f} className={`cursor-pointer rounded-md px-3 py-1.5 font-medium ${frequency === f ? "bg-brand text-brand-fg" : "text-neutral-600"}`}>
                 <input type="radio" name="frequency" value={f} checked={frequency === f} onChange={() => setFrequency(f)} className="sr-only" />
                 {f === "daily" ? "Hằng ngày" : f === "weekly" ? "Theo thứ" : "Theo ngày tháng"}
               </label>
@@ -129,7 +129,7 @@ export default function TemplateDialog({ template, copyFrom, branches, sets, ope
           {frequency === "weekly" && (
             <div className="mt-3 flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                <label key={d} className="flex cursor-pointer items-center rounded-lg border border-neutral-300 px-3 py-2 text-sm has-[:checked]:border-neutral-900 has-[:checked]:bg-neutral-900 has-[:checked]:text-white">
+                <label key={d} className="flex cursor-pointer items-center rounded-lg border border-neutral-300 px-3 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-brand-fg">
                   <input type="checkbox" name="weekdays" value={d} defaultChecked={init?.weekdays.includes(d)} className="sr-only" />
                   {WEEKDAY_LABELS[d]}
                 </label>
@@ -151,7 +151,7 @@ export default function TemplateDialog({ template, copyFrom, branches, sets, ope
           <legend className={label}>Giao cho</legend>
           <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
             {(["person", "shift"] as const).map((m) => (
-              <label key={m} className={`cursor-pointer rounded-md px-3 py-1.5 font-medium ${assignMode === m ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+              <label key={m} className={`cursor-pointer rounded-md px-3 py-1.5 font-medium ${assignMode === m ? "bg-brand text-brand-fg" : "text-neutral-600"}`}>
                 <input type="radio" name="assign_mode" value={m} checked={assignMode === m} onChange={() => setAssignMode(m)} className="sr-only" />
                 {m === "person" ? "Người cụ thể" : "🕒 Theo ca"}
               </label>
@@ -188,11 +188,11 @@ export default function TemplateDialog({ template, copyFrom, branches, sets, ope
 
         <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
           <label className="flex cursor-pointer items-center gap-3 text-sm">
-            <input type="checkbox" name="requires_photo" defaultChecked={init?.requiresPhoto} className="h-4 w-4 accent-neutral-900" />
+            <input type="checkbox" name="requires_photo" defaultChecked={init?.requiresPhoto} className="h-4 w-4 accent-brand" />
             Bắt buộc chụp ảnh khi hoàn thành
           </label>
           <label className="flex cursor-pointer items-center gap-3 text-sm">
-            <input type="checkbox" name="requires_note" defaultChecked={init?.requiresNote} className="h-4 w-4 accent-neutral-900" />
+            <input type="checkbox" name="requires_note" defaultChecked={init?.requiresNote} className="h-4 w-4 accent-brand" />
             Bắt buộc ghi chú khi hoàn thành
           </label>
           <p className="text-xs text-neutral-500">Báo &quot;Không đạt&quot; luôn phải ghi lý do.</p>
@@ -220,7 +220,7 @@ export default function TemplateDialog({ template, copyFrom, branches, sets, ope
           </div>
           {template && (
             <label className="flex h-[42px] cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 px-3 text-sm">
-              <input type="checkbox" name="is_active" defaultChecked={template.isActive} className="h-4 w-4 accent-neutral-900" />
+              <input type="checkbox" name="is_active" defaultChecked={template.isActive} className="h-4 w-4 accent-brand" />
               Đang áp dụng
             </label>
           )}

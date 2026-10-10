@@ -191,7 +191,7 @@ export default function EmployeeFormFields({
             {branches.map((branch) => (
               <label
                 key={branch.id}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm has-[:checked]:border-neutral-900 has-[:checked]:bg-neutral-900 has-[:checked]:text-white"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand has-[:checked]:text-brand-fg"
               >
                 <input
                   type="checkbox"
@@ -220,7 +220,7 @@ export default function EmployeeFormFields({
             type="checkbox"
             name="requires_attendance"
             defaultChecked={defaults.requires_attendance}
-            className="mt-0.5 h-4 w-4 accent-neutral-900"
+            className="mt-0.5 h-4 w-4 accent-brand"
           />
           <span>
             <span className="block text-sm font-medium">Phải chấm công</span>

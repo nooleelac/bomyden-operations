@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
-import { canAccessInventory, canAccessPayroll, canManageAttendance, canManageEmployees, isAdmin, isManagerOrAdmin, mustClockIn } from "@/lib/auth/roles";
-import { createClient } from "@/lib/supabase/server";
+import { isManagerOrAdmin, mustClockIn } from "@/lib/auth/roles";
+import { getModules } from "@/lib/modules";
 import PushToggle from "@/components/PushToggle";
 import { Suspense } from "react";
 import { getManageableBranches } from "@/lib/branches";
@@ -13,67 +13,10 @@ import { OverviewSkeleton } from "./_overview/ui";
 
 export const instant = false;
 
-type Module = {
-  title: string;
-  description: string;
-  href?: string;
-  icon: string;
-};
-
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const employee = await requireEmployee();
   const params = await searchParams;
-
-  // RLS: chỉ thấy hồ sơ lương của mình khi QTV đã cho phép xem phiếu lương
-  const supabase = await createClient();
-  const [{ data: ownProfile }, { data: hasPayrollProfile }] = await Promise.all([
-    supabase.from("payroll_profiles").select("can_view_payslip").eq("employee_id", employee.id).maybeSingle(),
-    supabase.rpc("has_payroll_profile"),
-  ]);
-
-  const modules: Module[] = [
-    ...(employee.role !== "admin"
-      ? [{ title: "Lịch làm việc", description: "Ca làm của chi nhánh, xin nghỉ / trễ / đổi ca", href: "/schedule", icon: "📅" }]
-      : []),
-    ...(canManageAttendance(employee.role)
-      ? [{ title: "Xếp lịch & duyệt đơn", description: "Xếp ca, công bố lịch, duyệt đơn xin phép", href: "/schedule/manage", icon: "🗓️" }]
-      : []),
-    // QTV không được giao việc checklist → chỉ cần "Quản lý checklist"
-    ...(employee.role !== "admin"
-      ? [{ title: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" }]
-      : []),
-    ...(canManageAttendance(employee.role)
-      ? [{ title: "Quản lý checklist", description: "Mẫu công việc, báo cáo hằng ngày", href: "/checklist/manage", icon: "✅" }]
-      : []),
-    ...(mustClockIn(employee)
-      ? [{ title: "Chấm công", description: "Vào ca / ra ca, lịch sử, yêu cầu sửa", href: "/attendance", icon: "🕐" }]
-      : []),
-    ...(canManageAttendance(employee.role)
-      ? [{ title: "Quản lý chấm công", description: "Duyệt yêu cầu sửa, ai đang trong ca", href: "/attendance/manage", icon: "🗂️" }]
-      : []),
-    ...(canManageEmployees(employee.role)
-      ? [{ title: "Nhân viên", description: "Tài khoản, chức vụ, chi nhánh", href: "/employees", icon: "👥" }]
-      : []),
-    ...(isAdmin(employee.role)
-      ? [{ title: "Chi nhánh", description: "Vị trí GPS, Wi-Fi chấm công", href: "/branches", icon: "🏠" }]
-      : []),
-    ...(canAccessInventory(employee)
-      ? [{ title: "Kho", description: "Chụp hóa đơn nhập kho, tồn kho, nhà cung cấp", href: "/inventory", icon: "📦" }]
-      : []),
-    ...(canAccessPayroll(employee)
-      ? [{ title: "Bảng lương", description: "Tính lương, KPI, thưởng/phạt, chốt kỳ", href: "/payroll", icon: "💰" }]
-      : []),
-    ...(hasPayrollProfile
-      ? [
-          {
-            title: "Phiếu lương của tôi",
-            description: ownProfile?.can_view_payslip ? "Các kỳ lương đã chốt, ứng lương" : "Gửi đơn ứng lương",
-            href: "/payslips",
-            icon: "🧾",
-          },
-        ]
-      : []),
-  ];
+  const modules = await getModules(employee);
 
   const isManager = isManagerOrAdmin(employee.role);
   const branches = isManager ? await getManageableBranches(employee) : [];
@@ -92,20 +35,20 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
       <PushToggle compact />
 
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <p className="text-sm first-letter:uppercase text-neutral-500">{dateLabel}</p>
-          <h1 className="mt-0.5 text-2xl font-bold tracking-tight">{greeting}, {employee.full_name}</h1>
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight sm:text-2xl">{greeting}, {employee.full_name}</h1>
         </div>
         {branches.length > 1 && (
-          <nav className="flex flex-wrap gap-1.5" aria-label="Chọn chi nhánh">
+          <nav className="scroll-x gap-1.5 sm:flex-wrap" aria-label="Chọn chi nhánh">
             {[{ id: "", name: "Tất cả chi nhánh" }, ...branches].map((b) => (
               <Link
                 key={b.id || "all"}
                 href={b.id ? `/?branch=${b.id}` : "/"}
                 aria-current={branchId === b.id ? "page" : undefined}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                  branchId === b.id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                  branchId === b.id ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"
                 }`}
               >
                 {b.name}
@@ -133,35 +76,20 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       )}
 
       <h2 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wide text-neutral-500">Chức năng</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {modules.map((module) =>
-          module.href ? (
-            <Link
-              key={module.title}
-              href={module.href}
-              className="card flex items-start gap-4 p-5 transition hover:border-neutral-400 hover:shadow-md"
-            >
-              <span className="text-3xl" aria-hidden="true">{module.icon}</span>
-              <span>
-                <span className="block font-semibold">{module.title}</span>
-                <span className="mt-0.5 block text-sm text-neutral-500">{module.description}</span>
-              </span>
-            </Link>
-          ) : (
-            <div key={module.title} className="card flex items-start gap-4 p-5 opacity-60">
-              <span className="text-3xl grayscale" aria-hidden="true">{module.icon}</span>
-              <span>
-                <span className="flex items-center gap-2 font-semibold">
-                  {module.title}
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
-                    Sắp có
-                  </span>
-                </span>
-                <span className="mt-0.5 block text-sm text-neutral-500">{module.description}</span>
-              </span>
-            </div>
-          )
-        )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {modules.map((module) => (
+          <Link
+            key={module.href}
+            href={module.href}
+            className="card flex min-w-0 flex-col gap-2 p-4 transition hover:border-neutral-400 hover:shadow-md active:scale-[0.98] sm:flex-row sm:items-start sm:gap-4 sm:p-5"
+          >
+            <span className="text-2xl leading-none sm:text-3xl" aria-hidden="true">{module.icon}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold leading-snug sm:text-base">{module.title}</span>
+              <span className="mt-0.5 line-clamp-2 block text-xs text-neutral-500 sm:text-sm">{module.description}</span>
+            </span>
+          </Link>
+        ))}
       </div>
     </div>
   );

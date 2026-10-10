@@ -153,10 +153,10 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
       ) : (
         <>
           <div className="mb-4 inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
-            <Link href={query({ tab: "report" })} className={`rounded-md px-3 py-1.5 font-medium ${tab === "report" ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+            <Link href={query({ tab: "report" })} className={`rounded-md px-3 py-1.5 font-medium ${tab === "report" ? "bg-brand text-brand-fg" : "text-neutral-600"}`}>
               Báo cáo
             </Link>
-            <Link href={query({ tab: "templates" })} className={`rounded-md px-3 py-1.5 font-medium ${tab === "templates" ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+            <Link href={query({ tab: "templates" })} className={`rounded-md px-3 py-1.5 font-medium ${tab === "templates" ? "bg-brand text-brand-fg" : "text-neutral-600"}`}>
               Mẫu công việc
             </Link>
           </div>

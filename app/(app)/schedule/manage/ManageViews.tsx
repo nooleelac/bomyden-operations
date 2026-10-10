@@ -173,7 +173,7 @@ function ReviewDialog({ request, isAdmin, onClose, onDone }: { request: ManageRe
         </div>
         {approve && request.kind === "leave" && isAdmin && (
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 px-3 py-2.5 text-sm">
-            <input type="checkbox" name="is_paid" className="mt-0.5 h-4 w-4 accent-neutral-900" />
+            <input type="checkbox" name="is_paid" className="mt-0.5 h-4 w-4 accent-brand" />
             <span>
               <span className="font-medium">Nghỉ có lương</span>
               <span className="block text-xs text-neutral-500">Mỗi ngày nghỉ tính 1 ngày công cho nhân viên lương cố định.</span>
@@ -345,7 +345,7 @@ function TemplateDialog({ template, branches, onClose, onDone }: { template?: Te
           </div>
           {template && (
             <label className="flex h-[42px] cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 px-3 text-sm">
-              <input type="checkbox" name="is_active" defaultChecked={template.isActive} className="h-4 w-4 accent-neutral-900" />
+              <input type="checkbox" name="is_active" defaultChecked={template.isActive} className="h-4 w-4 accent-brand" />
               Đang dùng
             </label>
           )}

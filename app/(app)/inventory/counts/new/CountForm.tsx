@@ -208,7 +208,7 @@ export default function CountForm({
         />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-(--nav-h) z-20 border-t border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="min-w-0 text-sm">
             <p className="font-medium">Đã nhập {filled} nguyên liệu</p>

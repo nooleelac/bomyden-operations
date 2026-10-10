@@ -9,12 +9,12 @@ export default function PayrollNav({ active, isAdmin }: { active: "overview" | "
     ...(isAdmin ? [{ key: "settings", href: "/payroll/settings", label: "Cài đặt" }] : []),
   ];
   return (
-    <div className="mb-5 inline-flex max-w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white p-1 text-sm">
+    <div className="mb-5 inline-flex max-w-full overflow-x-auto [scrollbar-width:none] rounded-lg border border-neutral-200 bg-white p-1 text-sm">
       {tabs.map((tab) => (
         <Link
           key={tab.key}
           href={tab.href}
-          className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-medium ${active === tab.key ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+          className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-medium ${active === tab.key ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
         >
           {tab.label}
         </Link>

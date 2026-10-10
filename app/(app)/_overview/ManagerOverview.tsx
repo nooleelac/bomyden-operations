@@ -7,7 +7,7 @@ import { getRequestTime } from "@/lib/request-time";
 import { formatDuration, formatTime, isForgotten, minutesBetween, vnDayRange } from "@/lib/time";
 import { addDays, dayLabel, hm } from "@/lib/schedule";
 import { DISPLAY_STATUS, displayStatus } from "@/lib/checklist";
-import { formatMoney } from "@/lib/inventory";
+import { formatMoney, formatMoneyCompact } from "@/lib/inventory";
 import type { SalaryAdvanceQueueItem } from "@/lib/payroll";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
 
@@ -330,7 +330,12 @@ export default async function ManagerOverview({
         />
         <StatTile
           label="Công nợ NCC"
-          value={<span className="whitespace-nowrap text-lg sm:text-2xl">{formatMoney(totalDebt)}</span>}
+          value={
+            <>
+              <span className="whitespace-nowrap sm:hidden">{formatMoneyCompact(totalDebt)}</span>
+              <span className="hidden whitespace-nowrap sm:inline sm:text-2xl">{formatMoney(totalDebt)}</span>
+            </>
+          }
           sub={overdueDebt.length ? `Quá hạn ${formatMoney(overdueDebtAmount)}` : `Nhập tháng này ${formatMoney(monthPurchases)}`}
           tone={overdueDebt.length ? "bad" : "neutral"}
           href="/inventory/debts"

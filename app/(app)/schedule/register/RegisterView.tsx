@@ -129,7 +129,7 @@ export default function RegisterView({ branchId, from, to, openFrom, templates, 
                     type="button"
                     aria-pressed={on}
                     onClick={() => setQuick((q) => ({ ...q, weekdays: on ? q.weekdays.filter((x) => x !== w) : [...q.weekdays, w] }))}
-                    className={`w-9 rounded-md border py-1 text-xs font-medium ${on ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-500"}`}
+                    className={`w-9 rounded-md border py-1 text-xs font-medium ${on ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 text-neutral-500"}`}
                   >
                     {WEEKDAY_SHORT[w]}
                   </button>
@@ -212,7 +212,7 @@ export default function RegisterView({ branchId, from, to, openFrom, templates, 
       </ul>
 
       {state.message && <p role="status" className={state.ok ? "alert-success" : "alert-error"}>{state.message}</p>}
-      <div className="sticky bottom-3 flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
+      <div className="sticky bottom-[calc(var(--nav-h)+0.75rem)] flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
         <span className="text-sm text-neutral-600">
           {openCount === 0 ? "Khoảng này đã hết hạn đăng ký." : <><strong>{workDays}</strong> ngày đi làm · {items.length} lựa chọn</>}
         </span>

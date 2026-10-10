@@ -26,7 +26,7 @@ export default function InventoryNav({ active, isManager, isAdmin }: { active: T
           <Link
             key={tab.key}
             href={tab.href}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 font-medium ${active === tab.key ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 font-medium ${active === tab.key ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
           >
             {tab.label}
           </Link>

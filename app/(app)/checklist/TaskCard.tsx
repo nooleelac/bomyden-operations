@@ -155,7 +155,7 @@ export default function TaskCard({ task, onDone }: { task: TaskCardData; onDone:
                   const file = e.target.files?.[0];
                   setPreview(file ? URL.createObjectURL(file) : null);
                 }}
-                className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-900 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white"
+                className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-brand-fg"
               />
               {preview && (
                 // eslint-disable-next-line @next/next/no-img-element

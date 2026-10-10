@@ -166,7 +166,7 @@ export default function BranchFormFields({ idPrefix, defaults, fieldErrors, curr
 
       {showActive && (
         <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-          <input type="checkbox" name="is_active" defaultChecked={defaults.is_active} className="h-4 w-4 accent-neutral-900" />
+          <input type="checkbox" name="is_active" defaultChecked={defaults.is_active} className="h-4 w-4 accent-brand" />
           <span className="text-sm font-medium">Chi nhánh đang hoạt động</span>
         </label>
       )}

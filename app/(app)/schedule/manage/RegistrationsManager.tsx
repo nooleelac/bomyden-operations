@@ -161,7 +161,7 @@ export function RegistrationsManager({
                   <h3 className="text-sm font-semibold">{dayLabel(d)}</h3>
                   {dayPending.length > 0 && (
                     <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-600">
-                      <input type="checkbox" checked={allOn} onChange={(e) => toggle(dayPending, e.target.checked)} className="h-4 w-4 accent-neutral-900" />
+                      <input type="checkbox" checked={allOn} onChange={(e) => toggle(dayPending, e.target.checked)} className="h-4 w-4 accent-brand" />
                       Chọn cả ngày ({dayPending.length})
                     </label>
                   )}
@@ -182,9 +182,9 @@ export function RegistrationsManager({
                             r.status === "pending" ? (
                               <label
                                 key={r.id}
-                                className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${selected.includes(r.id) ? "border-neutral-900 bg-neutral-50" : "border-amber-300 bg-amber-50"}`}
+                                className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${selected.includes(r.id) ? "border-brand bg-brand/5" : "border-amber-300 bg-amber-50"}`}
                               >
-                                <input type="checkbox" checked={selected.includes(r.id)} onChange={(e) => toggle([r.id], e.target.checked)} className="h-3.5 w-3.5 accent-neutral-900" />
+                                <input type="checkbox" checked={selected.includes(r.id)} onChange={(e) => toggle([r.id], e.target.checked)} className="h-3.5 w-3.5 accent-brand" />
                                 {r.employee_name}
                               </label>
                             ) : (

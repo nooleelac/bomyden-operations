@@ -32,7 +32,7 @@ export default function PeriodNav({ period, branches, branchId, extra = {} }: Pr
             key={m}
             href={"?" + new URLSearchParams({ ...base, mode: m }).toString()}
             aria-current={period.mode === m ? "page" : undefined}
-            className={`rounded-md px-3 py-1 font-medium ${period.mode === m ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`rounded-md px-3 py-1 font-medium ${period.mode === m ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
           >
             {m === "week" ? "Theo tuần" : "Theo tháng"}
           </Link>

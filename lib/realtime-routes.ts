@@ -3,6 +3,7 @@
 // Thêm trang / bảng mới → cập nhật ở đây (và thêm bảng vào publication supabase_realtime).
 
 export type LiveTable =
+  | "app_settings"
   | "attendance_corrections"
   | "attendance_records"
   | "branches"
@@ -97,10 +98,13 @@ const HOME: LiveTable[] = [
   ...STAFF,
 ];
 
+/** Thương hiệu (logo, màu) hiển thị ở mọi trang */
+const EVERYWHERE: LiveTable[] = ["app_settings"];
+
 export function liveTablesFor(pathname: string): LiveTable[] {
-  if (pathname === "/") return [...new Set(HOME)].sort();
+  if (pathname === "/") return [...new Set([...HOME, ...EVERYWHERE])].sort();
   const match = ROUTES.filter(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`)).sort(
     (a, b) => b[0].length - a[0].length
   )[0];
-  return match ? [...new Set(match[1])].sort() : [];
+  return [...new Set([...(match?.[1] ?? []), ...EVERYWHERE])].sort();
 }

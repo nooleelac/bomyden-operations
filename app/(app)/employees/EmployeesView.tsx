@@ -56,13 +56,13 @@ export default function EmployeesView({
         <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-1 text-sm">
           <Link
             href="/employees"
-            className={`rounded-md px-3 py-1.5 font-medium ${!showLocked ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`rounded-md px-3 py-1.5 font-medium ${!showLocked ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
           >
             Đang làm
           </Link>
           <Link
             href="/employees?status=locked"
-            className={`rounded-md px-3 py-1.5 font-medium ${showLocked ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`rounded-md px-3 py-1.5 font-medium ${showLocked ? "bg-brand text-brand-fg" : "text-neutral-600"}`}
           >
             Đã khóa
           </Link>
@@ -146,7 +146,7 @@ export default function EmployeesView({
       {toast && (
         <p
           role="status"
-          className="alert-success fixed inset-x-4 bottom-4 z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96"
+          className="alert-success fixed inset-x-4 bottom-[calc(var(--nav-h)+1rem)] z-50 shadow-lg sm:left-auto sm:right-6 sm:w-96"
         >
           {toast}
         </p>

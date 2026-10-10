@@ -20,11 +20,11 @@ export default function WeekView({ weekStart, today, data, myId, onShiftClick, o
         const leaves = data.leaves.filter((l) => l.start_date <= day && l.end_date >= day);
         const isToday = day === today;
         return (
-          <li key={day} className={`card p-3 ${isToday ? "ring-2 ring-neutral-900" : ""}`}>
+          <li key={day} className={`card p-3 ${isToday ? "ring-2 ring-brand" : ""}`}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className={`text-sm font-semibold ${day < today ? "text-neutral-400" : ""}`}>
                 {dayLabel(day)}
-                {isToday && <span className="ml-2 rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">Hôm nay</span>}
+                {isToday && <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-medium text-brand-fg">Hôm nay</span>}
               </p>
               {onAdd && (
                 <button

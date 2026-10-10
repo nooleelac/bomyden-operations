@@ -536,7 +536,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
               aria-checked={paymentStatus === option.value}
               onClick={() => setPaymentStatus(option.value)}
               className={`rounded-lg border px-2 py-2.5 text-sm font-medium ${
-                paymentStatus === option.value ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700"
+                paymentStatus === option.value ? "border-brand bg-brand text-brand-fg" : "border-neutral-300 bg-white text-neutral-700"
               }`}
             >
               {option.label}
@@ -600,7 +600,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
       {showErrors && errorCount > 0 && <p className="alert-error">Còn {errorCount} dòng chưa đủ thông tin (viền đỏ).</p>}
       {showErrors && paymentError && <p className="alert-error">{paymentError}</p>}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 p-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-(--nav-h) z-20 border-t border-neutral-200 bg-white/95 p-3 backdrop-blur">
         <div className="mx-auto flex max-w-2xl gap-2">
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>Hủy</button>
           <button type="button" className="btn-primary flex-1" onClick={submit} disabled={saving || lines.length === 0}>
