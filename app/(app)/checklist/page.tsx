@@ -9,6 +9,7 @@ import { vnDateString, vnDayRange } from "@/lib/time";
 import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ChecklistView from "./ChecklistView";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import type { TaskCardData } from "./TaskCard";
 
 export const metadata: Metadata = { title: "Checklist" };
@@ -143,6 +144,8 @@ export default async function ChecklistPage() {
         </p>
       )}
 
+      {/* Realtime: người cùng ca làm xong / quản lý yêu cầu làm lại → cập nhật ngay */}
+      <RealtimeRefresh channel="my-checklist" watch={[{ table: "task_instances", filter: `task_date=eq.${today}` }]} />
       <ChecklistView mine={mine} covering={covering} />
     </div>
   );

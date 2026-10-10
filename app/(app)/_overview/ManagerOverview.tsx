@@ -10,6 +10,7 @@ import { DISPLAY_STATUS, displayStatus } from "@/lib/checklist";
 import { formatMoney } from "@/lib/inventory";
 import type { SalaryAdvanceQueueItem } from "@/lib/payroll";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 const TREND_DAYS = 7;
 
@@ -305,6 +306,11 @@ export default async function ManagerOverview({
 
   return (
     <div className="space-y-4">
+      {/* Realtime: việc checklist hôm nay + vào / ra ca */}
+      <RealtimeRefresh
+        channel="manager-overview"
+        watch={[{ table: "task_instances", filter: `task_date=eq.${today}` }, { table: "attendance_records" }]}
+      />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
           label="Đang trong ca"

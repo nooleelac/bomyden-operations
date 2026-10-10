@@ -8,6 +8,7 @@ import { isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
 import { displayStatus, shiftCoversTask } from "@/lib/checklist";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ManageChecklistView, { type ReportItem } from "./ManageChecklistView";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import type { BranchStaff, TaskSetItem, TemplateItem } from "./TemplateDialog";
 
 export const metadata: Metadata = { title: "Quản lý checklist" };
@@ -179,6 +180,10 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
             <button type="submit" className="btn-primary">Xem</button>
           </form>
 
+          {/* Realtime: nhân viên đánh dấu việc → báo cáo cập nhật ngay */}
+          {tab === "report" && (
+            <RealtimeRefresh channel="checklist-report" watch={[{ table: "task_instances", filter: `task_date=eq.${date}` }]} />
+          )}
           <ManageChecklistView tab={tab} report={report} templates={templates} sets={sets} branches={branchStaff} dateLabel={dateLabel} />
         </>
       )}
