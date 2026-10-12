@@ -1,7 +1,8 @@
 // Edge Function "ops-jobs" — chỉ pg_cron (qua pg_net) gọi, xác thực bằng header x-cron-secret.
 //   job = "reminders": gửi Web Push cho các thông báo đang chờ (bảng notifications).
 //   job = "cleanup":   xóa ảnh checklist cũ hơn 3 tháng khỏi kho task-photos (giữ dòng lịch sử);
-//                      xóa ảnh hóa đơn bỏ dở > 1 ngày và ảnh phiếu nhập > 12 tháng khỏi kho invoice-photos.
+//                      xóa ảnh hóa đơn bỏ dở > 1 ngày và ảnh phiếu nhập > 12 tháng khỏi kho invoice-photos;
+//                      xóa ảnh bàn giao ca > 3 tháng và ảnh bàn giao bỏ dở > 1 ngày khỏi kho handover-photos.
 // Deploy với verify_jwt = false (tự xác thực trong code).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -10,6 +11,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SECRET_KEY = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}")["default"] ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const PHOTO_BUCKET = "task-photos";
 const INVOICE_BUCKET = "invoice-photos";
+const HANDOVER_BUCKET = "handover-photos";
 
 const admin = createClient(SUPABASE_URL, SECRET_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
@@ -99,10 +101,28 @@ async function purge(bucket: string, listFn: string, markFn: string) {
   return removed;
 }
 
+/** Ảnh bàn giao đã tải lên nhưng không gửi phiếu: xóa khỏi kho là hết (không có dòng DB để đánh dấu). */
+async function purgeHandoverOrphans() {
+  let removed = 0;
+  for (let round = 0; round < 20; round++) {
+    const { data, error } = await admin.rpc("service_handover_orphan_photos", { p_limit: 500 });
+    if (error) throw error;
+    const names = ((data ?? []) as { name: string }[]).map((r) => r.name);
+    if (names.length === 0) break;
+    const { error: removeError } = await admin.storage.from(HANDOVER_BUCKET).remove(names);
+    if (removeError) throw removeError;
+    removed += names.length;
+    if (names.length < 500) break;
+  }
+  return removed;
+}
+
 async function cleanupPhotos() {
   const removed = await purge(PHOTO_BUCKET, "service_photos_to_purge", "service_mark_photos_purged");
   const invoices = await purge(INVOICE_BUCKET, "service_invoice_photos_to_purge", "service_mark_invoice_photos_purged");
-  return { removed, invoices };
+  const handovers = await purge(HANDOVER_BUCKET, "service_handover_photos_to_purge", "service_mark_handover_photos_purged");
+  const handoverOrphans = await purgeHandoverOrphans();
+  return { removed, invoices, handovers, handoverOrphans };
 }
 
 Deno.serve(async (req) => {

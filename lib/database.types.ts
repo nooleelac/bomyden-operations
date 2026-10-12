@@ -1850,6 +1850,195 @@ export type Database = {
           },
         ]
       }
+      handover_items: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          requires_photo: boolean
+          sort_order: number
+          unit: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          requires_photo?: boolean
+          sort_order?: number
+          unit: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          requires_photo?: boolean
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handover_items_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_items_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_handover_lines: {
+        Row: {
+          handover_id: string
+          id: string
+          item_id: string
+          item_name: string
+          photo_path: string | null
+          photo_purged_at: string | null
+          quantity: number
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          handover_id: string
+          id?: string
+          item_id: string
+          item_name: string
+          photo_path?: string | null
+          photo_purged_at?: string | null
+          quantity: number
+          sort_order?: number
+          unit: string
+        }
+        Update: {
+          handover_id?: string
+          id?: string
+          item_id?: string
+          item_name?: string
+          photo_path?: string | null
+          photo_purged_at?: string | null
+          quantity?: number
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_handover_lines_handover_id_fkey"
+            columns: ["handover_id"]
+            isOneToOne: false
+            referencedRelation: "shift_handovers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_handover_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_handovers: {
+        Row: {
+          branch_id: string
+          created_at: string
+          handed_by: string
+          handed_by_name: string
+          id: string
+          line_count: number
+          note: string | null
+          receive_note: string | null
+          received_at: string | null
+          received_by: string | null
+          received_by_name: string | null
+          status: Database["public"]["Enums"]["handover_status"]
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          handed_by: string
+          handed_by_name: string
+          id?: string
+          line_count?: number
+          note?: string | null
+          receive_note?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_by_name?: string | null
+          status?: Database["public"]["Enums"]["handover_status"]
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          handed_by?: string
+          handed_by_name?: string
+          id?: string
+          line_count?: number
+          note?: string | null
+          receive_note?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_by_name?: string | null
+          status?: Database["public"]["Enums"]["handover_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_handovers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_handovers_handed_by_fkey"
+            columns: ["handed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_handovers_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1872,6 +2061,34 @@ export type Database = {
           p_receipt_id: string
         }
         Returns: string
+      }
+      create_shift_handover: {
+        Args: { p_branch_id: string; p_note: string | null; p_lines: Json }
+        Returns: string
+      }
+      receive_shift_handover: {
+        Args: { p_handover_id: string; p_note?: string; p_ok: boolean }
+        Returns: {
+          branch_id: string
+          created_at: string
+          handed_by: string
+          handed_by_name: string
+          id: string
+          line_count: number
+          note: string | null
+          receive_note: string | null
+          received_at: string | null
+          received_by: string | null
+          received_by_name: string | null
+          status: Database["public"]["Enums"]["handover_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_handovers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_stock_count: {
         Args: { p_branch_id: string; p_note: string | null; p_lines: Json }
@@ -2260,6 +2477,7 @@ export type Database = {
       }
     }
     Enums: {
+      handover_status: "pending" | "confirmed" | "disputed"
       payment_method: "cash" | "transfer" | "other"
       stock_movement_kind: "receipt" | "receipt_cancel" | "adjust" | "count" | "issue" | "issue_cancel" | "transfer_in" | "transfer_in_cancel"
       stock_issue_kind: "waste" | "transfer" | "other"
@@ -2283,6 +2501,8 @@ export type Database = {
         | "debt_due"
         | "checkout_reminder"
         | "auto_checkout"
+        | "handover_new"
+        | "handover_disputed"
       salary_advance_status: "pending" | "approved" | "rejected" | "cancelled"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
@@ -2362,3 +2582,5 @@ export type StockReceiptStatus = Database["public"]["Enums"]["stock_receipt_stat
 export type StockMovementKind = Database["public"]["Enums"]["stock_movement_kind"]
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"]
 export type SupplierPayment = Database["public"]["Tables"]["supplier_payments"]["Row"]
+
+export type HandoverStatus = Database["public"]["Enums"]["handover_status"]

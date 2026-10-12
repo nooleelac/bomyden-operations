@@ -49,3 +49,22 @@ export async function getInventoryBranches(actor: CurrentEmployee): Promise<Bran
     .map((row) => ({ id: row.branches.id, name: row.branches.name }))
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }
+
+/**
+ * Chi nhánh (đang hoạt động) của người dùng: Quản trị viên → tất cả; người khác → chi nhánh mình được gán.
+ * Dùng cho chức năng mọi nhân viên đều vào được (VD Bàn giao ca).
+ */
+export async function getMyBranches(actor: CurrentEmployee): Promise<BranchRef[]> {
+  if (actor.role === "admin") return getManageableBranches(actor);
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("employee_branches")
+    .select("branches!inner(id, name, is_active)")
+    .eq("employee_id", actor.id)
+    .eq("branches.is_active", true);
+
+  return (data ?? [])
+    .map((row) => ({ id: row.branches.id, name: row.branches.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+}

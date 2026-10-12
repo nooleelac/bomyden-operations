@@ -17,6 +17,7 @@
 | 10 | **Công nợ nhà cung cấp** (đã trả / chưa trả, số nợ từng NCC) | Thấp | Khi cần | — (đã chốt: đầy đủ, QTV + QL ghi thanh toán) | ✅ Xong (09/10/2026) — kèm VAT theo từng dòng, giá vốn sau VAT |
 | 12 | **Thông báo đăng ký ca**: báo QL khi NV gửi đăng ký mới; báo NV khi được duyệt / từ chối; nhắc NV part-time chưa đăng ký tuần tới | Trung bình | Khi dùng thật tính năng tự đăng ký | Nhắc vào thứ mấy, mấy giờ? | ✅ Xong (10/10/2026) — báo QL khi NV gửi đăng ký / đơn, báo NV khi duyệt / từ chối, nhắc NV chưa đăng ký tuần tới vào T7 15:00 (hạn chót 2 ngày) |
 | 11 | **Nhắc công nợ sắp đến hạn / quá hạn** qua thông báo đẩy cho QTV/QL | Thấp | Khi cần | — (đã chốt: trước 3 ngày + đúng ngày, quá hạn nhắc mỗi ngày) | ✅ Xong (10/10/2026) — 9:00 hằng ngày, gộp 1 thông báo / chi nhánh cho QL + QTV |
+| 13 | **Deploy lại Edge Function `ops-jobs`** (thêm dọn ảnh bàn giao ca > 3 tháng + ảnh bỏ dở > 1 ngày). Lần deploy 13/10/2026 qua MCP bị lỗi nội bộ Supabase → chạy `npx supabase functions deploy ops-jobs --no-verify-jwt --project-ref vhpbycdbprppxpejtkiu` | Trung bình | Trước khi kho `handover-photos` đầy (vài tuần) | — | ⏳ Chưa làm |
 
 ## Ghi chú ước tính dung lượng ảnh
 

@@ -29,6 +29,7 @@ export const AUDIT_GROUPS: AuditGroup[] = [
     label: "Kho",
     tables: ["inventory_items", "inventory_item_units", "stock_receipts", "stock_counts", "stock_issues", "suppliers", "supplier_payments"],
   },
+  { key: "handover", label: "Bàn giao ca", tables: ["handover_items"] },
   { key: "settings", label: "Thương hiệu", tables: ["app_settings"] },
 ];
 
@@ -61,6 +62,7 @@ const TABLE_LABELS: Record<string, string> = {
   suppliers: "Nhà cung cấp",
   supplier_payments: "Thanh toán nhà cung cấp",
   app_settings: "Thương hiệu",
+  handover_items: "Món bàn giao ca",
 };
 
 export function tableLabel(table: string): string {
@@ -188,6 +190,7 @@ const FIELD_LABELS: Record<string, string> = {
   net_amount: "Thực lĩnh",
   base_unit: "Đơn vị gốc",
   unit_name: "Đơn vị",
+  unit: "Đơn vị ghi",
   factor: "Hệ số quy đổi",
   item_id: "Nguyên liệu",
   supplier_id: "Nhà cung cấp",
@@ -498,7 +501,7 @@ export function auditSubject(table: string, oldData: unknown, newData: unknown, 
     if (typeof emp === "string") parts.push(refs.employees.get(emp) ?? "(nhân viên đã xóa)");
   }
   if (table === "employee_branches" && typeof data.branch_id === "string") parts.push(refs.branches.get(data.branch_id) ?? "");
-  if (table === "inventory_item_units" && typeof data.item_id === "string") parts.push(refs.items.get(data.item_id) ?? "");
+  if ((table === "inventory_item_units" || table === "handover_items") && typeof data.item_id === "string") parts.push(refs.items.get(data.item_id) ?? "");
   if ((table === "suppliers" || table.startsWith("stock_") || table === "supplier_payments") && typeof data.supplier_id === "string") {
     const s = refs.suppliers.get(data.supplier_id);
     if (s && !parts.includes(s)) parts.push(s);

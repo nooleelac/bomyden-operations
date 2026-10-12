@@ -32,6 +32,7 @@ export const getModules = cache(async (employee: CurrentEmployee): Promise<AppMo
     // QTV không được giao việc checklist → chỉ cần "Quản lý checklist"
     notAdmin && { title: "Checklist", short: "Checklist", description: "Công việc hôm nay của tôi", href: "/checklist", icon: "📋" },
     manage && { title: "Quản lý checklist", short: "Checklist", description: "Mẫu công việc, báo cáo hằng ngày", href: "/checklist/manage", icon: "✅" },
+    { title: "Bàn giao ca", short: "Bàn giao", description: "Chụp ảnh, ghi số kg thịt bò & nguyên liệu khi giao ca", href: "/handover", icon: "🤝" },
     mustClockIn(employee) && { title: "Chấm công", short: "Chấm công", description: "Vào ca / ra ca, lịch sử, yêu cầu sửa", href: "/attendance", icon: "🕐" },
     manage && { title: "Quản lý chấm công", short: "Chấm công", description: "Duyệt yêu cầu sửa, ai đang trong ca", href: "/attendance/manage", icon: "🗂️" },
     canManageEmployees(employee.role) && { title: "Nhân viên", short: "Nhân viên", description: "Tài khoản, chức vụ, chi nhánh", href: "/employees", icon: "👥" },
