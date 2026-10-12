@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireEmployee } from "@/lib/auth/session";
+import { isManagerOrAdmin } from "@/lib/auth/roles";
 import { getMyBranches } from "@/lib/branches";
 import { createClient } from "@/lib/supabase/server";
 import BranchChips from "../../inventory/BranchChips";
@@ -60,10 +61,10 @@ export default async function NewHandoverPage({ searchParams }: PageProps<"/hand
       {items.length === 0 ? (
         <div className="card p-8 text-center text-neutral-500">
           <p>Chi nhánh chưa có danh sách món cần bàn giao.</p>
-          {me.role === "admin" ? (
+          {isManagerOrAdmin(me.role) ? (
             <Link href={`/handover/settings?branch=${branchId}`} className="btn-primary mt-4 inline-flex">⚙️ Thiết lập danh sách món</Link>
           ) : (
-            <p className="mt-1 text-sm">Nhờ Quản trị viên thiết lập trước.</p>
+            <p className="mt-1 text-sm">Nhờ Quản lý thiết lập trước.</p>
           )}
         </div>
       ) : (

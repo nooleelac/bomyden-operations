@@ -6,8 +6,8 @@ import { addHandoverItem, moveHandoverItem, removeHandoverItem, updateHandoverIt
 
 type Row = { id: string; name: string; unit: string; requiresPhoto: boolean };
 
-/** Danh sách món bàn giao: QTV thêm / sửa tên, đơn vị; QL sắp xếp, bật tắt ảnh, gỡ món. */
-export default function SettingsView({ branchId, rows, isAdmin }: { branchId: string; rows: Row[]; isAdmin: boolean }) {
+/** Danh sách món bàn giao (QTV / QL chi nhánh): thêm, sửa tên & đơn vị, sắp xếp, bật tắt ảnh, gỡ món. */
+export default function SettingsView({ branchId, rows }: { branchId: string; rows: Row[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -34,7 +34,7 @@ export default function SettingsView({ branchId, rows, isAdmin }: { branchId: st
         </h2>
         {rows.length === 0 ? (
           <p className="p-6 text-center text-sm text-neutral-500">
-            {isAdmin ? "Chưa có món nào — thêm ở bên dưới." : "Chưa có món nào — nhờ Quản trị viên thêm."}
+            Chưa có món nào — thêm ở bên dưới.
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
@@ -91,16 +91,14 @@ export default function SettingsView({ branchId, rows, isAdmin }: { branchId: st
                   </div>
                   <p className="min-w-0 flex-1 text-sm font-medium">{row.name}</p>
                   <span className="text-sm text-neutral-500">{row.unit}</span>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      className="text-sm text-neutral-600 hover:underline disabled:opacity-50"
-                      disabled={pending}
-                      onClick={() => setEditing({ id: row.id, name: row.name, unit: row.unit })}
-                    >
-                      Sửa
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="text-sm text-neutral-600 hover:underline disabled:opacity-50"
+                    disabled={pending}
+                    onClick={() => setEditing({ id: row.id, name: row.name, unit: row.unit })}
+                  >
+                    Sửa
+                  </button>
                   <label className="flex items-center gap-1.5 text-sm text-neutral-600">
                     <input
                       type="checkbox"
@@ -126,43 +124,41 @@ export default function SettingsView({ branchId, rows, isAdmin }: { branchId: st
         )}
       </section>
 
-      {isAdmin && (
-        <section className="card p-4">
-          <h2 className="text-sm font-semibold text-neutral-700">Thêm món</h2>
-          <p className="mb-3 text-xs text-neutral-500">
-            Gõ tên món như muốn nhân viên thấy (vd: Thịt bò thăn, Sốt tiêu đen pha sẵn) — không liên kết với danh mục Kho.
-          </p>
-          <form
-            className="flex flex-wrap gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              run(() => addHandoverItem(branchId, draft), () => setDraft({ name: "", unit: "" }));
-            }}
-          >
-            <input
-              className="input min-w-0 flex-1 basis-48"
-              placeholder="Tên món"
-              aria-label="Tên món mới"
-              maxLength={150}
-              required
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            />
-            <input
-              className="input w-28"
-              placeholder="Đơn vị (kg, hũ…)"
-              aria-label="Đơn vị món mới"
-              maxLength={20}
-              required
-              value={draft.unit}
-              onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
-            />
-            <button type="submit" className="btn-primary" disabled={pending}>
-              + Thêm
-            </button>
-          </form>
-        </section>
-      )}
+      <section className="card p-4">
+        <h2 className="text-sm font-semibold text-neutral-700">Thêm món</h2>
+        <p className="mb-3 text-xs text-neutral-500">
+          Gõ tên món như muốn nhân viên thấy (vd: Thịt bò thăn, Sốt tiêu đen pha sẵn) — không liên kết với danh mục Kho.
+        </p>
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => addHandoverItem(branchId, draft), () => setDraft({ name: "", unit: "" }));
+          }}
+        >
+          <input
+            className="input min-w-0 flex-1 basis-48"
+            placeholder="Tên món"
+            aria-label="Tên món mới"
+            maxLength={150}
+            required
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          />
+          <input
+            className="input w-28"
+            placeholder="Đơn vị (kg, hũ…)"
+            aria-label="Đơn vị món mới"
+            maxLength={20}
+            required
+            value={draft.unit}
+            onChange={(e) => setDraft({ ...draft, unit: e.target.value })}
+          />
+          <button type="submit" className="btn-primary" disabled={pending}>
+            + Thêm
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

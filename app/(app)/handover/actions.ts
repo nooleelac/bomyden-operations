@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin, requireEmployee, requireManager } from "@/lib/auth/session";
+import { requireEmployee, requireManager } from "@/lib/auth/session";
 import { getMyBranches } from "@/lib/branches";
 import { HANDOVER_PHOTO_BUCKET } from "@/lib/handover-photos";
 import { TASK_PHOTO_MAX_BYTES, TASK_PHOTO_TYPES } from "@/lib/task-photos";
@@ -101,9 +101,9 @@ const itemSchema = z.object({
   unit: z.string().trim().min(1, "Nhập đơn vị (vd: kg, hũ, khay).").max(20, "Đơn vị tối đa 20 ký tự."),
 });
 
-/** Món chỉ dùng để bàn giao (tên + đơn vị tự gõ), không liên kết danh mục Kho — chỉ QTV thêm. */
+/** Món chỉ dùng để bàn giao (tên + đơn vị tự gõ), không liên kết danh mục Kho — QTV / QL chi nhánh thêm. */
 export async function addHandoverItem(branchId: string, input: z.input<typeof itemSchema>): Promise<SaveResult> {
-  await requireAdmin();
+  await requireManager();
   if (!z.uuid().safeParse(branchId).success) return { ok: false, message: "Dữ liệu không hợp lệ." };
   const parsed = itemSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -127,7 +127,6 @@ export async function addHandoverItem(branchId: string, input: z.input<typeof it
   return { ok: true, message: "Đã thêm vào danh sách bàn giao." };
 }
 
-/** QTV: tên, đơn vị (DB chặn QL đổi); QL: bắt buộc ảnh. */
 export async function updateHandoverItem(id: string, patch: { name?: string; unit?: string; requiresPhoto?: boolean }): Promise<SaveResult> {
   await requireManager();
   const supabase = await createClient();

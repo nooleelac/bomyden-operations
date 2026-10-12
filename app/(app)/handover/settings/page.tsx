@@ -33,13 +33,12 @@ export default async function HandoverSettingsPage({ searchParams }: PageProps<"
       <Link href={`/handover?branch=${branchId}`} className="text-sm text-neutral-500 hover:text-neutral-900">← Bàn giao ca</Link>
       <h1 className="mb-1 mt-2 text-2xl font-bold tracking-tight">Danh sách món bàn giao</h1>
       <p className="mb-4 text-sm text-neutral-500">
-        Những món nhân viên phải cân / đếm và chụp ảnh mỗi lần bàn giao ca. Danh sách riêng, không liên kết danh mục Kho (nhân viên không thấy nguyên liệu kho) và không ảnh hưởng tồn kho. Chỉ QTV thêm món, đổi tên, đơn vị; QL sắp xếp, bật / tắt ảnh, gỡ món.
+        Những món nhân viên phải cân / đếm và chụp ảnh mỗi lần bàn giao ca. Danh sách riêng, không liên kết danh mục Kho (nhân viên không thấy nguyên liệu kho) và không ảnh hưởng tồn kho. QTV và Quản lý chi nhánh thêm, sửa, sắp xếp, gỡ món.
       </p>
       <BranchChips branches={branches} branchId={branchId} href={(id) => `?branch=${id}`} />
       <SettingsView
         key={branchId}
         branchId={branchId}
-        isAdmin={me.role === "admin"}
         rows={(rows ?? []).map((r) => ({ id: r.id, name: r.name, unit: r.unit, requiresPhoto: r.requires_photo }))}
       />
     </div>
