@@ -271,12 +271,27 @@ export async function reviewRegistrations(approve: boolean, _prev: ActionState, 
   const noteText = str(formData, "review_note");
   if (!approve && noteText.length < 3) return fail("Vui lòng ghi lý do từ chối.", { review_note: "Nhập lý do (ít nhất 3 ký tự)." });
 
+  // QL sửa giờ (chỉ khi duyệt từng đăng ký)
+  const startText = str(formData, "start_time");
+  const endText = str(formData, "end_time");
+  const edited = Boolean(startText || endText);
+  if (edited && (!approve || ids.length !== 1 || !time.safeParse(startText).success || !time.safeParse(endText).success || startText === endText)) {
+    return fail("Giờ vào / giờ ra không hợp lệ.", { end_time: "Chọn giờ vào và giờ ra khác nhau." });
+  }
+
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("review_shift_registrations", { p_ids: ids, p_approve: approve, p_note: noteText || null });
+  const { data, error } = await supabase.rpc("review_shift_registrations", {
+    p_ids: ids,
+    p_approve: approve,
+    p_note: noteText || null,
+    p_start: edited ? startText : null,
+    p_end: edited ? endText : null,
+  });
   if (error) return fail(friendlyDbError(error));
   const result = data as { done: number; skipped: number };
   revalidateSchedule();
   if (!approve) return success(`Đã từ chối ${result.done} đăng ký.`);
+  if (edited && result.done === 1) return success(`Đã duyệt ca ${startText}–${endText} (ca nháp). Nhân viên sẽ được báo giờ đã chỉnh. Nhớ bấm “Công bố” ở tab Xếp lịch.`);
   if (result.done === 0 && result.skipped) return fail(`Không duyệt được — ${result.skipped} đăng ký bị trùng giờ với ca đã có.`);
   return success(
     `Đã duyệt ${result.done} đăng ký thành ca nháp` +
@@ -292,6 +307,45 @@ export async function setSelfSchedule(employeeId: string, enabled: boolean): Pro
   if (error) return fail(friendlyDbError(error));
   revalidateSchedule();
   return success(enabled ? "Đã cho phép tự đăng ký ca." : "Đã tắt tự đăng ký ca.");
+}
+
+// =====================================================================
+// ĐỊNH MỨC NHÂN SỰ THEO KHUNG GIỜ
+// =====================================================================
+const staffingSchema = z
+  .object({
+    weekdays: z.array(z.coerce.number().int().min(0).max(6)).min(1, { message: "Chọn ít nhất 1 thứ." }),
+    start_time: time,
+    end_time: time,
+    headcount: z.coerce.number({ message: "Số người phải là số." }).int().min(1, { message: "Tối thiểu 1 người." }).max(50, { message: "Tối đa 50 người." }),
+  })
+  .refine((v) => v.start_time !== v.end_time, { path: ["end_time"], message: "Giờ kết thúc phải khác giờ bắt đầu." });
+
+export async function addStaffingRequirement(branchId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireManager();
+  const parsed = staffingSchema.safeParse({
+    weekdays: formData.getAll("weekdays").map(String),
+    start_time: str(formData, "start_time"),
+    end_time: str(formData, "end_time"),
+    headcount: str(formData, "headcount"),
+  });
+  if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("staffing_requirements").insert({ branch_id: branchId, ...parsed.data });
+  if (error) return fail(friendlyDbError(error));
+  revalidateSchedule();
+  return success("Đã thêm định mức.");
+}
+
+export async function deleteStaffingRequirement(id: string): Promise<ActionState> {
+  await requireManager();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("staffing_requirements").delete().eq("id", id).select("id");
+  if (error) return fail(friendlyDbError(error));
+  if (!data?.length) return fail("Bạn không có quyền xóa định mức này.");
+  revalidateSchedule();
+  return success("Đã xóa định mức.");
 }
 
 // =====================================================================
@@ -312,15 +366,55 @@ const settingsSchema = z.object({
   register_deadline_days: z.coerce.number({ message: "Số ngày phải là số." }).int().min(0, { message: "Tối thiểu 0." }).max(60, { message: "Tối đa 60 ngày." }),
 });
 
+// Khung giờ NV tự đăng ký ca (form nhập giờ, lưu phút)
+const regHours = (label: string, min: number, max: number) =>
+  z.coerce
+    .number({ message: `${label} phải là số.` })
+    .min(min, { message: `Tối thiểu ${min} tiếng.` })
+    .max(max, { message: `Tối đa ${max} tiếng.` })
+    .refine((v) => Number.isInteger(v * 2), { message: "Nhập theo bước 0,5 tiếng." })
+    .transform((v) => Math.round(v * 60));
+const registerSchema = z
+  .object({
+    register_earliest: time,
+    register_latest: time,
+    register_step_minutes: z.coerce.number().refine((v) => [15, 30, 60].includes(v), { message: "Bước phút không hợp lệ." }),
+    register_min_minutes: regHours("Ca ngắn nhất", 0.5, 16),
+    register_max_minutes: regHours("Ca dài nhất", 0.5, 16),
+    register_max_per_day: z.coerce.number().int().min(1, { message: "Tối thiểu 1." }).max(3, { message: "Tối đa 3." }),
+    register_max_day_minutes: regHours("Tổng giờ/ngày", 0.5, 24),
+  })
+  .refine((v) => v.register_earliest !== v.register_latest, { path: ["register_latest"], message: "Giờ ra muộn nhất phải khác giờ vào sớm nhất." })
+  .refine((v) => [v.register_earliest, v.register_latest].every((t) => Number(t.slice(3, 5)) % v.register_step_minutes === 0), {
+    path: ["register_earliest"],
+    message: "Giờ phải tròn theo bước phút.",
+  })
+  .refine((v) => v.register_max_minutes >= v.register_min_minutes, { path: ["register_max_minutes"], message: "Phải lớn hơn hoặc bằng ca ngắn nhất." })
+  .refine((v) => v.register_max_day_minutes >= v.register_min_minutes, { path: ["register_max_day_minutes"], message: "Phải lớn hơn hoặc bằng ca ngắn nhất." });
+
 export async function saveScheduleSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const parsed = settingsSchema.safeParse(Object.fromEntries(Object.keys(settingsSchema.shape).map((k) => [k, str(formData, k) || "0"])));
-  if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
+  const reg = registerSchema.safeParse({
+    register_earliest: str(formData, "register_earliest"),
+    register_latest: str(formData, "register_latest"),
+    register_step_minutes: str(formData, "register_step_minutes"),
+    register_min_minutes: str(formData, "register_min_hours").replace(",", "."),
+    register_max_minutes: str(formData, "register_max_hours").replace(",", "."),
+    register_max_per_day: str(formData, "register_max_per_day"),
+    register_max_day_minutes: str(formData, "register_max_day_hours").replace(",", "."),
+  });
+  if (!parsed.success || !reg.success) {
+    const regErrors = Object.fromEntries(
+      Object.entries(reg.success ? {} : zodFieldErrors(reg.error.issues)).map(([k, v]) => [k.replace("_minutes", "_hours").replace("register_step_hours", "register_step_minutes"), v])
+    );
+    return fail("Vui lòng kiểm tra lại thông tin.", { ...(parsed.success ? {} : zodFieldErrors(parsed.error.issues)), ...regErrors });
+  }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("schedule_settings").update(parsed.data).eq("id", true).select("id");
+  const { data, error } = await supabase.from("schedule_settings").update({ ...parsed.data, ...reg.data }).eq("id", true).select("id");
   if (error) return fail(friendlyDbError(error));
   if (!data?.length) return fail("Bạn không có quyền sửa cài đặt.");
   revalidateSchedule();
-  return success("Đã lưu cài đặt đơn xin phép.");
+  return success("Đã lưu cài đặt lịch & đơn.");
 }

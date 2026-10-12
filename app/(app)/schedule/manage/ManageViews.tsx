@@ -18,7 +18,7 @@ import {
   setLeavePaid,
   updateShiftTemplate,
 } from "./actions";
-import { REQUEST_KIND_LABELS, REQUEST_STATUS, addDays, describeRequest, type MyRequest, type ScheduleShift, type WeekSchedule } from "@/lib/schedule";
+import { REQUEST_KIND_LABELS, REQUEST_STATUS, addDays, describeRequest, fromMin, hm, type MyRequest, type ScheduleShift, type WeekSchedule } from "@/lib/schedule";
 import { formatDateTime } from "@/lib/time";
 import type { ActionState } from "@/lib/action-state";
 import type { ScheduleSettings } from "@/lib/database.types";
@@ -36,6 +36,12 @@ function useToast() {
 
 function Toast({ message }: { message: string }) {
   return message ? <p role="status" className="alert-success mb-4">{message}</p> : null;
+}
+
+/** 00:00 … 23:30 (kèm giá trị hiện tại nếu lệch bước) */
+function halfHours(current: string): string[] {
+  const list = Array.from({ length: 48 }, (_, i) => fromMin(i * 30));
+  return list.includes(current) ? list : [...list, current].sort();
 }
 
 function Err({ state, name }: { state: ActionState; name: string }) {
@@ -480,6 +486,56 @@ export function ScheduleSettingsForm({ settings }: { settings: ScheduleSettings 
           Ví dụ 3: hôm nay chỉ đăng ký / sửa được các ngày từ 3 ngày sau trở đi. Sau hạn, muốn đổi phải gửi đơn như bình thường.
         </p>
         <Err state={state} name="register_deadline_days" />
+
+        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <label htmlFor="st-earliest" className="mb-1 block font-medium text-neutral-700">Vào ca sớm nhất</label>
+            <select id="st-earliest" name="register_earliest" defaultValue={hm(settings.register_earliest)} className="input">
+              {halfHours(hm(settings.register_earliest)).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <Err state={state} name="register_earliest" />
+          </div>
+          <div>
+            <label htmlFor="st-latest" className="mb-1 block font-medium text-neutral-700">Ra ca muộn nhất</label>
+            <select id="st-latest" name="register_latest" defaultValue={hm(settings.register_latest)} className="input">
+              {halfHours(hm(settings.register_latest)).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <p className="mt-1 text-xs text-neutral-500">Sớm hơn giờ vào sớm nhất = hôm sau (VD 01:00).</p>
+            <Err state={state} name="register_latest" />
+          </div>
+          <div>
+            <label htmlFor="st-step" className="mb-1 block font-medium text-neutral-700">Bước chọn giờ</label>
+            <select id="st-step" name="register_step_minutes" defaultValue={settings.register_step_minutes} className="input">
+              <option value={15}>15 phút</option>
+              <option value={30}>30 phút</option>
+              <option value={60}>60 phút</option>
+            </select>
+            <Err state={state} name="register_step_minutes" />
+          </div>
+          <div>
+            <label htmlFor="st-perday" className="mb-1 block font-medium text-neutral-700">Số ca tối đa / ngày</label>
+            <input id="st-perday" name="register_max_per_day" type="number" min={1} max={3} defaultValue={settings.register_max_per_day} className="input" />
+            <Err state={state} name="register_max_per_day" />
+          </div>
+          <div>
+            <label htmlFor="st-min" className="mb-1 block font-medium text-neutral-700">Ca ngắn nhất (tiếng)</label>
+            <input id="st-min" name="register_min_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={settings.register_min_minutes / 60} className="input" />
+            <Err state={state} name="register_min_hours" />
+          </div>
+          <div>
+            <label htmlFor="st-max" className="mb-1 block font-medium text-neutral-700">Ca dài nhất (tiếng)</label>
+            <input id="st-max" name="register_max_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={settings.register_max_minutes / 60} className="input" />
+            <Err state={state} name="register_max_hours" />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="st-day" className="mb-1 block font-medium text-neutral-700">Có từ 2 ca / ngày thì tổng tối đa (tiếng)</label>
+            <input id="st-day" name="register_max_day_hours" type="number" min={0.5} max={24} step={0.5} defaultValue={settings.register_max_day_minutes / 60} className="input sm:w-40" />
+            <Err state={state} name="register_max_day_hours" />
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          Nhân viên tự chọn giờ vào / ra trong khung này. Quản lý vẫn sửa được giờ ngoài khung khi duyệt.
+        </p>
       </div>
       {state.message && <p role="status" className={state.ok ? "alert-success" : "alert-error"}>{state.message}</p>}
       <div className="flex justify-end">

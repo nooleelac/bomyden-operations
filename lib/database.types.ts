@@ -192,6 +192,13 @@ type ScheduleSettingsRow = {
   early_per_month: number
   swap_per_month: number
   register_deadline_days: number
+  register_earliest: string
+  register_latest: string
+  register_step_minutes: number
+  register_min_minutes: number
+  register_max_minutes: number
+  register_max_per_day: number
+  register_max_day_minutes: number
   updated_at: string
   updated_by: string | null
 }
@@ -737,6 +744,31 @@ export type Database = {
           },
         ]
       }
+      staffing_requirements: {
+        Row: {
+          id: string
+          branch_id: string
+          weekdays: number[]
+          start_time: string
+          end_time: string
+          headcount: number
+          created_at: string
+          created_by: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: { branch_id: string; weekdays: number[]; start_time: string; end_time: string; headcount: number }
+        Update: { weekdays?: number[]; start_time?: string; end_time?: string; headcount?: number }
+        Relationships: [
+          {
+            foreignKeyName: "staffing_requirements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_registrations: {
         Row: {
           id: string
@@ -744,6 +776,10 @@ export type Database = {
           employee_id: string
           work_date: string
           template_id: string | null
+          start_time: string | null
+          end_time: string | null
+          approved_start_time: string | null
+          approved_end_time: string | null
           status: Database["public"]["Enums"]["registration_status"]
           shift_id: string | null
           review_note: string | null
@@ -1861,7 +1897,7 @@ export type Database = {
         Returns: Json
       }
       review_shift_registrations: {
-        Args: { p_ids: string[]; p_approve: boolean; p_note?: string | null }
+        Args: { p_ids: string[]; p_approve: boolean; p_note?: string | null; p_start?: string | null; p_end?: string | null }
         Returns: Json
       }
       set_self_schedule: {
@@ -1920,6 +1956,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      branch_coverage: {
+        Args: { p_branch_id: string; p_from: string; p_to: string }
+        Returns: Json
       }
       branch_week_schedule: {
         Args: { p_branch_id: string; p_week_start: string }

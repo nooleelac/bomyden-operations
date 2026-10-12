@@ -7,9 +7,10 @@ import { requireEmployee } from "@/lib/auth/session";
 import { fail, friendlyDbError, success, type ActionState } from "@/lib/action-state";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable();
 const itemsSchema = z
-  .array(z.object({ work_date: date, template_id: z.uuid().nullable() }))
-  .max(62 * 10);
+  .array(z.object({ work_date: date, start_time: time, end_time: time, template_id: z.uuid().nullable() }))
+  .max(63 * 4);
 
 export async function saveMyRegistrations(branchId: string, from: string, to: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const me = await requireEmployee();
@@ -31,12 +32,13 @@ export async function saveMyRegistrations(branchId: string, from: string, to: st
     p_items: parsed.data,
   });
   if (error) return fail(friendlyDbError(error));
-  const result = data as { saved: number; locked: number; overlap: number };
+  const result = data as { saved: number; locked: number; overlap: number; limit: number };
   revalidatePath("/schedule/register");
   revalidatePath("/schedule/manage");
   return success(
     (result.saved ? `Đã gửi ${result.saved} đăng ký. Quản lý sẽ duyệt và xếp lịch.` : "Đã lưu (không còn đăng ký nào đang chờ trong khoảng này).") +
       (result.locked ? ` ${result.locked} ngày đã quá hạn nên không đổi được.` : "") +
-      (result.overlap ? ` Bỏ qua ${result.overlap} ca trùng giờ với ca khác cùng ngày.` : "")
+      (result.overlap ? ` Bỏ qua ${result.overlap} ca trùng giờ với ca khác cùng ngày.` : "") +
+      (result.limit ? ` Bỏ qua ${result.limit} ca vượt số ca / tổng giờ tối đa trong ngày.` : "")
   );
 }

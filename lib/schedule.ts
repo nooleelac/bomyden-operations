@@ -193,3 +193,111 @@ export function describeRequest(r: {
         : `Nhường ca ${shiftText(r.shift)} cho ${r.target_name}`;
   }
 }
+
+// ---------------------------------------------------------------------
+// Đăng ký ca tự chọn giờ (khớp private.registration_time_error trong DB)
+// ---------------------------------------------------------------------
+export type RegisterRules = {
+  earliest: string;
+  latest: string;
+  step: number;
+  min: number;
+  max: number;
+  max_per_day: number;
+  max_day: number;
+  /** Ghi đè mốc ra muộn nhất (phút từ 00:00 ngày làm) — dùng cho QL */
+  window_end?: number;
+};
+
+/** Phút từ 00:00 của "HH:MM" */
+export function toMin(time: string): number {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+}
+
+/** "HH:MM" từ số phút (quá 24:00 → quay vòng) */
+export function fromMin(min: number): string {
+  const m = ((min % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** Độ dài ca (phút); giờ ra <= giờ vào → qua đêm */
+export function spanMin(start: string, end: string): number {
+  const d = toMin(end) - toMin(start);
+  return d <= 0 ? d + 1440 : d;
+}
+
+/** "3 tiếng", "8,5 tiếng" */
+export function hoursLabel(min: number): string {
+  return `${String(Math.round((min / 60) * 100) / 100).replace(".", ",")} tiếng`;
+}
+
+/** Mốc ra muộn nhất theo phút từ 00:00 ngày làm (01:00 hôm sau = 1500) */
+export function windowEnd(rules: RegisterRules): number {
+  if (rules.window_end) return rules.window_end;
+  const l = toMin(rules.latest);
+  return l <= toMin(rules.earliest) ? l + 1440 : l;
+}
+
+/** Lỗi của 1 ca tự chọn so với quy định (null = hợp lệ) */
+export function registrationTimeError(rules: RegisterRules, start: string, end: string): string | null {
+  if (start === end) return "Giờ vào và giờ ra trùng nhau.";
+  const s = toMin(start);
+  const dur = spanMin(start, end);
+  if (s % rules.step !== 0 || toMin(end) % rules.step !== 0) return `Giờ phải tròn ${rules.step} phút.`;
+  if (s < toMin(rules.earliest) || s + dur > windowEnd(rules)) return `Ngoài khung giờ cho phép (${rules.earliest}–${rules.latest}).`;
+  if (dur < rules.min) return `Ca ngắn nhất ${hoursLabel(rules.min)}.`;
+  if (dur > rules.max) return `Ca dài nhất ${hoursLabel(rules.max)}.`;
+  return null;
+}
+
+/** Hai ca trong cùng ngày làm có chồng giờ nhau không */
+export function rangesOverlap(a: { start: string; end: string }, b: { start: string; end: string }): boolean {
+  const s1 = toMin(a.start);
+  const s2 = toMin(b.start);
+  return s1 < s2 + spanMin(b.start, b.end) && s2 < s1 + spanMin(a.start, a.end);
+}
+
+export type TimeOption = { value: string; label: string };
+
+/** Giờ vào chọn được: từ giờ sớm nhất đến (giờ muộn nhất − ca ngắn nhất) */
+export function startOptions(rules: RegisterRules): TimeOption[] {
+  const out: TimeOption[] = [];
+  for (let m = toMin(rules.earliest); m + rules.min <= windowEnd(rules) && m < 1440; m += rules.step) out.push({ value: fromMin(m), label: fromMin(m) });
+  return out;
+}
+
+/** Giờ ra chọn được với giờ vào `start` (kèm số tiếng; qua 00:00 ghi "hôm sau") */
+export function endOptions(rules: RegisterRules, start: string): TimeOption[] {
+  const out: TimeOption[] = [];
+  const s = toMin(start);
+  for (let d = rules.min; d <= rules.max && s + d <= windowEnd(rules); d += rules.step) {
+    out.push({ value: fromMin(s + d), label: `${fromMin(s + d)}${s + d >= 1440 ? " hôm sau" : ""} (${hoursLabel(d)})` });
+  }
+  return out;
+}
+
+/** Quy định rộng cho QL sửa giờ khi duyệt: cả ngày, ca 1–16 tiếng */
+export function managerRules(step: number): RegisterRules {
+  return { earliest: "00:00", latest: "00:00", step, min: 60, max: 960, max_per_day: 3, max_day: 1440, window_end: 1440 + 960 };
+}
+
+/** Phủ ca theo ô giờ của 1 ngày (RPC branch_coverage) */
+export type CoverageDay = { date: string; need: number[]; scheduled: number[]; pending: number[] };
+export type Coverage = { start: number; step: number; days: CoverageDay[] };
+
+/** Các khung đang thiếu người (định mức − đã xếp − chờ duyệt), gộp ô liền nhau cùng số người thiếu */
+export function coverageGaps(cov: Coverage, day: CoverageDay): { from: string; to: string; missing: number }[] {
+  const gaps: { from: string; to: string; missing: number }[] = [];
+  for (let i = 0; i < day.need.length; i++) {
+    const missing = day.need[i] - day.scheduled[i] - day.pending[i];
+    if (missing <= 0) continue;
+    const t = cov.start + i * cov.step;
+    const last = gaps.at(-1);
+    if (last && toMin(last.to) === t % 1440 && last.missing === missing) {
+      last.to = fromMin(t + cov.step);
+    } else {
+      gaps.push({ from: fromMin(t), to: fromMin(t + cov.step), missing });
+    }
+  }
+  return gaps;
+}

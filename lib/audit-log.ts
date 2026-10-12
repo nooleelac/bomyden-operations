@@ -17,7 +17,7 @@ export const AUDIT_GROUPS: AuditGroup[] = [
   {
     key: "schedule",
     label: "Lịch & đơn",
-    tables: ["shifts", "shift_templates", "shift_registrations", "schedule_requests", "schedule_settings"],
+    tables: ["shifts", "shift_templates", "shift_registrations", "staffing_requirements", "schedule_requests", "schedule_settings"],
   },
   {
     key: "payroll",
@@ -44,6 +44,7 @@ const TABLE_LABELS: Record<string, string> = {
   shifts: "Ca làm",
   shift_templates: "Mẫu ca",
   shift_registrations: "Đăng ký ca",
+  staffing_requirements: "Định mức nhân sự",
   schedule_requests: "Đơn xin phép",
   schedule_settings: "Cài đặt lịch & đơn",
   payroll_profiles: "Hồ sơ lương",
@@ -141,6 +142,16 @@ const FIELD_LABELS: Record<string, string> = {
   early_per_month: "Lần về sớm tối đa/tháng",
   swap_per_month: "Lần đổi ca tối đa/tháng",
   register_deadline_days: "Hạn đăng ký ca (ngày)",
+  register_earliest: "Đăng ký ca: vào sớm nhất",
+  register_latest: "Đăng ký ca: ra muộn nhất",
+  register_step_minutes: "Đăng ký ca: bước phút",
+  register_min_minutes: "Đăng ký ca: ca ngắn nhất (phút)",
+  register_max_minutes: "Đăng ký ca: ca dài nhất (phút)",
+  register_max_per_day: "Đăng ký ca: số ca tối đa/ngày",
+  register_max_day_minutes: "Đăng ký ca: tổng tối đa/ngày (phút)",
+  approved_start_time: "Giờ vào được duyệt",
+  approved_end_time: "Giờ ra được duyệt",
+  headcount: "Số người cần",
   pay_type: "Kiểu lương",
   pay_period: "Kỳ lương",
   hourly_rate: "Lương theo giờ",
@@ -359,7 +370,7 @@ export function formatValue(table: string, field: string, value: unknown, refs: 
   if (field === "kind" && typeof value === "string") return kindLabel(table, value);
   if (ENUM_LABELS[field] && typeof value === "string") return ENUM_LABELS[field][value] ?? value;
   if (Array.isArray(value) && value.length === 0) return "—";
-  if (field === "weekdays" && Array.isArray(value)) return value.map((d) => WEEKDAY_LABELS[Number(d)] ?? d).join(", ");
+  if (field === "weekdays" && Array.isArray(value)) return value.map((d) => WEEKDAY_LABELS[Number(d)] ?? (Number(d) === 0 ? "CN" : d)).join(", ");
   if (field === "logo_path") return "Đã đổi ảnh";
   if (MONEY_FIELDS.has(field) && (typeof value === "number" || typeof value === "string")) {
     const n = Number(value);
@@ -495,7 +506,7 @@ export function auditSubject(table: string, oldData: unknown, newData: unknown, 
       break;
     }
   }
-  if (table === "shifts" && typeof data.start_time === "string" && typeof data.end_time === "string") {
+  if ((table === "shifts" || table === "shift_registrations" || table === "staffing_requirements") && typeof data.start_time === "string" && typeof data.end_time === "string") {
     parts.push(`${data.start_time.slice(0, 5)}–${data.end_time.slice(0, 5)}`);
   }
   if (table === "attendance_records" && typeof data.check_in_at === "string") parts.push(formatValue(table, "check_in_at", data.check_in_at, refs));

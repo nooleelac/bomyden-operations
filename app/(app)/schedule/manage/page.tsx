@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getManageableBranches } from "@/lib/branches";
 import { getRequestTime } from "@/lib/request-time";
 import { vnDateString } from "@/lib/time";
-import { addDays, hm, isMonday, resolvePeriod, weekStartOf, type WeekSchedule } from "@/lib/schedule";
+import { addDays, hm, isMonday, resolvePeriod, weekStartOf, type Coverage, type WeekSchedule } from "@/lib/schedule";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import PeriodNav from "../PeriodNav";
 import { RegistrationsManager, type BranchRegistration } from "./RegistrationsManager";
@@ -83,19 +83,20 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
     );
   } else if (tab === "registrations") {
     const period = resolvePeriod(params.mode, params.start, params.mode === "month" ? today : addDays(today, 7));
-    const [regRes, tplRes, shiftRes, staffRes] = await Promise.all([
+    const [regRes, tplRes, covRes, staffRes, settingsRes, staffingRes] = await Promise.all([
       supabase.rpc("branch_shift_registrations", { p_branch_id: branchId, p_from: period.from, p_to: period.to }),
       supabase.from("shift_templates").select("id, name, start_time, end_time").eq("branch_id", branchId).order("sort_order").order("start_time"),
-      supabase.from("shifts").select("work_date, template_id").eq("branch_id", branchId).neq("status", "cancelled").gte("work_date", period.from).lte("work_date", period.to),
+      supabase.rpc("branch_coverage", { p_branch_id: branchId, p_from: period.from, p_to: period.to }),
       supabase
         .from("employee_branches")
         .select("employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, role, is_active, sort_order, self_schedule)")
         .eq("branch_id", branchId)
         .eq("employee.is_active", true),
+      supabase.from("schedule_settings").select("register_earliest, register_latest, register_step_minutes, register_min_minutes, register_max_minutes, register_max_per_day, register_max_day_minutes").single(),
+      supabase.from("staffing_requirements").select("id, weekdays, start_time, end_time, headcount").eq("branch_id", branchId).order("start_time"),
     ]);
-    if (regRes.error || tplRes.error || shiftRes.error || staffRes.error) throw new Error("Không tải được đăng ký ca.");
-    const scheduled: Record<string, number> = {};
-    for (const s of shiftRes.data) if (s.template_id) scheduled[`${s.work_date}|${s.template_id}`] = (scheduled[`${s.work_date}|${s.template_id}`] ?? 0) + 1;
+    if (regRes.error || tplRes.error || covRes.error || staffRes.error || settingsRes.error || staffingRes.error) throw new Error("Không tải được đăng ký ca.");
+    const st = settingsRes.data;
     const staff = staffRes.data
       .map((row) => row.employee)
       .filter((e) => e.role !== "admin" && e.role !== "manager")
@@ -106,9 +107,20 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
         <PeriodNav period={period} branches={branches} branchId={branchId} extra={{ tab }} />
         <RegistrationsManager
           key={`${branchId}-${period.from}`}
+          branchId={branchId}
           registrations={regRes.data as BranchRegistration[]}
           templates={tplRes.data.map((t) => ({ id: t.id, name: t.name, startTime: hm(t.start_time), endTime: hm(t.end_time) }))}
-          scheduled={scheduled}
+          coverage={covRes.data as Coverage}
+          rules={{
+            earliest: hm(st.register_earliest),
+            latest: hm(st.register_latest),
+            step: st.register_step_minutes,
+            min: st.register_min_minutes,
+            max: st.register_max_minutes,
+            max_per_day: st.register_max_per_day,
+            max_day: st.register_max_day_minutes,
+          }}
+          staffing={staffingRes.data.map((q) => ({ id: q.id, weekdays: q.weekdays, startTime: hm(q.start_time), endTime: hm(q.end_time), headcount: q.headcount }))}
           staff={staff}
         />
       </>
