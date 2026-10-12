@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCurrentSubscription, isIos, isPushSupported, isStandalone, subscribePush } from "@/components/push";
+import { getCurrentSubscription, isIos, isOldIos, isPushSupported, isStandalone, subscribePush } from "@/components/push";
 import { removePushSubscription, savePushSubscription } from "@/app/(app)/notifications/actions";
 
-type Status = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
+const IOS_OLD_MESSAGE =
+  "iPhone này chạy iOS dưới 16.4 nên Apple không cho nhận thông báo khi app đóng / tắt màn hình. Hãy mở app thường xuyên để xem chuông thông báo, hoặc cập nhật iOS nếu máy hỗ trợ.";
+
+type Status = "loading" | "unsupported" | "ios-old" | "ios-install" | "denied" | "off" | "on";
 
 /**
  * Bật/tắt thông báo đẩy trên thiết bị đang dùng.
@@ -19,7 +22,8 @@ export default function PushToggle({ compact = false }: { compact?: boolean }) {
     let cancelled = false;
     (async () => {
       let next: Status;
-      if (isIos() && !isStandalone()) next = "ios-install";
+      if (isOldIos()) next = "ios-old";
+      else if (isIos() && !isStandalone()) next = "ios-install";
       else if (!isPushSupported()) next = "unsupported";
       else if (Notification.permission === "denied") next = "denied";
       else next = (await getCurrentSubscription()) && Notification.permission === "granted" ? "on" : "off";
@@ -67,12 +71,14 @@ export default function PushToggle({ compact = false }: { compact?: boolean }) {
   }
 
   if (compact) {
-    if (status !== "off" && status !== "ios-install") return null;
+    if (status !== "off" && status !== "ios-install" && status !== "ios-old") return null;
     return (
       <div className="card mb-6 flex flex-wrap items-center gap-3 border-amber-300 bg-amber-50 p-4 text-sm">
         <span className="text-2xl" aria-hidden="true">🔔</span>
         <p className="min-w-48 flex-1 text-amber-900">
-          {status === "ios-install"
+          {status === "ios-old"
+            ? IOS_OLD_MESSAGE
+            : status === "ios-install"
             ? "Để nhận nhắc việc trên iPhone: bấm nút Chia sẻ → “Thêm vào MH chính”, rồi mở app từ màn hình chính và bật thông báo."
             : "Bật thông báo để được nhắc việc sắp hết hạn và quá hạn, kể cả khi tắt màn hình."}
         </p>
@@ -118,6 +124,7 @@ export default function PushToggle({ compact = false }: { compact?: boolean }) {
             màn hình chính và bấm “Bật thông báo”.
           </p>
         )}
+        {status === "ios-old" && <p className="text-sm text-neutral-700">{IOS_OLD_MESSAGE}</p>}
         {status === "unsupported" && (
           <p className="text-sm text-neutral-500">Trình duyệt này không hỗ trợ thông báo đẩy. Hãy dùng Chrome (Android) hoặc Safari (iPhone).</p>
         )}

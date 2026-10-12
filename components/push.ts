@@ -16,6 +16,15 @@ export function isIos(): boolean {
   return typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
+/** iPhone/iPad dưới iOS 16.4: Apple chưa hỗ trợ thông báo đẩy cho web app (ví dụ iPhone 7 tối đa iOS 15.8). */
+export function isOldIos(): boolean {
+  if (!isIos()) return false;
+  const match = navigator.userAgent.match(/OS (\d+)_(\d+)/);
+  if (!match) return false;
+  const [major, minor] = [Number(match[1]), Number(match[2])];
+  return major < 16 || (major === 16 && minor < 4);
+}
+
 /** Đang chạy như app đã cài (Thêm vào màn hình chính). */
 export function isStandalone(): boolean {
   return (
