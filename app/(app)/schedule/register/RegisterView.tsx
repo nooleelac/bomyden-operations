@@ -226,7 +226,8 @@ export default function RegisterView({ branchId, from, to, openFrom, rules, temp
           const cur = picks[d];
           const list = listOf(d);
           const lockedPending = isOpen ? [] : pending.filter((r) => r.work_date === d);
-          const canAdd = isOpen && cur !== "off" && fixedOf(d).length + list.length < rules.max_per_day;
+          // Đang chọn "Nghỉ" vẫn thêm ca được (thêm ca sẽ bỏ "Nghỉ")
+          const canAdd = isOpen && fixedOf(d).length + list.length < rules.max_per_day;
           const covDay = coverage?.days.find((c) => c.date === d);
           const gaps = isOpen && coverage && covDay ? coverageGaps(coverage, covDay) : [];
           const isEditing = editing?.day === d;
