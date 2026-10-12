@@ -275,6 +275,7 @@ export async function reviewRegistrations(approve: boolean, _prev: ActionState, 
   const startText = str(formData, "start_time");
   const endText = str(formData, "end_time");
   const edited = Boolean(startText || endText);
+  const publish = approve && formData.get("publish") === "1";
   if (edited && (!approve || ids.length !== 1 || !time.safeParse(startText).success || !time.safeParse(endText).success || startText === endText)) {
     return fail("Giờ vào / giờ ra không hợp lệ.", { end_time: "Chọn giờ vào và giờ ra khác nhau." });
   }
@@ -286,17 +287,19 @@ export async function reviewRegistrations(approve: boolean, _prev: ActionState, 
     p_note: noteText || null,
     p_start: edited ? startText : null,
     p_end: edited ? endText : null,
+    p_publish: publish,
   });
   if (error) return fail(friendlyDbError(error));
   const result = data as { done: number; skipped: number };
   revalidateSchedule();
   if (!approve) return success(`Đã từ chối ${result.done} đăng ký.`);
-  if (edited && result.done === 1) return success(`Đã duyệt ca ${startText}–${endText} (ca nháp). Nhân viên sẽ được báo giờ đã chỉnh. Nhớ bấm “Công bố” ở tab Xếp lịch.`);
+  const after = publish ? " và công bố — nhân viên đã thấy trên lịch." : ". Nhớ bấm “Công bố” ở tab Xếp lịch.";
+  if (edited && result.done === 1) return success(`Đã duyệt ca ${startText}–${endText}${publish ? "" : " (ca nháp)"}. Nhân viên sẽ được báo giờ đã chỉnh${after}`);
   if (result.done === 0 && result.skipped) return fail(`Không duyệt được — ${result.skipped} đăng ký bị trùng giờ với ca đã có.`);
   return success(
-    `Đã duyệt ${result.done} đăng ký thành ca nháp` +
+    `Đã duyệt ${result.done} đăng ký ${publish ? "và công bố" : "thành ca nháp"}` +
       (result.skipped ? `, ${result.skipped} đăng ký bị trùng giờ với ca đã có nên vẫn để chờ.` : ".") +
-      " Nhớ bấm “Công bố” ở tab Xếp lịch."
+      (publish ? " Nhân viên đã thấy ca trên lịch." : " Nhớ bấm “Công bố” ở tab Xếp lịch.")
   );
 }
 

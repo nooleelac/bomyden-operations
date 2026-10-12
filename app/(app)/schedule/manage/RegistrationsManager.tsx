@@ -120,9 +120,14 @@ function ApproveEditDialog({ reg, step, onClose, onDone }: { reg: BranchRegistra
           <input id="ap-note" name="review_note" maxLength={200} placeholder="Ví dụ: 16h–17h đã đủ người" className="input" />
         </div>
         {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
-        <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-neutral-100 pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">Đóng</button>
-          <SubmitButton pending={pending}>{changed ? "Duyệt với giờ đã sửa" : "Duyệt"}</SubmitButton>
+          <button type="submit" disabled={pending} className="btn-secondary">
+            {pending ? "Đang xử lý..." : changed ? "Duyệt giờ đã sửa" : "Duyệt"}
+          </button>
+          <button type="submit" name="publish" value="1" disabled={pending} className="btn-primary">
+            {pending ? "Đang xử lý..." : "Duyệt & công bố"}
+          </button>
         </div>
       </ActionForm>
     </Dialog>
@@ -331,9 +336,10 @@ export function RegistrationsManager({
   const tplName = (id: string | null) => (id ? templates.find((t) => t.id === id)?.name : undefined);
   const toggle = (ids: string[], on: boolean) => setSelected((s) => (on ? [...new Set([...s, ...ids])] : s.filter((x) => !ids.includes(x))));
 
-  const approve = (ids: string[]) => {
+  const approve = (ids: string[], publish = false) => {
     const fd = new FormData();
     ids.forEach((id) => fd.append("ids", id));
+    if (publish) fd.append("publish", "1");
     startTransition(() => approveAction(fd));
   };
 
@@ -367,21 +373,36 @@ export function RegistrationsManager({
           {selected.length > 0 ? (
             <>
               <button type="button" onClick={() => setRejecting(true)} className="btn-secondary text-red-700">Từ chối ({selected.length})</button>
-              <button type="button" disabled={approvePending} onClick={() => approve(selected)} className="btn-primary">
-                {approvePending ? "Đang duyệt..." : `Duyệt đã chọn (${selected.length})`}
+              <button type="button" disabled={approvePending} onClick={() => approve(selected)} className="btn-secondary">
+                {approvePending ? "Đang duyệt..." : `Duyệt (${selected.length})`}
+              </button>
+              <button type="button" disabled={approvePending} onClick={() => approve(selected, true)} className="btn-primary">
+                {approvePending ? "Đang duyệt..." : `Duyệt & công bố (${selected.length})`}
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              disabled={approvePending || pendingIds.length === 0}
-              onClick={() => {
-                if (window.confirm(`Duyệt toàn bộ ${pendingIds.length} đăng ký đang chờ (giữ nguyên giờ nhân viên xin)? Các ca sẽ được tạo ở dạng nháp.`)) approve(pendingIds);
-              }}
-              className="btn-primary"
-            >
-              {approvePending ? "Đang duyệt..." : `Duyệt tất cả (${pendingIds.length})`}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={approvePending || pendingIds.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Duyệt toàn bộ ${pendingIds.length} đăng ký đang chờ (giữ nguyên giờ nhân viên xin)? Các ca sẽ được tạo ở dạng nháp, cần bấm Công bố sau.`)) approve(pendingIds);
+                }}
+                className="btn-secondary"
+              >
+                {approvePending ? "Đang duyệt..." : `Duyệt tất cả (${pendingIds.length})`}
+              </button>
+              <button
+                type="button"
+                disabled={approvePending || pendingIds.length === 0}
+                onClick={() => {
+                  if (window.confirm(`Duyệt và công bố toàn bộ ${pendingIds.length} đăng ký đang chờ (giữ nguyên giờ nhân viên xin)? Nhân viên sẽ thấy ca trên lịch ngay.`)) approve(pendingIds, true);
+                }}
+                className="btn-primary"
+              >
+                {approvePending ? "Đang duyệt..." : `Duyệt & công bố tất cả (${pendingIds.length})`}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -474,7 +495,7 @@ export function RegistrationsManager({
         </ul>
       )}
       <p className="mt-3 text-xs text-neutral-500">
-        Vàng = chờ duyệt (✎ = sửa giờ rồi duyệt) · Xanh = đã duyệt (đã thành ca nháp; “→” là giờ đã chỉnh) · Gạch đỏ = từ chối. “Nghỉ” chỉ để biết,
+        Vàng = chờ duyệt (✎ = sửa giờ rồi duyệt) · Xanh = đã duyệt (“→” là giờ đã chỉnh). “Duyệt” tạo ca nháp (bấm Công bố sau); “Duyệt & công bố” để nhân viên thấy ca ngay · Gạch đỏ = từ chối. “Nghỉ” chỉ để biết,
         không phải đơn xin phép. Biểu đồ: số người đã xếp mỗi {coverage?.step ?? rules.step} phút — xanh = đủ định mức, vàng = đủ nếu duyệt hết đăng ký chờ, đỏ = thiếu.
       </p>
 

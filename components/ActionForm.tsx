@@ -18,7 +18,8 @@ export default function ActionForm({ action, children, ...props }: Props) {
       {...props}
       onSubmit={(event) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
+        // Kèm name/value của nút đã bấm (form có nhiều nút gửi)
+        const formData = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
         startTransition(() => action(formData));
       }}
     >

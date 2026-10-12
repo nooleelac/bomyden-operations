@@ -1897,7 +1897,7 @@ export type Database = {
         Returns: Json
       }
       review_shift_registrations: {
-        Args: { p_ids: string[]; p_approve: boolean; p_note?: string | null; p_start?: string | null; p_end?: string | null }
+        Args: { p_ids: string[]; p_approve: boolean; p_note?: string | null; p_start?: string | null; p_end?: string | null; p_publish?: boolean }
         Returns: Json
       }
       set_self_schedule: {
