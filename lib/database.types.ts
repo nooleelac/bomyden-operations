@@ -2227,7 +2227,7 @@ export type Database = {
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
       request_status: "awaiting_peer" | "pending" | "approved" | "rejected" | "cancelled"
-      registration_status: "pending" | "approved" | "rejected"
+      registration_status: "pending" | "approved" | "rejected" | "cancelled"
       pay_type: "hourly" | "per_shift" | "fixed"
       pay_period: "weekly" | "monthly"
       payroll_adjustment_kind: "kpi" | "bonus" | "allowance" | "deduction" | "correction_plus" | "correction_minus"

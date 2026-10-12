@@ -261,11 +261,11 @@ export default function RegisterView({ branchId, from, to, openFrom, rules, temp
                       <span
                         key={r.id}
                         title={r.review_note ?? undefined}
-                        className={`rounded-lg px-2.5 py-1 text-xs ${r.status === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}
+                        className={`rounded-lg px-2.5 py-1 text-xs ${r.status === "approved" ? "bg-emerald-50 text-emerald-800" : r.status === "cancelled" ? "bg-neutral-100 text-neutral-500" : "bg-red-50 text-red-700"}`}
                       >
                         {r.status === "approved"
                           ? `${rangeText(r.approved_start_time ?? r.start_time, r.approved_end_time ?? r.end_time)} · đã duyệt${changed ? ` (bạn xin ${r.start_time}–${r.end_time})` : ""}`
-                          : `${rangeText(r.start_time, r.end_time)} · từ chối${r.review_note ? `: ${r.review_note}` : ""}`}
+                          : `${rangeText(r.approved_start_time ?? r.start_time, r.approved_end_time ?? r.end_time)} · ${r.status === "cancelled" ? "đã hủy" : "từ chối"}${r.review_note ? `: ${r.review_note}` : ""}`}
                       </span>
                     );
                   })}

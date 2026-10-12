@@ -455,7 +455,7 @@ export function RegistrationsManager({
                               <span
                                 key={r.id}
                                 title={r.review_note ?? undefined}
-                                className={`rounded-lg px-2 py-1 text-xs ${r.status === "approved" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700 line-through"}`}
+                                className={`rounded-lg px-2 py-1 text-xs ${r.status === "approved" ? "bg-emerald-50 text-emerald-800" : r.status === "cancelled" ? "bg-neutral-100 text-neutral-400 line-through" : "bg-red-50 text-red-700 line-through"}`}
                               >
                                 {r.employee_name}
                                 {changed && ` → ${r.approved_start_time}–${r.approved_end_time}`}
@@ -495,7 +495,7 @@ export function RegistrationsManager({
         </ul>
       )}
       <p className="mt-3 text-xs text-neutral-500">
-        Vàng = chờ duyệt (✎ = sửa giờ rồi duyệt) · Xanh = đã duyệt (“→” là giờ đã chỉnh). “Duyệt” tạo ca nháp (bấm Công bố sau); “Duyệt & công bố” để nhân viên thấy ca ngay · Gạch đỏ = từ chối. “Nghỉ” chỉ để biết,
+        Vàng = chờ duyệt (✎ = sửa giờ rồi duyệt) · Xanh = đã duyệt (“→” là giờ đã chỉnh). “Duyệt” tạo ca nháp (bấm Công bố sau); “Duyệt & công bố” để nhân viên thấy ca ngay · Gạch đỏ = từ chối · Gạch xám = ca đã hủy (nhân viên đăng ký lại được). “Nghỉ” chỉ để biết,
         không phải đơn xin phép. Biểu đồ: số người đã xếp mỗi {coverage?.step ?? rules.step} phút — xanh = đủ định mức, vàng = đủ nếu duyệt hết đăng ký chờ, đỏ = thiếu.
       </p>
 
