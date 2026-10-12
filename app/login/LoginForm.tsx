@@ -10,7 +10,8 @@ export default function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState(withNetworkGuard(signIn), initialActionState);
 
   return (
-    <ActionForm action={formAction} className="space-y-5">
+    // method="post": nếu JavaScript không chạy được, trình duyệt không đưa mật khẩu lên thanh địa chỉ
+    <ActionForm action={formAction} method="post" className="space-y-5">
       <input type="hidden" name="next" value={next} />
 
       <div>

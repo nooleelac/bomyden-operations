@@ -18,8 +18,13 @@ export default function ActionForm({ action, children, ...props }: Props) {
       {...props}
       onSubmit={(event) => {
         event.preventDefault();
-        // Kèm name/value của nút đã bấm (form có nhiều nút gửi)
-        const formData = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+        // Kèm name/value của nút đã bấm (form có nhiều nút gửi).
+        // Không dùng new FormData(form, submitter): Safari < 16.4 (iPhone đời cũ) bỏ qua tham số thứ 2.
+        const formData = new FormData(event.currentTarget);
+        const submitter = (event.nativeEvent as SubmitEvent).submitter;
+        if ((submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement) && submitter.name) {
+          formData.set(submitter.name, submitter.value);
+        }
         startTransition(() => action(formData));
       }}
     >
