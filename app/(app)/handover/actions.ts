@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireEmployee, requireManager } from "@/lib/auth/session";
+import { requireAdmin, requireEmployee, requireManager } from "@/lib/auth/session";
 import { getMyBranches } from "@/lib/branches";
 import { HANDOVER_PHOTO_BUCKET } from "@/lib/handover-photos";
 import { TASK_PHOTO_MAX_BYTES, TASK_PHOTO_TYPES } from "@/lib/task-photos";
@@ -52,7 +52,7 @@ const handoverSchema = z.object({
   lines: z
     .array(
       z.object({
-        itemId: z.uuid(),
+        handoverItemId: z.uuid(),
         quantity: z.number().min(0, "Số lượng phải từ 0 trở lên.").max(1_000_000),
         photoPath: z.string().max(300).nullable(),
       })
@@ -70,7 +70,7 @@ export async function createHandover(input: z.input<typeof handoverSchema>): Pro
   const { data, error } = await supabase.rpc("create_shift_handover", {
     p_branch_id: parsed.data.branchId,
     p_note: parsed.data.note || null,
-    p_lines: parsed.data.lines.map((l) => ({ item_id: l.itemId, quantity: l.quantity, photo_path: l.photoPath })),
+    p_lines: parsed.data.lines.map((l) => ({ handover_item_id: l.handoverItemId, quantity: l.quantity, photo_path: l.photoPath })),
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
   revalidateHandover();
@@ -96,9 +96,18 @@ export async function receiveHandover(handoverId: string, ok: boolean, _prev: Ac
 // ---------------------------------------------------------------------
 // THIẾT LẬP DANH SÁCH MÓN (QTV / QL chi nhánh — RLS kiểm tra quyền)
 // ---------------------------------------------------------------------
-export async function addHandoverItem(branchId: string, itemId: string, unit: string): Promise<SaveResult> {
-  await requireManager();
-  if (!z.uuid().safeParse(branchId).success || !z.uuid().safeParse(itemId).success) return { ok: false, message: "Dữ liệu không hợp lệ." };
+const itemSchema = z.object({
+  name: z.string().trim().min(1, "Nhập tên món.").max(150, "Tên món tối đa 150 ký tự."),
+  unit: z.string().trim().min(1, "Nhập đơn vị (vd: kg, hũ, khay).").max(20, "Đơn vị tối đa 20 ký tự."),
+});
+
+/** Món chỉ dùng để bàn giao (tên + đơn vị tự gõ), không liên kết danh mục Kho — chỉ QTV thêm. */
+export async function addHandoverItem(branchId: string, input: z.input<typeof itemSchema>): Promise<SaveResult> {
+  await requireAdmin();
+  if (!z.uuid().safeParse(branchId).success) return { ok: false, message: "Dữ liệu không hợp lệ." };
+  const parsed = itemSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
+
   const supabase = await createClient();
   const { data: last } = await supabase
     .from("handover_items")
@@ -109,7 +118,7 @@ export async function addHandoverItem(branchId: string, itemId: string, unit: st
     .maybeSingle();
   const { error } = await supabase
     .from("handover_items")
-    .insert({ branch_id: branchId, item_id: itemId, unit: unit.trim(), sort_order: (last?.sort_order ?? -1) + 1 });
+    .insert({ branch_id: branchId, name: parsed.data.name, unit: parsed.data.unit, sort_order: (last?.sort_order ?? -1) + 1 });
   if (error) {
     if (error.code === "23505") return { ok: false, message: "Món này đã có trong danh sách." };
     return { ok: false, message: friendlyDbError(error) };
@@ -118,12 +127,14 @@ export async function addHandoverItem(branchId: string, itemId: string, unit: st
   return { ok: true, message: "Đã thêm vào danh sách bàn giao." };
 }
 
-export async function updateHandoverItem(id: string, patch: { unit?: string; requiresPhoto?: boolean }): Promise<SaveResult> {
+/** QTV: tên, đơn vị (DB chặn QL đổi); QL: bắt buộc ảnh. */
+export async function updateHandoverItem(id: string, patch: { name?: string; unit?: string; requiresPhoto?: boolean }): Promise<SaveResult> {
   await requireManager();
   const supabase = await createClient();
   const { error } = await supabase
     .from("handover_items")
     .update({
+      ...(patch.name !== undefined && { name: patch.name.trim() }),
       ...(patch.unit !== undefined && { unit: patch.unit.trim() }),
       ...(patch.requiresPhoto !== undefined && { requires_photo: patch.requiresPhoto }),
     })

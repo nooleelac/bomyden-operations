@@ -1856,7 +1856,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
-          item_id: string
+          name: string
           requires_photo: boolean
           sort_order: number
           unit: string
@@ -1868,7 +1868,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          item_id: string
+          name: string
           requires_photo?: boolean
           sort_order?: number
           unit: string
@@ -1880,7 +1880,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          item_id?: string
+          name?: string
           requires_photo?: boolean
           sort_order?: number
           unit?: string
@@ -1903,13 +1903,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "handover_items_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "handover_items_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
@@ -1921,8 +1914,8 @@ export type Database = {
       shift_handover_lines: {
         Row: {
           handover_id: string
+          handover_item_id: string | null
           id: string
-          item_id: string
           item_name: string
           photo_path: string | null
           photo_purged_at: string | null
@@ -1932,8 +1925,8 @@ export type Database = {
         }
         Insert: {
           handover_id: string
+          handover_item_id?: string | null
           id?: string
-          item_id: string
           item_name: string
           photo_path?: string | null
           photo_purged_at?: string | null
@@ -1943,8 +1936,8 @@ export type Database = {
         }
         Update: {
           handover_id?: string
+          handover_item_id?: string | null
           id?: string
-          item_id?: string
           item_name?: string
           photo_path?: string | null
           photo_purged_at?: string | null
@@ -1958,13 +1951,6 @@ export type Database = {
             columns: ["handover_id"]
             isOneToOne: false
             referencedRelation: "shift_handovers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_handover_lines_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
         ]

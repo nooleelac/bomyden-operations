@@ -501,7 +501,7 @@ export function auditSubject(table: string, oldData: unknown, newData: unknown, 
     if (typeof emp === "string") parts.push(refs.employees.get(emp) ?? "(nhân viên đã xóa)");
   }
   if (table === "employee_branches" && typeof data.branch_id === "string") parts.push(refs.branches.get(data.branch_id) ?? "");
-  if ((table === "inventory_item_units" || table === "handover_items") && typeof data.item_id === "string") parts.push(refs.items.get(data.item_id) ?? "");
+  if (table === "inventory_item_units" && typeof data.item_id === "string") parts.push(refs.items.get(data.item_id) ?? "");
   if ((table === "suppliers" || table.startsWith("stock_") || table === "supplier_payments") && typeof data.supplier_id === "string") {
     const s = refs.suppliers.get(data.supplier_id);
     if (s && !parts.includes(s)) parts.push(s);

@@ -87,7 +87,7 @@ const ROUTES: [prefix: string, tables: LiveTable[]][] = [
   ["/inventory", [...INVENTORY, ...STAFF]],
   ["/payroll", [...PAYROLL, ...STAFF]],
   ["/payslips", ["payslips", "salary_advances", "payroll_adjustments", "payroll_profiles"]],
-  ["/handover", ["shift_handovers", "shift_handover_lines", "handover_items", "inventory_items", "inventory_item_units", ...STAFF]],
+  ["/handover", ["shift_handovers", "shift_handover_lines", "handover_items", ...STAFF]],
   ["/notifications", ["notifications"]],
   ["/account", ["employees", "employee_branches"]],
   ["/audit-log", ["audit_logs"]],

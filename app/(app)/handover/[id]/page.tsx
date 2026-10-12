@@ -19,7 +19,7 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
   const { data: h } = await supabase
     .from("shift_handovers")
     .select(
-      "id, branch_id, created_at, status, note, handed_by, handed_by_name, received_by_name, received_at, receive_note, branch:branches(name), shift_handover_lines(id, item_id, item_name, unit, quantity, photo_path, photo_purged_at, sort_order)"
+      "id, branch_id, created_at, status, note, handed_by, handed_by_name, received_by_name, received_at, receive_note, branch:branches(name), shift_handover_lines(id, handover_item_id, item_name, unit, quantity, photo_path, photo_purged_at, sort_order)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -28,13 +28,13 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
   // Phiếu liền trước của chi nhánh → so sánh số lượng
   const { data: prev } = await supabase
     .from("shift_handovers")
-    .select("created_at, shift_handover_lines(item_id, quantity, unit)")
+    .select("created_at, shift_handover_lines(handover_item_id, quantity, unit)")
     .eq("branch_id", h.branch_id)
     .lt("created_at", h.created_at)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const previous = new Map((prev?.shift_handover_lines ?? []).map((l) => [l.item_id, l]));
+  const previous = new Map((prev?.shift_handover_lines ?? []).map((l) => [l.handover_item_id, l]));
 
   const lines = [...h.shift_handover_lines].sort((a, b) => a.sort_order - b.sort_order);
   const photos = await signHandoverPhotos(lines.map((l) => (l.photo_purged_at ? null : l.photo_path)));
@@ -67,7 +67,7 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
       <ul className="space-y-3">
         {lines.map((l) => {
           const url = l.photo_path ? photos.get(l.photo_path) : undefined;
-          const p = previous.get(l.item_id);
+          const p = l.handover_item_id ? previous.get(l.handover_item_id) : undefined;
           const diff = p && p.unit === l.unit ? Number(l.quantity) - Number(p.quantity) : null;
           return (
             <li key={l.id} className="card flex gap-3 p-3">

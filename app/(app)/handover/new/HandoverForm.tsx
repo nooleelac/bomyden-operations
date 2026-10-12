@@ -9,7 +9,8 @@ import { formatDateTime } from "@/lib/time";
 import { createHandover, uploadHandoverPhoto } from "../actions";
 
 export type HandoverFormItem = {
-  itemId: string;
+  /** id dòng trong danh sách món bàn giao */
+  id: string;
   name: string;
   unit: string;
   requiresPhoto: boolean;
@@ -91,7 +92,7 @@ export default function HandoverForm({
   async function pickPhoto(item: HandoverFormItem, file: File | undefined) {
     if (!file) return;
     const preview = URL.createObjectURL(file);
-    patch(item.itemId, (e) => ({ ...e, photo: { path: null, preview, uploading: true, error: "" } }));
+    patch(item.id, (e) => ({ ...e, photo: { path: null, preview, uploading: true, error: "" } }));
     let result: { ok: boolean; message: string; path?: string };
     try {
       const formData = new FormData();
@@ -100,7 +101,7 @@ export default function HandoverForm({
     } catch (e) {
       result = { ok: false, message: isNetworkError(e) ? "Mất mạng — chụp lại khi có mạng." : "Không tải được ảnh." };
     }
-    patch(item.itemId, (e) =>
+    patch(item.id, (e) =>
       e.photo?.preview !== preview
         ? e // đã chụp ảnh khác trong lúc chờ
         : { ...e, photo: { path: result.path ?? null, preview, uploading: false, error: result.ok ? "" : result.message } }
@@ -108,27 +109,27 @@ export default function HandoverForm({
   }
 
   const done = items.filter((item) => {
-    const e = entries[item.itemId];
+    const e = entries[item.id];
     return e && e.qty.trim() !== "" && (!item.requiresPhoto || e.photo?.path);
   }).length;
   const uploading = Object.values(entries).some((e) => e.photo?.uploading);
 
   const submit = () => {
     setError("");
-    const lines: { itemId: string; quantity: number; photoPath: string | null }[] = [];
+    const lines: { handoverItemId: string; quantity: number; photoPath: string | null }[] = [];
     for (const item of items) {
-      const e = entries[item.itemId];
+      const e = entries[item.id];
       const qty = e ? parseVnNumber(e.qty) : null;
       if (qty === null || qty < 0) {
         setError(`Chưa nhập số lượng "${item.name}".`);
-        document.getElementById(`q-${item.itemId}`)?.focus();
+        document.getElementById(`q-${item.id}`)?.focus();
         return;
       }
       if (item.requiresPhoto && !e?.photo?.path) {
         setError(`Chưa chụp ảnh "${item.name}".`);
         return;
       }
-      lines.push({ itemId: item.itemId, quantity: Math.round(qty * 10000) / 10000, photoPath: e?.photo?.path ?? null });
+      lines.push({ handoverItemId: item.id, quantity: Math.round(qty * 10000) / 10000, photoPath: e?.photo?.path ?? null });
     }
     if (!confirm(`Gửi phiếu bàn giao ${lines.length} món tại ${branchName}?`)) return;
     startTransition(async () => {
@@ -153,14 +154,14 @@ export default function HandoverForm({
 
       <ul className="space-y-3">
         {items.map((item) => {
-          const e = entries[item.itemId];
+          const e = entries[item.id];
           const qty = e ? parseVnNumber(e.qty) : null;
           const photo = e?.photo ?? null;
           const ok = e && e.qty.trim() !== "" && qty !== null && (!item.requiresPhoto || photo?.path);
           return (
-            <li key={item.itemId} className={`card p-4 ${ok ? "border-emerald-200 bg-emerald-50/40" : ""}`}>
+            <li key={item.id} className={`card p-4 ${ok ? "border-emerald-200 bg-emerald-50/40" : ""}`}>
               <div className="flex items-start justify-between gap-3">
-                <label htmlFor={`q-${item.itemId}`} className="min-w-0">
+                <label htmlFor={`q-${item.id}`} className="min-w-0">
                   <span className="line-clamp-2 block font-medium">{item.name}</span>
                   {item.previousQty !== null && (
                     <span className="block text-xs text-neutral-500">
@@ -174,13 +175,13 @@ export default function HandoverForm({
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex shrink-0 items-center gap-2">
                   <input
-                    id={`q-${item.itemId}`}
+                    id={`q-${item.id}`}
                     className="input w-28 text-right text-lg tabular-nums"
                     inputMode="decimal"
                     placeholder="0"
                     aria-label={`Số lượng ${item.name}`}
                     value={e?.qty ?? ""}
-                    onChange={(ev) => patch(item.itemId, (x) => ({ ...x, qty: ev.target.value }))}
+                    onChange={(ev) => patch(item.id, (x) => ({ ...x, qty: ev.target.value }))}
                   />
                   <span className="text-sm text-neutral-600">{item.unit}</span>
                 </div>
