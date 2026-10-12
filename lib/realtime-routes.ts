@@ -10,7 +10,9 @@ export type LiveTable =
   | "branches"
   | "employee_branches"
   | "employees"
+  | "handover_item_staff"
   | "handover_items"
+  | "handover_receivers"
   | "inventory_aliases"
   | "inventory_item_units"
   | "inventory_items"
@@ -87,7 +89,7 @@ const ROUTES: [prefix: string, tables: LiveTable[]][] = [
   ["/inventory", [...INVENTORY, ...STAFF]],
   ["/payroll", [...PAYROLL, ...STAFF]],
   ["/payslips", ["payslips", "salary_advances", "payroll_adjustments", "payroll_profiles"]],
-  ["/handover", ["shift_handovers", "shift_handover_lines", "handover_items", ...STAFF]],
+  ["/handover", ["shift_handovers", "shift_handover_lines", "handover_items", "handover_item_staff", "handover_receivers", ...STAFF]],
   ["/notifications", ["notifications"]],
   ["/account", ["employees", "employee_branches"]],
   ["/audit-log", ["audit_logs"]],

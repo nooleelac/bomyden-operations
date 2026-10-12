@@ -5,6 +5,7 @@ import { isManagerOrAdmin } from "@/lib/auth/roles";
 import { getMyBranches } from "@/lib/branches";
 import { createClient } from "@/lib/supabase/server";
 import { HANDOVER_STATUS } from "@/lib/handover";
+import { canReceive, loadMyHandoverRights } from "@/lib/handover-data";
 import { formatDateTime } from "@/lib/time";
 import BranchChips from "../inventory/BranchChips";
 
@@ -23,16 +24,24 @@ export default async function HandoverPage({ searchParams }: PageProps<"/handove
   }
 
   const supabase = await createClient();
-  const { data: handovers, error } = await supabase
-    .from("shift_handovers")
-    .select("id, created_at, status, line_count, note, handed_by, handed_by_name, received_by_name, received_at, branch:branches(name)")
-    .in("branch_id", branchId ? [branchId] : branches.map((b) => b.id))
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data: handovers, error }, rights] = await Promise.all([
+    supabase
+      .from("shift_handovers")
+      .select(
+        "id, branch_id, created_at, status, line_count, note, handed_by, handed_by_name, received_by_name, received_at, branch:branches(name), shift_handover_lines(handover_item_id)"
+      )
+      .in("branch_id", branchId ? [branchId] : branches.map((b) => b.id))
+      .order("created_at", { ascending: false })
+      .limit(100),
+    loadMyHandoverRights(me.id),
+  ]);
   if (error) throw new Error("Không tải được phiếu bàn giao.");
 
   const list = handovers ?? [];
-  const waiting = list.filter((h) => h.status === "pending" && h.handed_by !== me.id);
+  const mine = { id: me.id, ...rights };
+  const waiting = list.filter(
+    (h) => h.status === "pending" && canReceive({ ...h, lineItemIds: h.shift_handover_lines.map((l) => l.handover_item_id) }, mine)
+  );
   const newHref = `/handover/new${branchId ? `?branch=${branchId}` : ""}`;
 
   return (
@@ -41,9 +50,9 @@ export default async function HandoverPage({ searchParams }: PageProps<"/handove
         <h1 className="text-2xl font-bold tracking-tight">Bàn giao ca</h1>
         <div className="flex gap-2">
           {manager && (
-            <Link href={`/handover/settings${branchId ? `?branch=${branchId}` : ""}`} className="btn-secondary">⚙️ Danh sách món</Link>
+            <Link href={`/handover/settings${branchId ? `?branch=${branchId}` : ""}`} className="btn-secondary">⚙️ Món & phân quyền</Link>
           )}
-          <Link href={newHref} className="btn-primary">📸 Bàn giao ca</Link>
+          {rights.itemIds.size > 0 && <Link href={newHref} className="btn-primary">📸 Bàn giao ca</Link>}
         </div>
       </div>
 

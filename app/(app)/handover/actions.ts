@@ -179,3 +179,34 @@ export async function moveHandoverItem(id: string, direction: -1 | 1): Promise<S
   revalidateHandover();
   return { ok: true, message: "" };
 }
+
+// ---------------------------------------------------------------------
+// PHÂN QUYỀN NHÂN VIÊN (QTV / QL chi nhánh — RLS + trigger kiểm tra NV thuộc chi nhánh)
+// ---------------------------------------------------------------------
+/** Giao / bỏ giao một món cho nhân viên (ai có ≥ 1 món mới bàn giao được). */
+export async function setItemStaff(handoverItemId: string, employeeId: string, assigned: boolean): Promise<SaveResult> {
+  await requireManager();
+  if (!z.uuid().safeParse(handoverItemId).success || !z.uuid().safeParse(employeeId).success) return { ok: false, message: "Dữ liệu không hợp lệ." };
+  const supabase = await createClient();
+  const { error } = assigned
+    ? await supabase.from("handover_item_staff").insert({ handover_item_id: handoverItemId, employee_id: employeeId })
+    : await supabase.from("handover_item_staff").delete().eq("handover_item_id", handoverItemId).eq("employee_id", employeeId);
+  // 23505: đã bật sẵn (bấm 2 lần / máy khác vừa bật) → coi như xong
+  if (error && error.code !== "23505") return { ok: false, message: friendlyDbError(error) };
+  revalidateHandover();
+  return { ok: true, message: "" };
+}
+
+/** Bật / tắt quyền "Nhận bàn giao" (xác nhận mọi phiếu của chi nhánh). */
+export async function setReceiver(branchId: string, employeeId: string, enabled: boolean): Promise<SaveResult> {
+  await requireManager();
+  if (!z.uuid().safeParse(branchId).success || !z.uuid().safeParse(employeeId).success) return { ok: false, message: "Dữ liệu không hợp lệ." };
+  const supabase = await createClient();
+  const { error } = enabled
+    ? await supabase.from("handover_receivers").insert({ branch_id: branchId, employee_id: employeeId })
+    : await supabase.from("handover_receivers").delete().eq("branch_id", branchId).eq("employee_id", employeeId);
+  // 23505: đã bật sẵn (bấm 2 lần / máy khác vừa bật) → coi như xong
+  if (error && error.code !== "23505") return { ok: false, message: friendlyDbError(error) };
+  revalidateHandover();
+  return { ok: true, message: "" };
+}

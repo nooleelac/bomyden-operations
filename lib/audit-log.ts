@@ -29,7 +29,7 @@ export const AUDIT_GROUPS: AuditGroup[] = [
     label: "Kho",
     tables: ["inventory_items", "inventory_item_units", "stock_receipts", "stock_counts", "stock_issues", "suppliers", "supplier_payments"],
   },
-  { key: "handover", label: "Bàn giao ca", tables: ["handover_items"] },
+  { key: "handover", label: "Bàn giao ca", tables: ["handover_items", "handover_item_staff", "handover_receivers"] },
   { key: "settings", label: "Thương hiệu", tables: ["app_settings"] },
 ];
 
@@ -63,6 +63,8 @@ const TABLE_LABELS: Record<string, string> = {
   supplier_payments: "Thanh toán nhà cung cấp",
   app_settings: "Thương hiệu",
   handover_items: "Món bàn giao ca",
+  handover_item_staff: "Món bàn giao của nhân viên",
+  handover_receivers: "Quyền nhận bàn giao",
 };
 
 export function tableLabel(table: string): string {

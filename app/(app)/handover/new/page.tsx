@@ -4,6 +4,8 @@ import { requireEmployee } from "@/lib/auth/session";
 import { isManagerOrAdmin } from "@/lib/auth/roles";
 import { getMyBranches } from "@/lib/branches";
 import { createClient } from "@/lib/supabase/server";
+import { loadPreviousQuantities } from "@/lib/handover-data";
+import { formatDateTime } from "@/lib/time";
 import BranchChips from "../../inventory/BranchChips";
 import HandoverForm, { type HandoverFormItem } from "./HandoverForm";
 
@@ -21,24 +23,19 @@ export default async function NewHandoverPage({ searchParams }: PageProps<"/hand
   }
 
   const supabase = await createClient();
-  const [{ data: config, error }, { data: last }] = await Promise.all([
+  // Chỉ những món QL đã giao cho mình
+  const [{ data: config, error }, previous] = await Promise.all([
     supabase
       .from("handover_items")
-      .select("id, name, unit, requires_photo")
+      .select("id, name, unit, requires_photo, handover_item_staff!inner(employee_id)")
       .eq("branch_id", branchId)
+      .eq("handover_item_staff.employee_id", me.id)
       .order("sort_order")
       .order("created_at"),
-    supabase
-      .from("shift_handovers")
-      .select("created_at, shift_handover_lines(handover_item_id, quantity, unit)")
-      .eq("branch_id", branchId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    loadPreviousQuantities(branchId),
   ]);
   if (error) throw new Error("Không tải được danh sách món bàn giao.");
 
-  const previous = new Map((last?.shift_handover_lines ?? []).map((l) => [l.handover_item_id, l]));
   const items: HandoverFormItem[] = (config ?? []).map((c) => {
     const prev = previous.get(c.id);
     return {
@@ -46,7 +43,7 @@ export default async function NewHandoverPage({ searchParams }: PageProps<"/hand
       name: c.name,
       unit: c.unit,
       requiresPhoto: c.requires_photo,
-      previousQty: prev && prev.unit === c.unit ? Number(prev.quantity) : null,
+      previous: prev && prev.unit === c.unit ? { qty: prev.quantity, at: formatDateTime(prev.at) } : null,
     };
   });
 
@@ -60,11 +57,11 @@ export default async function NewHandoverPage({ searchParams }: PageProps<"/hand
       <BranchChips branches={branches} branchId={branchId} href={(id) => `?branch=${id}`} />
       {items.length === 0 ? (
         <div className="card p-8 text-center text-neutral-500">
-          <p>Chi nhánh chưa có danh sách món cần bàn giao.</p>
+          <p>Bạn chưa được giao món nào để bàn giao ở chi nhánh này.</p>
           {isManagerOrAdmin(me.role) ? (
-            <Link href={`/handover/settings?branch=${branchId}`} className="btn-primary mt-4 inline-flex">⚙️ Thiết lập danh sách món</Link>
+            <Link href={`/handover/settings?branch=${branchId}`} className="btn-primary mt-4 inline-flex">⚙️ Cài đặt món & phân quyền</Link>
           ) : (
-            <p className="mt-1 text-sm">Nhờ Quản lý thiết lập trước.</p>
+            <p className="mt-1 text-sm">Nhờ Quản lý cài đặt.</p>
           )}
         </div>
       ) : (
@@ -73,7 +70,6 @@ export default async function NewHandoverPage({ searchParams }: PageProps<"/hand
           branchId={branchId}
           branchName={branches.find((b) => b.id === branchId)?.name ?? ""}
           items={items}
-          previousAt={last?.created_at ?? null}
         />
       )}
     </div>

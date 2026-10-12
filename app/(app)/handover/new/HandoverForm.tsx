@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { resizeImage } from "@/components/image-resize";
 import { isNetworkError, OFFLINE_MESSAGE } from "@/lib/action-state";
 import { formatQty, parseVnNumber } from "@/lib/inventory";
-import { formatDateTime } from "@/lib/time";
 import { createHandover, uploadHandoverPhoto } from "../actions";
 
 export type HandoverFormItem = {
@@ -14,8 +13,8 @@ export type HandoverFormItem = {
   name: string;
   unit: string;
   requiresPhoto: boolean;
-  /** Số lượng ở phiếu bàn giao trước (cùng đơn vị) */
-  previousQty: number | null;
+  /** Lần bàn giao gần nhất của món này (cùng đơn vị) */
+  previous: { qty: number; at: string } | null;
 };
 
 type Photo = { path: string | null; preview: string | null; uploading: boolean; error: string };
@@ -55,12 +54,10 @@ export default function HandoverForm({
   branchId,
   branchName,
   items,
-  previousAt,
 }: {
   branchId: string;
   branchName: string;
   items: HandoverFormItem[];
-  previousAt: string | null;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState<Record<string, Entry>>({});
@@ -150,8 +147,6 @@ export default function HandoverForm({
 
   return (
     <div className="pb-24">
-      {previousAt && <p className="mb-3 text-xs text-neutral-500">Số &quot;lần trước&quot; lấy từ phiếu bàn giao lúc {formatDateTime(previousAt)}.</p>}
-
       <ul className="space-y-3">
         {items.map((item) => {
           const e = entries[item.id];
@@ -163,9 +158,9 @@ export default function HandoverForm({
               <div className="flex items-start justify-between gap-3">
                 <label htmlFor={`q-${item.id}`} className="min-w-0">
                   <span className="line-clamp-2 block font-medium">{item.name}</span>
-                  {item.previousQty !== null && (
+                  {item.previous && (
                     <span className="block text-xs text-neutral-500">
-                      Lần trước: {formatQty(item.previousQty)} {item.unit}
+                      Lần trước: {formatQty(item.previous.qty)} {item.unit} · {item.previous.at}
                     </span>
                   )}
                 </label>

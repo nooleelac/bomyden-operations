@@ -1850,6 +1850,82 @@ export type Database = {
           },
         ]
       }
+      handover_item_staff: {
+        Row: {
+          handover_item_id: string
+          employee_id: string
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          handover_item_id: string
+          employee_id: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "handover_item_staff_handover_item_id_fkey"
+            columns: ["handover_item_id"]
+            isOneToOne: false
+            referencedRelation: "handover_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_item_staff_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_item_staff_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      handover_receivers: {
+        Row: {
+          branch_id: string
+          employee_id: string
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          employee_id: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "handover_receivers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_receivers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_receivers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       handover_items: {
         Row: {
           branch_id: string

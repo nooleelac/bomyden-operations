@@ -5,6 +5,7 @@ import { requireEmployee } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { HANDOVER_STATUS } from "@/lib/handover";
 import { signHandoverPhotos } from "@/lib/handover-photos";
+import { canReceive, loadMyHandoverRights, loadPreviousQuantities } from "@/lib/handover-data";
 import { formatQty } from "@/lib/inventory";
 import { formatDateTime } from "@/lib/time";
 import ReceivePanel from "./ReceivePanel";
@@ -25,16 +26,9 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
     .maybeSingle();
   if (!h) notFound();
 
-  // Phiếu liền trước của chi nhánh → so sánh số lượng
-  const { data: prev } = await supabase
-    .from("shift_handovers")
-    .select("created_at, shift_handover_lines(handover_item_id, quantity, unit)")
-    .eq("branch_id", h.branch_id)
-    .lt("created_at", h.created_at)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const previous = new Map((prev?.shift_handover_lines ?? []).map((l) => [l.handover_item_id, l]));
+  // Lần bàn giao trước của từng món → so sánh số lượng
+  const [previous, rights] = await Promise.all([loadPreviousQuantities(h.branch_id, h.created_at), loadMyHandoverRights(me.id)]);
+  const allowed = canReceive({ ...h, lineItemIds: h.shift_handover_lines.map((l) => l.handover_item_id) }, { id: me.id, ...rights });
 
   const lines = [...h.shift_handover_lines].sort((a, b) => a.sort_order - b.sort_order);
   const photos = await signHandoverPhotos(lines.map((l) => (l.photo_purged_at ? null : l.photo_path)));
@@ -62,7 +56,6 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
         </div>
       )}
 
-      {prev && <p className="mb-2 text-xs text-neutral-500">So với phiếu trước lúc {formatDateTime(prev.created_at)}.</p>}
 
       <ul className="space-y-3">
         {lines.map((l) => {
@@ -88,7 +81,7 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
                 </p>
                 {diff !== null && (
                   <p className="text-xs text-neutral-500">
-                    Lần trước {formatQty(p!.quantity)} {l.unit}
+                    Lần trước {formatQty(p!.quantity)} {l.unit} · {formatDateTime(p!.at)}
                     {diff !== 0 && (
                       <span className={diff < 0 ? " text-amber-700" : " text-sky-700"}>
                         {" "}({diff > 0 ? "+" : "−"}{formatQty(Math.abs(diff))})
@@ -103,10 +96,10 @@ export default async function HandoverDetailPage({ params }: PageProps<"/handove
       </ul>
 
       {h.status === "pending" &&
-        (h.handed_by === me.id ? (
-          <p className="alert-info mt-4">Đang chờ người nhận ca kiểm tra và xác nhận.</p>
-        ) : (
+        (allowed ? (
           <ReceivePanel handoverId={h.id} />
+        ) : (
+          <p className="alert-info mt-4">Đang chờ người nhận ca kiểm tra và xác nhận.</p>
         ))}
     </div>
   );
