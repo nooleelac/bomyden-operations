@@ -38,6 +38,7 @@ export function describeProfile(p: PayrollProfile): string {
     p.overtime_enabled ? `tăng ca ${formatMoney(p.overtime_rate)}/giờ` : null,
     p.allowance_per_period ? `PC ${formatMoney(p.allowance_per_period)}/kỳ` : null,
     p.allowance_per_workday ? `PC ${formatMoney(p.allowance_per_workday)}/ngày` : null,
+    p.kpi_checklist_bonus != null || p.kpi_checklist_target_percent != null ? "KPI checklist riêng" : null,
   ].filter(Boolean);
   return [`${PAY_TYPE_LABELS[p.pay_type]}: ${main}`, ...extras].join(" · ");
 }
@@ -149,6 +150,26 @@ export default function ProfileDialog({
             <Money name="absent_penalty" label={`Phạt nghỉ không phép/ca (chung: ${formatMoney(settings.absent_penalty)})`} value={p?.absent_penalty} state={state} />
             <Money name="forgot_checkout_penalty" label={`Phạt quên ra ca/lần (chung: ${formatMoney(settings.forgot_checkout_penalty)})`} value={p?.forgot_checkout_penalty} state={state} />
           </div>
+        </details>
+
+        <details className="rounded-xl border border-neutral-200 p-3" open={p?.kpi_checklist_bonus != null || p?.kpi_checklist_target_percent != null}>
+          <summary className="cursor-pointer text-sm font-medium">Thưởng KPI checklist riêng (bỏ trống = dùng mức chung)</summary>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Money
+              name="kpi_checklist_bonus"
+              label={`Thưởng/tuần đạt (chung: ${formatMoney(settings.kpi_checklist_bonus)})`}
+              value={p?.kpi_checklist_bonus}
+              state={state}
+            />
+            <div>
+              <label htmlFor="pf-kpi-target" className="mb-1 block text-xs font-medium text-neutral-600">
+                Chỉ tiêu % (chung: {settings.kpi_checklist_target_percent}%)
+              </label>
+              <input id="pf-kpi-target" name="kpi_checklist_target_percent" type="number" min={1} max={100} defaultValue={p?.kpi_checklist_target_percent ?? ""} className="input" />
+              {state.fieldErrors?.kpi_checklist_target_percent && <p className="field-error">{state.fieldErrors.kpi_checklist_target_percent}</p>}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-neutral-500">Nhập 0đ để không thưởng KPI cho riêng nhân viên này.</p>
         </details>
 
         {isAdmin && (

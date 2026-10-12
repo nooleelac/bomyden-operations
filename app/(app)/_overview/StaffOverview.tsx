@@ -6,6 +6,7 @@ import { getRequestTime } from "@/lib/request-time";
 import { formatDuration, formatTime, isForgotten, minutesBetween } from "@/lib/time";
 import { addDays, dayLabel, hm } from "@/lib/schedule";
 import { DISPLAY_STATUS, displayStatus, shiftCoversTask } from "@/lib/checklist";
+import ChecklistWeek from "./ChecklistWeek";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
 
 const UPCOMING_DAYS = 14;
@@ -115,6 +116,8 @@ export default async function StaffOverview({ me, today, compact = false }: { me
           {clock.cta && <span className="btn-primary">{clock.cta}</span>}
         </Link>
       )}
+
+      <ChecklistWeek />
 
       {!compact && (
         <div className="grid grid-cols-2 gap-3">

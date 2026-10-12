@@ -138,6 +138,8 @@ type PayrollProfileRow = {
   early_leave_penalty: number | null
   absent_penalty: number | null
   forgot_checkout_penalty: number | null
+  kpi_checklist_bonus: number | null
+  kpi_checklist_target_percent: number | null
   can_view_payslip: boolean
   created_at: string
   updated_at: string
@@ -158,6 +160,8 @@ type PayrollSettingsRow = {
   checkout_grace_minutes: number
   auto_checkout_after_minutes: number
   forgot_checkout_penalty: number
+  kpi_checklist_bonus: number
+  kpi_checklist_target_percent: number
   updated_at: string
   updated_by: string | null
 }
@@ -2025,6 +2029,10 @@ export type Database = {
       }
       payroll_overview: {
         Args: { p_period: Database["public"]["Enums"]["pay_period"]; p_period_start: string }
+        Returns: Json
+      }
+      my_checklist_week: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       has_payroll_profile: {

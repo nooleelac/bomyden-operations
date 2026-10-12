@@ -95,6 +95,9 @@ const HOME: LiveTable[] = [
   "attendance_records",
   "attendance_corrections",
   "salary_advances",
+  // Tiến độ checklist tuần + mức thưởng KPI
+  "payroll_settings",
+  "payroll_profiles",
   "stock_balances",
   "stock_receipts",
   "supplier_payments",

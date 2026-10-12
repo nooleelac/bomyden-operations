@@ -73,12 +73,18 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
   hoặc tháng, tăng ca (giờ vượt chuẩn mỗi ngày), phụ cấp cố định/kỳ & theo ngày công, mức phạt riêng (ghi đè mức chung).
 - **Tự tính** từ chấm công (chỉ ca đã ra ca) + checklist: phạt trễ (lần vào ca đầu ngày > giờ vào ca mặc định + ân hạn),
   "Không đạt" & làm trễ (người đánh dấu), không làm (người chính, hoặc người thay thế nếu người chính nghỉ).
+- **Thưởng KPI checklist** (tự động, QTV cài mức thưởng/tuần + chỉ tiêu %; 0đ = tắt): mỗi tuần T2–CN đã kết thúc có CN trong kỳ,
+  việc của NV = việc NV đánh dấu + việc NV phụ trách mà bỏ không làm (hủy không tính); đạt khi số việc "Xong" đúng hạn ≥ chỉ tiêu %.
+  Dòng `kpi_checklist` = số tuần đạt × mức thưởng, chi tiết từng tuần (tuần chưa đạt vẫn hiện, NV không có việc → không có dòng).
+  Hồ sơ lương có mức thưởng / chỉ tiêu riêng (bỏ trống = mức chung, 0đ = không thưởng NV đó). Trang chủ NV có thẻ "Checklist tuần này"
+  (`my_checklist_week`, cùng hàm `private.kpi_checklist_days` với phiếu lương): % xong đúng hạn, vạch chỉ tiêu, cột từng ngày,
+  luôn nhắc "Hãy hoàn thành đủ checklist trong ngày để nhận thưởng".
 - **Nhập tay**: KPI, thưởng, phụ cấp khác, khoản trừ, truy lĩnh/truy thu — bắt buộc lý do.
 - **Chốt** (`finalize_payslip`): chỉ khi kỳ đã kết thúc, không còn ca chưa ra / yêu cầu sửa chờ duyệt. Phiếu lưu ảnh chụp
   `payslips.data`, khóa cứng (không sửa/xóa). Tính đến từng đồng, làm tròn thực nhận đến 1.000đ.
 - **Quyền**: QTV; Quản lý được QTV bật `can_manage_payroll` → NV chi nhánh mình (không gồm mình & Quản lý khác);
   NV xem phiếu đã chốt khi QTV bật `can_view_payslip`. Một công thức duy nhất trong DB (`private.compute_payslip`).
-- **Kiểm thử tự động**: `npm run test:payroll` (thêm `-- --all` để in mọi phép kiểm) — 14 tình huống / 58 phép kiểm
+- **Kiểm thử tự động**: `npm run test:payroll` (thêm `-- --all` để in mọi phép kiểm) — 20 tình huống / 75 phép kiểm
   (theo giờ, tăng ca, theo ca, cố định, nghỉ có lương, trễ, về sớm, nghỉ không phép, checklist, điều chỉnh, ứng lương,
   chốt sớm, chặn chốt). Chạy trên DB thật nhưng dữ liệu thử bị hủy ngay (`public.service_run_payroll_tests`, chỉ secret key).
   **Sửa công thức lương → luôn chạy lại**; đổi quy tắc tính có chủ đích → cập nhật số mong đợi trong

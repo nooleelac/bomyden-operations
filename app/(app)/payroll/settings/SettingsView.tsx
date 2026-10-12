@@ -68,6 +68,26 @@ export function SettingsForm({ settings }: { settings: PayrollSettings }) {
         </p>
       </div>
       <div className="border-t border-neutral-100 pt-4">
+        <h2 className="font-semibold">Thưởng KPI checklist</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="st-kpi-bonus" className="mb-1 block text-sm font-medium text-neutral-700">Thưởng mỗi tuần đạt (đ)</label>
+            <input id="st-kpi-bonus" name="kpi_checklist_bonus" inputMode="numeric" defaultValue={settings.kpi_checklist_bonus} className="input" />
+            {state.fieldErrors?.kpi_checklist_bonus && <p className="field-error">{state.fieldErrors.kpi_checklist_bonus}</p>}
+          </div>
+          <div>
+            <label htmlFor="st-kpi-target" className="mb-1 block text-sm font-medium text-neutral-700">Chỉ tiêu hoàn thành (%)</label>
+            <input id="st-kpi-target" name="kpi_checklist_target_percent" type="number" min={1} max={100} defaultValue={settings.kpi_checklist_target_percent} className="input" />
+            {state.fieldErrors?.kpi_checklist_target_percent && <p className="field-error">{state.fieldErrors.kpi_checklist_target_percent}</p>}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          Mỗi tuần (T2–CN) đã kết thúc, nếu số việc checklist <strong>xong đúng hạn</strong> đạt chỉ tiêu % trên tổng việc của nhân viên
+          (việc tự đánh dấu + việc phụ trách mà bỏ không làm; việc trễ hạn / không đạt tính là chưa xong) thì phiếu lương tự cộng
+          khoản thưởng. Kỳ tháng tính các tuần có Chủ nhật nằm trong tháng. Nhập 0 để tắt.
+        </p>
+      </div>
+      <div className="border-t border-neutral-100 pt-4">
         <h2 className="font-semibold">Ứng lương</h2>
         <div className="mt-3 max-w-xs">
           <label htmlFor="st-advance" className="mb-1 block text-sm font-medium text-neutral-700">Được ứng tối đa (% lương tạm tính)</label>

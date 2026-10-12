@@ -69,6 +69,19 @@ const profileSchema = z.object({
   early_leave_penalty: optionalMoney("Phạt về sớm"),
   absent_penalty: optionalMoney("Phạt nghỉ không phép"),
   forgot_checkout_penalty: optionalMoney("Phạt quên ra ca"),
+  kpi_checklist_bonus: optionalMoney("Thưởng KPI checklist"),
+  kpi_checklist_target_percent: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : Number(v)))
+    .pipe(
+      z
+        .number({ message: "Chỉ tiêu phải là số." })
+        .int({ message: "Chỉ tiêu phải là số nguyên." })
+        .min(1, { message: "Tối thiểu 1%." })
+        .max(100, { message: "Tối đa 100%." })
+        .nullable()
+    ),
 });
 
 export async function saveProfile(employeeId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -95,6 +108,8 @@ export async function saveProfile(employeeId: string, _prev: ActionState, formDa
     early_leave_penalty: str(formData, "early_leave_penalty"),
     absent_penalty: str(formData, "absent_penalty"),
     forgot_checkout_penalty: str(formData, "forgot_checkout_penalty"),
+    kpi_checklist_bonus: str(formData, "kpi_checklist_bonus"),
+    kpi_checklist_target_percent: str(formData, "kpi_checklist_target_percent"),
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
 
@@ -236,6 +251,12 @@ const settingsSchema = z.object({
     .int({ message: "Tỷ lệ ứng lương phải là số nguyên." })
     .min(0, { message: "Tối thiểu 0%." })
     .max(100, { message: "Tối đa 100%." }),
+  kpi_checklist_bonus: money("Thưởng KPI checklist"),
+  kpi_checklist_target_percent: z.coerce
+    .number({ message: "Chỉ tiêu phải là số." })
+    .int({ message: "Chỉ tiêu phải là số nguyên." })
+    .min(1, { message: "Tối thiểu 1%." })
+    .max(100, { message: "Tối đa 100%." }),
 });
 
 export async function saveSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -253,6 +274,8 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
     checkout_grace_minutes: str(formData, "checkout_grace_minutes") || "0",
     auto_checkout_after_minutes: str(formData, "auto_checkout_after_minutes") || "60",
     advance_max_percent: str(formData, "advance_max_percent") || "0",
+    kpi_checklist_bonus: str(formData, "kpi_checklist_bonus"),
+    kpi_checklist_target_percent: str(formData, "kpi_checklist_target_percent") || "100",
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
   if (parsed.data.auto_checkout_after_minutes <= parsed.data.checkout_grace_minutes) {
