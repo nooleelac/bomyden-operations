@@ -7,3 +7,6 @@ alter table public.shift_templates add constraint shift_templates_duration
 alter table public.shift_templates drop constraint shift_templates_duration;
 alter table public.shift_templates add constraint shift_templates_duration
   check (not is_active or start_time = end_time or private.time_span_minutes(start_time, end_time) <= 960) not valid;
+
+-- (migration shift_template_max_length_validate) — sau khi đã sửa hết mẫu sai giờ
+alter table public.shift_templates validate constraint shift_templates_duration;
