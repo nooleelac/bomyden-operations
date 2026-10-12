@@ -68,6 +68,7 @@ const profileSchema = z.object({
     .pipe(z.number().int().min(0).max(240).nullable()),
   early_leave_penalty: optionalMoney("Phạt về sớm"),
   absent_penalty: optionalMoney("Phạt nghỉ không phép"),
+  forgot_checkout_penalty: optionalMoney("Phạt quên ra ca"),
 });
 
 export async function saveProfile(employeeId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -93,6 +94,7 @@ export async function saveProfile(employeeId: string, _prev: ActionState, formDa
     early_grace_minutes: str(formData, "early_grace_minutes"),
     early_leave_penalty: str(formData, "early_leave_penalty"),
     absent_penalty: str(formData, "absent_penalty"),
+    forgot_checkout_penalty: str(formData, "forgot_checkout_penalty"),
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
 
@@ -218,6 +220,17 @@ const settingsSchema = z.object({
   early_grace_minutes: z.coerce.number({ message: "Phút ân hạn phải là số." }).int().min(0).max(240),
   early_leave_penalty: money("Phạt về sớm"),
   absent_penalty: money("Phạt nghỉ không phép"),
+  forgot_checkout_penalty: money("Phạt quên ra ca"),
+  checkout_grace_minutes: z.coerce
+    .number({ message: "Phút du di phải là số." })
+    .int()
+    .min(0, { message: "Tối thiểu 0 phút." })
+    .max(240, { message: "Tối đa 240 phút." }),
+  auto_checkout_after_minutes: z.coerce
+    .number({ message: "Số phút tự chốt phải là số." })
+    .int()
+    .min(15, { message: "Tối thiểu 15 phút." })
+    .max(720, { message: "Tối đa 720 phút." }),
   advance_max_percent: z.coerce
     .number({ message: "Tỷ lệ ứng lương phải là số." })
     .int({ message: "Tỷ lệ ứng lương phải là số nguyên." })
@@ -236,9 +249,15 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
     early_grace_minutes: str(formData, "early_grace_minutes") || "0",
     early_leave_penalty: str(formData, "early_leave_penalty"),
     absent_penalty: str(formData, "absent_penalty"),
+    forgot_checkout_penalty: str(formData, "forgot_checkout_penalty"),
+    checkout_grace_minutes: str(formData, "checkout_grace_minutes") || "0",
+    auto_checkout_after_minutes: str(formData, "auto_checkout_after_minutes") || "60",
     advance_max_percent: str(formData, "advance_max_percent") || "0",
   });
   if (!parsed.success) return fail("Vui lòng kiểm tra lại thông tin.", zodFieldErrors(parsed.error.issues));
+  if (parsed.data.auto_checkout_after_minutes <= parsed.data.checkout_grace_minutes) {
+    return fail("Vui lòng kiểm tra lại thông tin.", { auto_checkout_after_minutes: "Phải lớn hơn số phút du di." });
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("payroll_settings").update(parsed.data).eq("id", true).select("id");
@@ -263,4 +282,20 @@ export async function setManagerPayrollAccess(employeeId: string, enabled: boole
 
   revalidatePayroll();
   return success(enabled ? "Đã cấp quyền bảng lương." : "Đã thu hồi quyền bảng lương.");
+}
+
+// Miễn tự chốt ca (bếp chính / người hay làm thêm ngoài lịch): chỉ nhắc ra ca, không tự chốt, tính đủ giờ
+export async function setAutoCheckoutExempt(employeeId: string, enabled: boolean): Promise<ActionState> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("employees")
+    .update({ auto_checkout_exempt: enabled })
+    .eq("id", employeeId)
+    .select("id");
+  if (error) return fail(friendlyDbError(error));
+  if (!data?.length) return fail("Không tìm thấy nhân viên này.");
+
+  revalidatePayroll();
+  return success(enabled ? "Đã bật miễn tự chốt ca." : "Đã tắt miễn tự chốt ca.");
 }

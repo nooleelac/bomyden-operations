@@ -4,6 +4,7 @@ const METHOD_LABEL: Record<AttendanceMethod, string> = {
   gps: "📍 GPS",
   wifi: "📶 Wi-Fi",
   manual: "✍️ Thủ công",
+  auto: "🔒 Tự chốt (quên ra ca)",
 };
 
 export function MethodBadge({ method, prefix }: { method: AttendanceMethod; prefix?: string }) {

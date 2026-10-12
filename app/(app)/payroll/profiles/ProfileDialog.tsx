@@ -147,6 +147,7 @@ export default function ProfileDialog({
             </div>
             <Money name="early_leave_penalty" label={`Phạt về sớm (chung: ${formatMoney(settings.early_leave_penalty)})`} value={p?.early_leave_penalty} state={state} />
             <Money name="absent_penalty" label={`Phạt nghỉ không phép/ca (chung: ${formatMoney(settings.absent_penalty)})`} value={p?.absent_penalty} state={state} />
+            <Money name="forgot_checkout_penalty" label={`Phạt quên ra ca/lần (chung: ${formatMoney(settings.forgot_checkout_penalty)})`} value={p?.forgot_checkout_penalty} state={state} />
           </div>
         </details>
 

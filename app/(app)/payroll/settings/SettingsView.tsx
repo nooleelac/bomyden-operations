@@ -4,7 +4,7 @@ import { startTransition } from "react";
 import ActionForm from "@/components/ActionForm";
 import SubmitButton from "@/components/SubmitButton";
 import { useFormAction } from "@/components/useFormAction";
-import { saveSettings, setManagerPayrollAccess } from "../actions";
+import { saveSettings, setAutoCheckoutExempt, setManagerPayrollAccess } from "../actions";
 import type { PayrollSettings } from "@/lib/database.types";
 
 export function SettingsForm({ settings }: { settings: PayrollSettings }) {
@@ -43,6 +43,31 @@ export function SettingsForm({ settings }: { settings: PayrollSettings }) {
         ))}
       </div>
       <div className="border-t border-neutral-100 pt-4">
+        <h2 className="font-semibold">Quên ra ca</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label htmlFor="st-cgrace" className="mb-1 block text-sm font-medium text-neutral-700">Phút du di sau hết ca</label>
+            <input id="st-cgrace" name="checkout_grace_minutes" type="number" min={0} max={240} defaultValue={settings.checkout_grace_minutes} className="input" />
+            {state.fieldErrors?.checkout_grace_minutes && <p className="field-error">{state.fieldErrors.checkout_grace_minutes}</p>}
+          </div>
+          <div>
+            <label htmlFor="st-auto" className="mb-1 block text-sm font-medium text-neutral-700">Tự chốt sau hết ca (phút)</label>
+            <input id="st-auto" name="auto_checkout_after_minutes" type="number" min={15} max={720} defaultValue={settings.auto_checkout_after_minutes} className="input" />
+            {state.fieldErrors?.auto_checkout_after_minutes && <p className="field-error">{state.fieldErrors.auto_checkout_after_minutes}</p>}
+          </div>
+          <div>
+            <label htmlFor="st-forgot" className="mb-1 block text-sm font-medium text-neutral-700">Phạt quên ra ca (mỗi lần) (đ)</label>
+            <input id="st-forgot" name="forgot_checkout_penalty" inputMode="numeric" defaultValue={settings.forgot_checkout_penalty} className="input" />
+            {state.fieldErrors?.forgot_checkout_penalty && <p className="field-error">{state.fieldErrors.forgot_checkout_penalty}</p>}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          Hết ca + phút du di mà chưa ra ca → nhắc nhân viên. Tự bấm ra ca muộn hơn mốc này → chỉ tính lương đến mốc này
+          (làm thêm thật: nhân viên gửi yêu cầu sửa giờ để duyệt). Hết ca + số phút tự chốt → app ghi giờ ra = giờ kết thúc ca và
+          tính 1 lần quên ra ca. Nhân viên miễn tự chốt (cài ở dưới) chỉ được nhắc, tính đủ giờ.
+        </p>
+      </div>
+      <div className="border-t border-neutral-100 pt-4">
         <h2 className="font-semibold">Ứng lương</h2>
         <div className="mt-3 max-w-xs">
           <label htmlFor="st-advance" className="mb-1 block text-sm font-medium text-neutral-700">Được ứng tối đa (% lương tạm tính)</label>
@@ -61,19 +86,37 @@ export function SettingsForm({ settings }: { settings: PayrollSettings }) {
   );
 }
 
-export function ManagerAccessToggle({ employeeId, name, enabled }: { employeeId: string; name: string; enabled: boolean }) {
-  const [state, action, pending] = useFormAction(setManagerPayrollAccess.bind(null, employeeId, !enabled));
+const TOGGLES = {
+  payroll: { action: setManagerPayrollAccess, label: "Quyền bảng lương" },
+  exempt: { action: setAutoCheckoutExempt, label: "Miễn tự chốt ca" },
+};
+
+export function EmployeeToggle({
+  employeeId,
+  name,
+  detail,
+  enabled,
+  kind,
+}: {
+  employeeId: string;
+  name: string;
+  detail?: string;
+  enabled: boolean;
+  kind: keyof typeof TOGGLES;
+}) {
+  const [state, action, pending] = useFormAction(TOGGLES[kind].action.bind(null, employeeId, !enabled));
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <div>
         <p className="font-medium">{name}</p>
+        {detail && <p className="text-xs text-neutral-500">{detail}</p>}
         {state.message && !state.ok && <p className="text-xs text-red-600">{state.message}</p>}
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={enabled}
-        aria-label={`Quyền bảng lương của ${name}`}
+        aria-label={`${TOGGLES[kind].label} của ${name}`}
         disabled={pending}
         onClick={() => startTransition(() => action(new FormData()))}
         className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${enabled ? "bg-emerald-600" : "bg-neutral-300"}`}

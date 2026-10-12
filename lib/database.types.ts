@@ -34,6 +34,8 @@ type AttendanceRecordRow = {
   is_corrected: boolean
   last_corrected_at: string | null
   last_corrected_by: string | null
+  checkout_reminded_at: string | null
+  forgot_checkout_at: string | null
   updated_at: string
 }
 
@@ -135,6 +137,7 @@ type PayrollProfileRow = {
   early_grace_minutes: number | null
   early_leave_penalty: number | null
   absent_penalty: number | null
+  forgot_checkout_penalty: number | null
   can_view_payslip: boolean
   created_at: string
   updated_at: string
@@ -152,6 +155,9 @@ type PayrollSettingsRow = {
   early_leave_penalty: number
   absent_penalty: number
   advance_max_percent: number
+  checkout_grace_minutes: number
+  auto_checkout_after_minutes: number
+  forgot_checkout_penalty: number
   updated_at: string
   updated_by: string | null
 }
@@ -620,6 +626,7 @@ export type Database = {
           requires_attendance: boolean
           can_manage_payroll: boolean
           can_receive_stock: boolean
+          auto_checkout_exempt: boolean
           self_schedule: boolean
           role: Database["public"]["Enums"]["employee_role"]
           sort_order: number
@@ -641,6 +648,7 @@ export type Database = {
           requires_attendance?: boolean
           can_manage_payroll?: boolean
           can_receive_stock?: boolean
+          auto_checkout_exempt?: boolean
           self_schedule?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
@@ -662,6 +670,7 @@ export type Database = {
           requires_attendance?: boolean
           can_manage_payroll?: boolean
           can_receive_stock?: boolean
+          auto_checkout_exempt?: boolean
           self_schedule?: boolean
           role?: Database["public"]["Enums"]["employee_role"]
           sort_order?: number
@@ -2264,6 +2273,8 @@ export type Database = {
         | "advance_result"
         | "low_stock"
         | "debt_due"
+        | "checkout_reminder"
+        | "auto_checkout"
       salary_advance_status: "pending" | "approved" | "rejected" | "cancelled"
       shift_status: "draft" | "published" | "cancelled"
       request_kind: "leave" | "late" | "early_leave" | "swap"
@@ -2275,7 +2286,7 @@ export type Database = {
       task_frequency: "daily" | "weekly" | "monthly"
       task_priority: "low" | "normal" | "high" | "critical"
       task_status: "pending" | "done" | "failed" | "cancelled"
-      attendance_method: "gps" | "wifi" | "manual"
+      attendance_method: "gps" | "wifi" | "manual" | "auto"
       correction_status: "pending" | "approved" | "rejected" | "cancelled"
       employee_role:
         | "admin"
@@ -2294,7 +2305,7 @@ export type Database = {
 export const Constants = {
   public: {
     Enums: {
-      attendance_method: ["gps", "wifi", "manual"],
+      attendance_method: ["gps", "wifi", "manual", "auto"],
       correction_status: ["pending", "approved", "rejected", "cancelled"],
       employee_role: ["admin", "manager", "head_chef", "staff", "server", "cashier"],
     },

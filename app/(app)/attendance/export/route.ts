@@ -6,7 +6,7 @@ import { addSheet, createWorkbook, excelResponse, monthRange } from "@/lib/excel
 import { hm } from "@/lib/schedule";
 import { vnDateString } from "@/lib/time";
 
-const METHOD_LABELS: Record<string, string> = { gps: "GPS", wifi: "Wi-Fi", manual: "Nhập tay" };
+const METHOD_LABELS: Record<string, string> = { gps: "GPS", wifi: "Wi-Fi", manual: "Nhập tay", auto: "Tự chốt (quên ra ca)" };
 
 /** NV tự xuất lịch sử chấm công 1 tháng của mình (kèm ca theo lịch để đối chiếu) */
 export async function GET(request: NextRequest) {

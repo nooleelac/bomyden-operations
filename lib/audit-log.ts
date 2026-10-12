@@ -81,6 +81,7 @@ const FIELD_LABELS: Record<string, string> = {
   can_manage_payroll: "Quyền bảng lương",
   can_receive_stock: "Quyền nhập kho",
   self_schedule: "Tự đăng ký ca",
+  auto_checkout_exempt: "Miễn tự chốt ca",
   address: "Địa chỉ",
   latitude: "Vĩ độ",
   longitude: "Kinh độ",
@@ -95,6 +96,8 @@ const FIELD_LABELS: Record<string, string> = {
   check_out_method: "Cách ra ca",
   is_corrected: "Đã sửa",
   correction_note: "Ghi chú sửa",
+  checkout_reminded_at: "Đã nhắc ra ca lúc",
+  forgot_checkout_at: "Quên ra ca (ghi nhận lúc)",
   requested_check_in_at: "Giờ vào xin sửa",
   requested_check_out_at: "Giờ ra xin sửa",
   applied_check_in_at: "Giờ vào đã áp",
@@ -169,6 +172,9 @@ const FIELD_LABELS: Record<string, string> = {
   early_grace_minutes: "Ân hạn về sớm (phút)",
   early_leave_penalty: "Phạt về sớm/lần",
   absent_penalty: "Phạt nghỉ không phép",
+  forgot_checkout_penalty: "Phạt quên ra ca/lần",
+  checkout_grace_minutes: "Du di sau hết ca (phút)",
+  auto_checkout_after_minutes: "Tự chốt sau hết ca (phút)",
   checklist_failed_penalty: "Phạt checklist Không đạt",
   checklist_missed_penalty: "Phạt checklist Không làm",
   checklist_late_penalty: "Phạt checklist Làm trễ",
@@ -267,7 +273,7 @@ const HIDDEN_FIELDS = new Set([
 
 const MONEY_FIELDS = new Set([
   "hourly_rate", "shift_rate", "fixed_salary", "overtime_rate", "allowance_per_period", "allowance_per_workday",
-  "late_penalty", "early_leave_penalty", "absent_penalty", "checklist_failed_penalty", "checklist_missed_penalty",
+  "late_penalty", "early_leave_penalty", "absent_penalty", "forgot_checkout_penalty", "checklist_failed_penalty", "checklist_missed_penalty",
   "checklist_late_penalty", "amount", "gross_amount", "deductions_amount", "net_amount", "invoice_total", "subtotal",
   "vat_amount", "total_amount", "paid_amount", "debt_amount", "used_value", "surplus_value", "total_value",
 ]);
@@ -341,7 +347,7 @@ const ENUM_LABELS: Record<string, Record<string, string>> = {
   pay_period: PAY_PERIOD_LABELS,
   method: PAYMENT_METHOD_LABELS,
   check_in_method: { gps: "GPS", wifi: "Wi-Fi", manual: "Thủ công" },
-  check_out_method: { gps: "GPS", wifi: "Wi-Fi", manual: "Thủ công" },
+  check_out_method: { gps: "GPS", wifi: "Wi-Fi", manual: "Thủ công", auto: "Tự chốt (quên ra ca)" },
   frequency: { daily: "Hằng ngày", weekly: "Theo thứ", monthly: "Theo ngày tháng" },
   priority: Object.fromEntries(Object.entries(PRIORITY_LABELS).map(([k, v]) => [k, v.label])),
 };

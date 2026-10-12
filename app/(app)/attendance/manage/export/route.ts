@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addSheet, createWorkbook, excelResponse, monthRange } from "@/lib/excel";
 import { vnDateString } from "@/lib/time";
 
-const METHOD_LABELS: Record<string, string> = { gps: "GPS", wifi: "Wi-Fi", manual: "Nhập tay" };
+const METHOD_LABELS: Record<string, string> = { gps: "GPS", wifi: "Wi-Fi", manual: "Nhập tay", auto: "Tự chốt (quên ra ca)" };
 
 /** Xuất chấm công 1 tháng: tổng hợp theo nhân viên + chi tiết từng lượt vào/ra */
 export async function GET(request: NextRequest) {

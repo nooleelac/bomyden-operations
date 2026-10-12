@@ -46,6 +46,10 @@ proxy.ts                 làm mới phiên + chuyển hướng khi chưa đăng 
 - Hợp lệ khi **IP Wi-Fi chi nhánh** hoặc **GPS trong bán kính** (sai số GPS ≤ 200 m). Giờ lấy từ máy chủ.
 - Vào/ra ca chạy qua server (`attendance_check_in/out` chỉ `service_role` gọi được) → người dùng không giả được IP.
 - Tối đa 1 ca mở/người; DB chặn ca chồng thời gian. Ca mở > 16 giờ = "quên ra ca" → phải gửi yêu cầu sửa.
+- Quên ra ca (job `private.run_checkout_jobs` mỗi 5 phút, mốc cài ở Cài đặt lương): hết ca + du di (15') → nhắc;
+  hết ca + 60' → tự chốt giờ ra = giờ kết thúc ca, tính phạt quên ra ca, báo NV + QTV + QL chi nhánh.
+  Tự bấm ra ca muộn hơn hết ca + du di → lương chỉ tính đến mốc đó (lượt đã được sửa / nhập tay thì tính đủ).
+  NV "miễn tự chốt" (bếp chính): chỉ nhắc, tính đủ giờ; ca mở > 16 giờ vẫn tính phạt.
 - Mọi sửa đổi ghi `audit_logs` kèm người sửa và lý do. Không xóa bản ghi chấm công.
 - Lưu ý: GPS do điện thoại gửi nên có thể bị giả bởi người rành công nghệ; IP Wi-Fi khó giả hơn.
 
