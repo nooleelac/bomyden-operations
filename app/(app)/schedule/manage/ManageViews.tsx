@@ -11,9 +11,11 @@ import BulkShiftDialog from "./BulkShiftDialog";
 import {
   copyWeek,
   createShiftTemplate,
+  deleteBranchRegisterRules,
   deleteShiftTemplate,
   publishWeek,
   reviewRequest,
+  saveBranchRegisterRules,
   saveScheduleSettings,
   setLeavePaid,
   updateShiftTemplate,
@@ -429,6 +431,69 @@ export function TemplatesManager({ templates, branches }: { templates: TemplateR
 // =====================================================================
 // CÀI ĐẶT (QTV)
 // =====================================================================
+export type RegisterRuleValues = Pick<
+  ScheduleSettings,
+  | "register_earliest"
+  | "register_latest"
+  | "register_step_minutes"
+  | "register_min_minutes"
+  | "register_max_minutes"
+  | "register_max_per_day"
+  | "register_max_day_minutes"
+>;
+
+/** Các ô quy định khung giờ tự đăng ký ca (dùng cho mặc định + riêng từng chi nhánh) */
+function RegisterRulesFields({ values, state, idPrefix }: { values: RegisterRuleValues; state: ActionState; idPrefix: string }) {
+  return (
+    <div className="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <label htmlFor={`${idPrefix}-earliest`} className="mb-1 block font-medium text-neutral-700">Vào ca sớm nhất</label>
+        <select id={`${idPrefix}-earliest`} name="register_earliest" defaultValue={hm(values.register_earliest)} className="input">
+          {halfHours(hm(values.register_earliest)).map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <Err state={state} name="register_earliest" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-latest`} className="mb-1 block font-medium text-neutral-700">Ra ca muộn nhất</label>
+        <select id={`${idPrefix}-latest`} name="register_latest" defaultValue={hm(values.register_latest)} className="input">
+          {halfHours(hm(values.register_latest)).map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <p className="mt-1 text-xs text-neutral-500">Sớm hơn giờ vào sớm nhất = hôm sau (VD 01:00).</p>
+        <Err state={state} name="register_latest" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-step`} className="mb-1 block font-medium text-neutral-700">Bước chọn giờ</label>
+        <select id={`${idPrefix}-step`} name="register_step_minutes" defaultValue={values.register_step_minutes} className="input">
+          <option value={15}>15 phút</option>
+          <option value={30}>30 phút</option>
+          <option value={60}>60 phút</option>
+        </select>
+        <Err state={state} name="register_step_minutes" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-perday`} className="mb-1 block font-medium text-neutral-700">Số ca tối đa / ngày</label>
+        <input id={`${idPrefix}-perday`} name="register_max_per_day" type="number" min={1} max={3} defaultValue={values.register_max_per_day} className="input" />
+        <Err state={state} name="register_max_per_day" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-min`} className="mb-1 block font-medium text-neutral-700">Ca ngắn nhất (tiếng)</label>
+        <input id={`${idPrefix}-min`} name="register_min_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={values.register_min_minutes / 60} className="input" />
+        <Err state={state} name="register_min_hours" />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-max`} className="mb-1 block font-medium text-neutral-700">Ca dài nhất (tiếng)</label>
+        <input id={`${idPrefix}-max`} name="register_max_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={values.register_max_minutes / 60} className="input" />
+        <Err state={state} name="register_max_hours" />
+      </div>
+      <div className="sm:col-span-2">
+        <label htmlFor={`${idPrefix}-day`} className="mb-1 block font-medium text-neutral-700">Có từ 2 ca / ngày thì tổng tối đa (tiếng)</label>
+        <input id={`${idPrefix}-day`} name="register_max_day_hours" type="number" min={0.5} max={24} step={0.5} defaultValue={values.register_max_day_minutes / 60} className="input sm:w-40" />
+        <Err state={state} name="register_max_day_hours" />
+      </div>
+    </div>
+  );
+}
+
 export function ScheduleSettingsForm({ settings }: { settings: ScheduleSettings }) {
   const [state, action, pending] = useFormAction(saveScheduleSettings);
   const rows = [
@@ -487,52 +552,8 @@ export function ScheduleSettingsForm({ settings }: { settings: ScheduleSettings 
         </p>
         <Err state={state} name="register_deadline_days" />
 
-        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <label htmlFor="st-earliest" className="mb-1 block font-medium text-neutral-700">Vào ca sớm nhất</label>
-            <select id="st-earliest" name="register_earliest" defaultValue={hm(settings.register_earliest)} className="input">
-              {halfHours(hm(settings.register_earliest)).map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <Err state={state} name="register_earliest" />
-          </div>
-          <div>
-            <label htmlFor="st-latest" className="mb-1 block font-medium text-neutral-700">Ra ca muộn nhất</label>
-            <select id="st-latest" name="register_latest" defaultValue={hm(settings.register_latest)} className="input">
-              {halfHours(hm(settings.register_latest)).map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <p className="mt-1 text-xs text-neutral-500">Sớm hơn giờ vào sớm nhất = hôm sau (VD 01:00).</p>
-            <Err state={state} name="register_latest" />
-          </div>
-          <div>
-            <label htmlFor="st-step" className="mb-1 block font-medium text-neutral-700">Bước chọn giờ</label>
-            <select id="st-step" name="register_step_minutes" defaultValue={settings.register_step_minutes} className="input">
-              <option value={15}>15 phút</option>
-              <option value={30}>30 phút</option>
-              <option value={60}>60 phút</option>
-            </select>
-            <Err state={state} name="register_step_minutes" />
-          </div>
-          <div>
-            <label htmlFor="st-perday" className="mb-1 block font-medium text-neutral-700">Số ca tối đa / ngày</label>
-            <input id="st-perday" name="register_max_per_day" type="number" min={1} max={3} defaultValue={settings.register_max_per_day} className="input" />
-            <Err state={state} name="register_max_per_day" />
-          </div>
-          <div>
-            <label htmlFor="st-min" className="mb-1 block font-medium text-neutral-700">Ca ngắn nhất (tiếng)</label>
-            <input id="st-min" name="register_min_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={settings.register_min_minutes / 60} className="input" />
-            <Err state={state} name="register_min_hours" />
-          </div>
-          <div>
-            <label htmlFor="st-max" className="mb-1 block font-medium text-neutral-700">Ca dài nhất (tiếng)</label>
-            <input id="st-max" name="register_max_hours" type="number" min={0.5} max={16} step={0.5} defaultValue={settings.register_max_minutes / 60} className="input" />
-            <Err state={state} name="register_max_hours" />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="st-day" className="mb-1 block font-medium text-neutral-700">Có từ 2 ca / ngày thì tổng tối đa (tiếng)</label>
-            <input id="st-day" name="register_max_day_hours" type="number" min={0.5} max={24} step={0.5} defaultValue={settings.register_max_day_minutes / 60} className="input sm:w-40" />
-            <Err state={state} name="register_max_day_hours" />
-          </div>
-        </div>
+        <div className="mt-4" />
+        <RegisterRulesFields values={settings} state={state} idPrefix="st" />
         <p className="mt-2 text-xs text-neutral-500">
           Nhân viên tự chọn giờ vào / ra trong khung này. Quản lý vẫn sửa được giờ ngoài khung khi duyệt.
         </p>
@@ -542,5 +563,116 @@ export function ScheduleSettingsForm({ settings }: { settings: ScheduleSettings 
         <SubmitButton pending={pending} pendingText="Đang lưu...">Lưu cài đặt</SubmitButton>
       </div>
     </ActionForm>
+  );
+}
+
+// Khung giờ tự đăng ký riêng từng chi nhánh (QTV)
+function rulesSummary(v: RegisterRuleValues): string {
+  const h = (min: number) => String(min / 60).replace(".", ",");
+  return (
+    `${hm(v.register_earliest)}–${hm(v.register_latest)} · ca ${h(v.register_min_minutes)}–${h(v.register_max_minutes)} tiếng · ` +
+    `tối đa ${v.register_max_per_day} ca/ngày` +
+    (v.register_max_per_day > 1 ? ` (tổng ${h(v.register_max_day_minutes)} tiếng)` : "") +
+    ` · bước ${v.register_step_minutes} phút`
+  );
+}
+
+function BranchRulesDialog({
+  branch,
+  values,
+  onClose,
+  onDone,
+}: {
+  branch: { id: string; name: string };
+  values: RegisterRuleValues;
+  onClose: () => void;
+  onDone: (m: string) => void;
+}) {
+  const [state, action, pending] = useFormAction(saveBranchRegisterRules.bind(null, branch.id), (r) => onDone(r.message));
+  return (
+    <Dialog open onClose={onClose} title={`Khung giờ đăng ký: ${branch.name}`} description="Chỉ áp dụng cho nhân viên đăng ký ca ở chi nhánh này.">
+      <ActionForm action={action} className="space-y-4">
+        <RegisterRulesFields values={values} state={state} idPrefix={`br-${branch.id}`} />
+        {state.message && !state.ok && <p role="alert" className="alert-error">{state.message}</p>}
+        <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4">
+          <button type="button" onClick={onClose} className="btn-secondary">Đóng</button>
+          <SubmitButton pending={pending} pendingText="Đang lưu...">Lưu</SubmitButton>
+        </div>
+      </ActionForm>
+    </Dialog>
+  );
+}
+
+function BranchRulesResetButton({ branch, onDone }: { branch: { id: string; name: string }; onDone: (m: string) => void }) {
+  const [state, action, pending] = useFormAction(() => deleteBranchRegisterRules(branch.id), (r) => onDone(r.message));
+  return (
+    <>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          if (window.confirm(`Cho chi nhánh "${branch.name}" quay về dùng khung giờ mặc định?`)) startTransition(() => action(new FormData()));
+        }}
+        className="text-xs font-medium text-neutral-500 hover:underline disabled:opacity-50"
+      >
+        Dùng mặc định
+      </button>
+      {state.message && !state.ok && <span className="text-xs text-red-600">{state.message}</span>}
+    </>
+  );
+}
+
+export function BranchRegisterRules({
+  branches,
+  rules,
+  defaults,
+}: {
+  branches: { id: string; name: string }[];
+  /** Quy định riêng theo branch_id (không có = dùng mặc định) */
+  rules: Record<string, RegisterRuleValues>;
+  defaults: RegisterRuleValues;
+}) {
+  const [toast, notify] = useToast();
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  return (
+    <section className="card mt-4 space-y-3 p-5">
+      <div>
+        <h2 className="font-semibold">Khung giờ đăng ký riêng từng chi nhánh</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Chi nhánh không đặt riêng sẽ dùng khung giờ mặc định ở trên ({rulesSummary(defaults)}).
+        </p>
+      </div>
+      <Toast message={toast} />
+      <ul className="divide-y divide-neutral-100">
+        {branches.map((b) => {
+          const own = rules[b.id];
+          return (
+            <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+              <div className="min-w-0">
+                <p className="font-medium">{b.name}</p>
+                <p className={`text-xs ${own ? "text-emerald-700" : "text-neutral-500"}`}>{own ? `Riêng: ${rulesSummary(own)}` : "Dùng mặc định"}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {own && <BranchRulesResetButton branch={b} onDone={notify} />}
+                <button type="button" onClick={() => setEditing(b)} className="btn-secondary py-1.5 text-xs">
+                  {own ? "Sửa" : "Đặt riêng"}
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {editing && (
+        <BranchRulesDialog
+          branch={editing}
+          values={rules[editing.id] ?? defaults}
+          onClose={() => setEditing(null)}
+          onDone={(m) => {
+            notify(m);
+            setEditing(null);
+          }}
+        />
+      )}
+    </section>
   );
 }

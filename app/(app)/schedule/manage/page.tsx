@@ -5,12 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getManageableBranches } from "@/lib/branches";
 import { getRequestTime } from "@/lib/request-time";
 import { vnDateString } from "@/lib/time";
-import { addDays, hm, isMonday, resolvePeriod, weekStartOf, type Coverage, type WeekSchedule } from "@/lib/schedule";
+import { addDays, hm, isMonday, resolvePeriod, weekStartOf, type Coverage, type RegisterRules, type WeekSchedule } from "@/lib/schedule";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import PeriodNav from "../PeriodNav";
 import { RegistrationsManager, type BranchRegistration } from "./RegistrationsManager";
 import WeekNav from "../WeekNav";
-import { RequestsManager, ScheduleManager, ScheduleSettingsForm, TemplatesManager, type ManageRequest, type TemplateRow } from "./ManageViews";
+import { BranchRegisterRules, RequestsManager, ScheduleManager, ScheduleSettingsForm, TemplatesManager, type ManageRequest, type RegisterRuleValues, type TemplateRow } from "./ManageViews";
 
 export const metadata: Metadata = { title: "Xếp lịch & duyệt đơn" };
 export const instant = false;
@@ -92,11 +92,11 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
         .select("employee:employees!employee_branches_employee_id_fkey!inner(id, full_name, role, is_active, sort_order, self_schedule)")
         .eq("branch_id", branchId)
         .eq("employee.is_active", true),
-      supabase.from("schedule_settings").select("register_earliest, register_latest, register_step_minutes, register_min_minutes, register_max_minutes, register_max_per_day, register_max_day_minutes").single(),
+      supabase.rpc("branch_register_rules_of", { p_branch_id: branchId }),
       supabase.from("staffing_requirements").select("id, weekdays, start_time, end_time, headcount").eq("branch_id", branchId).order("start_time"),
     ]);
     if (regRes.error || tplRes.error || covRes.error || staffRes.error || settingsRes.error || staffingRes.error) throw new Error("Không tải được đăng ký ca.");
-    const st = settingsRes.data;
+    const rules = settingsRes.data as RegisterRules;
     const staff = staffRes.data
       .map((row) => row.employee)
       .filter((e) => e.role !== "admin" && e.role !== "manager")
@@ -111,15 +111,7 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
           registrations={regRes.data as BranchRegistration[]}
           templates={tplRes.data.map((t) => ({ id: t.id, name: t.name, startTime: hm(t.start_time), endTime: hm(t.end_time) }))}
           coverage={covRes.data as Coverage}
-          rules={{
-            earliest: hm(st.register_earliest),
-            latest: hm(st.register_latest),
-            step: st.register_step_minutes,
-            min: st.register_min_minutes,
-            max: st.register_max_minutes,
-            max_per_day: st.register_max_per_day,
-            max_day: st.register_max_day_minutes,
-          }}
+          rules={rules}
           staffing={staffingRes.data.map((q) => ({ id: q.id, weekdays: q.weekdays, startTime: hm(q.start_time), endTime: hm(q.end_time), headcount: q.headcount }))}
           staff={staff}
         />
@@ -194,9 +186,19 @@ export default async function ManageSchedulePage({ searchParams }: PageProps<"/s
     }));
     content = <TemplatesManager templates={templates} branches={branches} />;
   } else {
-    const { data: settings, error } = await supabase.from("schedule_settings").select("*").single();
-    if (error || !settings) throw new Error("Không tải được cài đặt.");
-    content = <ScheduleSettingsForm settings={settings} />;
+    const ruleCols = "register_earliest, register_latest, register_step_minutes, register_min_minutes, register_max_minutes, register_max_per_day, register_max_day_minutes";
+    const [{ data: settings, error }, { data: branchRules, error: rulesError }] = await Promise.all([
+      supabase.from("schedule_settings").select("*").single(),
+      supabase.from("branch_register_rules").select(`branch_id, ${ruleCols}`),
+    ]);
+    if (error || !settings || rulesError) throw new Error("Không tải được cài đặt.");
+    const rules: Record<string, RegisterRuleValues> = Object.fromEntries(branchRules.map(({ branch_id, ...v }) => [branch_id, v]));
+    content = (
+      <>
+        <ScheduleSettingsForm settings={settings} />
+        <BranchRegisterRules branches={branches.map((b) => ({ id: b.id, name: b.name }))} rules={rules} defaults={settings} />
+      </>
+    );
   }
 
   const tabHref = (key: string) => "?" + new URLSearchParams({ tab: key, ...(branchId && { branch: branchId }), ...(weekStart !== currentWeek && { week: weekStart }) }).toString();

@@ -17,7 +17,7 @@ export const AUDIT_GROUPS: AuditGroup[] = [
   {
     key: "schedule",
     label: "Lịch & đơn",
-    tables: ["shifts", "shift_templates", "shift_registrations", "staffing_requirements", "schedule_requests", "schedule_settings"],
+    tables: ["shifts", "shift_templates", "shift_registrations", "staffing_requirements", "branch_register_rules", "schedule_requests", "schedule_settings"],
   },
   {
     key: "payroll",
@@ -45,6 +45,7 @@ const TABLE_LABELS: Record<string, string> = {
   shift_templates: "Mẫu ca",
   shift_registrations: "Đăng ký ca",
   staffing_requirements: "Định mức nhân sự",
+  branch_register_rules: "Khung giờ đăng ký ca của chi nhánh",
   schedule_requests: "Đơn xin phép",
   schedule_settings: "Cài đặt lịch & đơn",
   payroll_profiles: "Hồ sơ lương",

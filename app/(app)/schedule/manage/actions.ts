@@ -395,9 +395,8 @@ const registerSchema = z
   .refine((v) => v.register_max_minutes >= v.register_min_minutes, { path: ["register_max_minutes"], message: "Phải lớn hơn hoặc bằng ca ngắn nhất." })
   .refine((v) => v.register_max_day_minutes >= v.register_min_minutes, { path: ["register_max_day_minutes"], message: "Phải lớn hơn hoặc bằng ca ngắn nhất." });
 
-export async function saveScheduleSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
-  const parsed = settingsSchema.safeParse(Object.fromEntries(Object.keys(settingsSchema.shape).map((k) => [k, str(formData, k) || "0"])));
+/** Đọc các ô quy định khung giờ (nhập theo tiếng) → phút; lỗi trả theo tên ô trên form */
+function parseRegisterRules(formData: FormData) {
   const reg = registerSchema.safeParse({
     register_earliest: str(formData, "register_earliest"),
     register_latest: str(formData, "register_latest"),
@@ -407,11 +406,19 @@ export async function saveScheduleSettings(_prev: ActionState, formData: FormDat
     register_max_per_day: str(formData, "register_max_per_day"),
     register_max_day_minutes: str(formData, "register_max_day_hours").replace(",", "."),
   });
-  if (!parsed.success || !reg.success) {
-    const regErrors = Object.fromEntries(
-      Object.entries(reg.success ? {} : zodFieldErrors(reg.error.issues)).map(([k, v]) => [k.replace("_minutes", "_hours").replace("register_step_hours", "register_step_minutes"), v])
-    );
-    return fail("Vui lòng kiểm tra lại thông tin.", { ...(parsed.success ? {} : zodFieldErrors(parsed.error.issues)), ...regErrors });
+  if (reg.success) return { data: reg.data, errors: null };
+  const errors = Object.fromEntries(
+    Object.entries(zodFieldErrors(reg.error.issues)).map(([k, v]) => [k.replace("_minutes", "_hours").replace("register_step_hours", "register_step_minutes"), v])
+  );
+  return { data: null, errors };
+}
+
+export async function saveScheduleSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const parsed = settingsSchema.safeParse(Object.fromEntries(Object.keys(settingsSchema.shape).map((k) => [k, str(formData, k) || "0"])));
+  const reg = parseRegisterRules(formData);
+  if (!parsed.success || !reg.data) {
+    return fail("Vui lòng kiểm tra lại thông tin.", { ...(parsed.success ? {} : zodFieldErrors(parsed.error.issues)), ...reg.errors });
   }
 
   const supabase = await createClient();
@@ -420,4 +427,27 @@ export async function saveScheduleSettings(_prev: ActionState, formData: FormDat
   if (!data?.length) return fail("Bạn không có quyền sửa cài đặt.");
   revalidateSchedule();
   return success("Đã lưu cài đặt lịch & đơn.");
+}
+
+// Khung giờ tự đăng ký riêng cho 1 chi nhánh (chỉ QTV)
+export async function saveBranchRegisterRules(branchId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  if (!z.uuid().safeParse(branchId).success) return fail("Chi nhánh không hợp lệ.");
+  const reg = parseRegisterRules(formData);
+  if (!reg.data) return fail("Vui lòng kiểm tra lại thông tin.", reg.errors);
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("branch_register_rules").upsert({ branch_id: branchId, ...reg.data }, { onConflict: "branch_id" });
+  if (error) return fail(friendlyDbError(error));
+  revalidateSchedule();
+  return success("Đã lưu khung giờ riêng cho chi nhánh.");
+}
+
+export async function deleteBranchRegisterRules(branchId: string): Promise<ActionState> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.from("branch_register_rules").delete().eq("branch_id", branchId);
+  if (error) return fail(friendlyDbError(error));
+  revalidateSchedule();
+  return success("Chi nhánh đã quay về dùng khung giờ mặc định.");
 }

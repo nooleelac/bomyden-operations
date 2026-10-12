@@ -24,6 +24,7 @@ export type LiveTable =
   | "schedule_settings"
   | "shift_registrations"
   | "staffing_requirements"
+  | "branch_register_rules"
   | "shift_templates"
   | "shifts"
   | "stock_balances"
@@ -41,7 +42,7 @@ export type LiveTable =
   | "task_templates";
 
 const STAFF: LiveTable[] = ["employees", "employee_branches", "branches"];
-const SCHEDULE: LiveTable[] = ["shifts", "shift_templates", "schedule_requests", "schedule_settings", "shift_registrations", "staffing_requirements"];
+const SCHEDULE: LiveTable[] = ["shifts", "shift_templates", "schedule_requests", "schedule_settings", "shift_registrations", "staffing_requirements", "branch_register_rules"];
 const INVENTORY: LiveTable[] = [
   "inventory_items",
   "inventory_item_units",

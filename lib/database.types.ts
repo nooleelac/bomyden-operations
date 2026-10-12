@@ -744,6 +744,43 @@ export type Database = {
           },
         ]
       }
+      branch_register_rules: {
+        Row: {
+          id: string
+          branch_id: string
+          register_earliest: string
+          register_latest: string
+          register_step_minutes: number
+          register_min_minutes: number
+          register_max_minutes: number
+          register_max_per_day: number
+          register_max_day_minutes: number
+          created_at: string
+          created_by: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          register_earliest: string
+          register_latest: string
+          register_step_minutes: number
+          register_min_minutes: number
+          register_max_minutes: number
+          register_max_per_day: number
+          register_max_day_minutes: number
+        }
+        Update: Partial<Omit<Database["public"]["Tables"]["branch_register_rules"]["Insert"], "branch_id">>
+        Relationships: [
+          {
+            foreignKeyName: "branch_register_rules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staffing_requirements: {
         Row: {
           id: string
@@ -1956,6 +1993,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      branch_register_rules_of: {
+        Args: { p_branch_id: string }
+        Returns: Json
       }
       branch_coverage: {
         Args: { p_branch_id: string; p_from: string; p_to: string }
