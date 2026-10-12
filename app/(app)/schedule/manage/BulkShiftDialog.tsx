@@ -5,7 +5,7 @@ import ActionForm from "@/components/ActionForm";
 import Dialog from "@/components/Dialog";
 import { useFormAction } from "@/components/useFormAction";
 import { bulkCreateShifts } from "./actions";
-import { addDays, dayLabel, daysBetween, monthEndOf, weekdayOf, type ScheduleShift } from "@/lib/schedule";
+import { addDays, dayLabel, daysBetween, hoursLabel, monthEndOf, spanMin, weekdayOf, type ScheduleShift } from "@/lib/schedule";
 import type { TemplateOption } from "./ShiftDialog";
 
 const MAX_DAYS = 62;
@@ -170,6 +170,7 @@ export default function BulkShiftDialog({ branchId, branchName, weekStart, today
                 >
                   <span className="font-medium">{t.name}</span>
                   <span className={`ml-1 text-xs ${on ? "text-neutral-300" : "text-neutral-500"}`}>{t.startTime}–{t.endTime}</span>
+                  {spanMin(t.startTime, t.endTime) > 960 && <span className="ml-1 text-xs font-semibold text-red-500">· sai giờ ({hoursLabel(spanMin(t.startTime, t.endTime))})</span>}
                   {n > 0 && (
                     <span className={`ml-2 rounded-full px-1.5 py-0.5 text-xs font-semibold ${on ? "bg-white text-neutral-900" : "bg-emerald-100 text-emerald-800"}`}>{n}</span>
                   )}

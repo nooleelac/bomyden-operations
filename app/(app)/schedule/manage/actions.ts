@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requireManager } from "@/lib/auth/session";
 import { fail, friendlyDbError, success, zodFieldErrors, type ActionState } from "@/lib/action-state";
+import { hoursLabel, spanMin } from "@/lib/schedule";
 
 function revalidateSchedule() {
   revalidatePath("/schedule");
@@ -27,6 +28,17 @@ const note = z
 // =====================================================================
 // CA LÀM
 // =====================================================================
+// Ca dài tối đa 16 tiếng (giờ kết thúc nhỏ hơn giờ bắt đầu = hôm sau)
+const MAX_SHIFT_MIN = 960;
+function checkShiftLength(v: { start_time: string; end_time: string }, ctx: z.RefinementCtx) {
+  if (v.start_time === v.end_time || spanMin(v.start_time, v.end_time) <= MAX_SHIFT_MIN) return;
+  ctx.addIssue({
+    code: "custom",
+    path: ["end_time"],
+    message: `Ca dài tối đa 16 tiếng — ${v.start_time}–${v.end_time} là ${hoursLabel(spanMin(v.start_time, v.end_time))} (kết thúc hôm sau). Ca đến nửa đêm hãy chọn 00:00.`,
+  });
+}
+
 const shiftSchema = z
   .object({
     employee_id: z.uuid({ message: "Chọn nhân viên." }),
@@ -36,7 +48,8 @@ const shiftSchema = z
     template_id: nullableUuid,
     note,
   })
-  .refine((v) => v.start_time !== v.end_time, { path: ["end_time"], message: "Giờ kết thúc phải khác giờ bắt đầu." });
+  .refine((v) => v.start_time !== v.end_time, { path: ["end_time"], message: "Giờ kết thúc phải khác giờ bắt đầu." })
+  .superRefine(checkShiftLength);
 
 function readShift(formData: FormData) {
   return shiftSchema.safeParse({
@@ -175,7 +188,8 @@ const templateSchema = z
     end_time: time,
     sort_order: z.coerce.number().int().min(0).max(9999).default(0),
   })
-  .refine((v) => v.start_time !== v.end_time, { path: ["end_time"], message: "Giờ kết thúc phải khác giờ bắt đầu." });
+  .refine((v) => v.start_time !== v.end_time, { path: ["end_time"], message: "Giờ kết thúc phải khác giờ bắt đầu." })
+  .superRefine(checkShiftLength);
 
 function readTemplate(formData: FormData) {
   return templateSchema.safeParse({

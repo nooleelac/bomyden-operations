@@ -20,7 +20,7 @@ import {
   setLeavePaid,
   updateShiftTemplate,
 } from "./actions";
-import { REQUEST_KIND_LABELS, REQUEST_STATUS, addDays, describeRequest, fromMin, hm, type MyRequest, type ScheduleShift, type WeekSchedule } from "@/lib/schedule";
+import { REQUEST_KIND_LABELS, REQUEST_STATUS, addDays, describeRequest, fromMin, hm, hoursLabel, spanMin, type MyRequest, type ScheduleShift, type WeekSchedule } from "@/lib/schedule";
 import { formatDateTime } from "@/lib/time";
 import type { ActionState } from "@/lib/action-state";
 import type { ScheduleSettings } from "@/lib/database.types";
@@ -407,6 +407,11 @@ export function TemplatesManager({ templates, branches }: { templates: TemplateR
               <div>
                 <p className="font-semibold">{t.name} <span className="font-normal tabular-nums text-neutral-600">{t.startTime}–{t.endTime}</span></p>
                 <p className="text-neutral-500">{t.branchName}{t.isActive ? "" : " · Ngừng dùng"}</p>
+                {spanMin(t.startTime, t.endTime) > 960 && (
+                  <p className="text-xs font-medium text-red-600">
+                    Sai giờ: ca dài {hoursLabel(spanMin(t.startTime, t.endTime))} (kết thúc hôm sau) — tối đa 16 tiếng. Bấm Sửa để chỉnh (ca đến nửa đêm chọn 00:00).
+                  </p>
+                )}
               </div>
               <button type="button" onClick={() => setEditing(t)} className="btn-secondary">Sửa</button>
             </li>

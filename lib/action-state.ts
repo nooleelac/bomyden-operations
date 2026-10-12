@@ -72,6 +72,11 @@ export function friendlyDbError(error: { code?: string; message?: string } | nul
   // Lỗi nghiệp vụ do hàm DB trả về (thông báo đã là tiếng Việt)
   if (error.code === "P0001" && error.message) return error.message;
   if (error.code === "23P01") return "Thời gian bị trùng với một ca khác.";
-  if (error.code === "23514") return "Dữ liệu không hợp lệ.";
+  if (error.code === "23514") {
+    if (error.message?.includes("shifts_duration") || error.message?.includes("shift_templates_duration")) {
+      return "Ca dài quá 16 tiếng (giờ kết thúc nhỏ hơn giờ bắt đầu được tính là hôm sau). Hãy kiểm tra lại giờ của mẫu ca — ca đến nửa đêm chọn 00:00.";
+    }
+    return "Dữ liệu không hợp lệ.";
+  }
   return "Không thể lưu dữ liệu. Vui lòng thử lại.";
 }
