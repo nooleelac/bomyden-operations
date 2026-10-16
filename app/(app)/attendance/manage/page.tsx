@@ -112,18 +112,6 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
   }
   const rangeRecords = rangeRes.data as RecordRow[];
 
-  // Đơn xin trễ đã duyệt → mốc tính trễ là giờ đã xin
-  const shiftIds = shiftsRes.data.map((s) => s.id);
-  const { data: lateRequests } = shiftIds.length
-    ? await supabase
-        .from("schedule_requests")
-        .select("shift_id, requested_time")
-        .eq("kind", "late")
-        .eq("status", "approved")
-        .in("shift_id", shiftIds)
-    : { data: [] };
-  const lateTime = new Map((lateRequests ?? []).map((q) => [q.shift_id, q.requested_time]));
-
   const manageable = new Set(branchIds);
   const inScope = new Set(scope);
 
@@ -149,13 +137,25 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
   }
   const staff = [...staffMap.values()].sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
-  // Số phút ân hạn đi trễ theo đúng cài đặt bảng lương
-  if (employeesMap.size > 0) {
-    const { data: graces } = await supabase.rpc("attendance_late_grace", { p_employee_ids: [...employeesMap.keys()] });
-    for (const g of graces ?? []) {
-      const emp = employeesMap.get(g.employee_id);
-      if (emp) emp.grace = g.grace_minutes;
-    }
+  // Đơn xin trễ đã duyệt (mốc tính trễ là giờ đã xin) + số phút ân hạn đi trễ theo cài đặt bảng lương — tải song song
+  const shiftIds = shiftsRes.data.map((s) => s.id);
+  const [{ data: lateRequests }, { data: graces }] = await Promise.all([
+    shiftIds.length
+      ? supabase
+          .from("schedule_requests")
+          .select("shift_id, requested_time")
+          .eq("kind", "late")
+          .eq("status", "approved")
+          .in("shift_id", shiftIds)
+      : { data: [] },
+    employeesMap.size > 0
+      ? supabase.rpc("attendance_late_grace", { p_employee_ids: [...employeesMap.keys()] })
+      : { data: [] },
+  ]);
+  const lateTime = new Map((lateRequests ?? []).map((q) => [q.shift_id, q.requested_time]));
+  for (const g of graces ?? []) {
+    const emp = employeesMap.get(g.employee_id);
+    if (emp) emp.grace = g.grace_minutes;
   }
   const staffOptions = [...employeesMap.values()]
     .map((e) => ({ id: e.id, name: e.name }))

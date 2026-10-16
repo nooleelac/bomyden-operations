@@ -15,11 +15,12 @@ export const instant = false;
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const employee = await requireEmployee();
-  const params = await searchParams;
-  const modules = await getModules(employee);
-
   const isManager = isManagerOrAdmin(employee.role);
-  const branches = isManager ? await getManageableBranches(employee) : [];
+  const [params, modules, branches] = await Promise.all([
+    searchParams,
+    getModules(employee),
+    isManager ? getManageableBranches(employee) : [],
+  ]);
   const branchId = typeof params.branch === "string" && branches.some((b) => b.id === params.branch) ? params.branch : "";
   const now = getRequestTime();
   const today = vnDateString(new Date(now));
