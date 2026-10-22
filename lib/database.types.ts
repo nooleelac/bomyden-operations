@@ -1541,6 +1541,10 @@ export type Database = {
       stock_receipt_lines: {
         Row: {
           amount: number
+          cost_amount: number | null
+          discount_amount: number
+          is_gift: boolean
+          order_discount: number
           base_quantity: number
           factor: number
           id: string
@@ -1556,6 +1560,10 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cost_amount?: number | null
+          discount_amount?: number
+          is_gift?: boolean
+          order_discount?: number
           base_quantity: number
           factor: number
           id?: string
@@ -1571,6 +1579,10 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cost_amount?: number | null
+          discount_amount?: number
+          is_gift?: boolean
+          order_discount?: number
           base_quantity?: number
           factor?: number
           id?: string
@@ -1610,12 +1622,14 @@ export type Database = {
           created_at: string
           created_by: string
           debt_amount: number | null
+          discount_amount: number
           due_date: string | null
           id: string
           invoice_date: string
           invoice_number: string | null
           invoice_total: number | null
           note: string | null
+          order_discount: number
           paid_amount: number
           photo_path: string | null
           scan_id: string | null
@@ -1633,12 +1647,14 @@ export type Database = {
           created_at?: string
           created_by: string
           debt_amount?: number | null
+          discount_amount?: number
           due_date?: string | null
           id?: string
           invoice_date: string
           invoice_number?: string | null
           invoice_total?: number | null
           note?: string | null
+          order_discount?: number
           paid_amount?: number
           photo_path?: string | null
           scan_id?: string | null
@@ -1656,12 +1672,14 @@ export type Database = {
           created_at?: string
           created_by?: string
           debt_amount?: number | null
+          discount_amount?: number
           due_date?: string | null
           id?: string
           invoice_date?: string
           invoice_number?: string | null
           invoice_total?: number | null
           note?: string | null
+          order_discount?: number
           paid_amount?: number
           photo_path?: string | null
           scan_id?: string | null

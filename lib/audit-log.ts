@@ -201,6 +201,8 @@ const FIELD_LABELS: Record<string, string> = {
   invoice_total: "Tổng trên hóa đơn",
   subtotal: "Tiền hàng",
   vat_amount: "Tiền VAT",
+  discount_amount: "Chiết khấu",
+  order_discount: "Chiết khấu tổng HĐ",
   total_amount: "Tổng tiền",
   paid_amount: "Đã trả",
   debt_amount: "Còn nợ",
@@ -280,7 +282,7 @@ const MONEY_FIELDS = new Set([
   "hourly_rate", "shift_rate", "fixed_salary", "overtime_rate", "allowance_per_period", "allowance_per_workday",
   "late_penalty", "early_leave_penalty", "absent_penalty", "forgot_checkout_penalty", "checklist_failed_penalty", "checklist_missed_penalty",
   "checklist_late_penalty", "amount", "gross_amount", "deductions_amount", "net_amount", "invoice_total", "subtotal",
-  "vat_amount", "total_amount", "paid_amount", "debt_amount", "used_value", "surplus_value", "total_value",
+  "vat_amount", "discount_amount", "order_discount", "total_amount", "paid_amount", "debt_amount", "used_value", "surplus_value", "total_value",
 ]);
 
 /** Tên tra cứu cho các trường là mã (uuid) */

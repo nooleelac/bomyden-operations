@@ -7,7 +7,14 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireInventoryAccess } from "@/lib/auth/session";
-import { INVOICE_PHOTO_BUCKET, fixSwappedDate, inferLineVatRates, normName } from "@/lib/inventory";
+import {
+  INVOICE_PHOTO_BUCKET,
+  allocateOrderDiscount,
+  fixSwappedDate,
+  formatMoney,
+  inferLineVatRates,
+  normName,
+} from "@/lib/inventory";
 import { loadCatalog, loadSuppliers, signInvoicePhoto } from "@/lib/inventory-data";
 import { extractInvoice, type InvoiceExtraction } from "@/lib/invoice-ai";
 import { TASK_PHOTO_MAX_BYTES, TASK_PHOTO_TYPES } from "@/lib/task-photos";
@@ -97,6 +104,7 @@ export async function scanInvoice(branchId: string, _prev: ScanState, formData: 
     invoiceDate: vnDateString(),
     invoiceTotal: "",
     printedVat: "",
+    orderDiscount: "",
     paymentStatus: null,
     paidAmount: "",
     paymentMethod: "cash",
@@ -131,6 +139,8 @@ function blankLine(): DraftLine {
     factor: "",
     unitPrice: "",
     amount: "",
+    discount: "",
+    isGift: false,
     vatRate: "0",
     matchedBy: null,
   };
@@ -183,12 +193,30 @@ function buildDraft(
     warnings.push(`Ngày hóa đơn được hiểu là ${invoiceDate.split("-").reverse().join("/")} (ngày/tháng) — kiểm tra lại.`);
   }
 
-  // Thuế suất từng dòng: AI đọc được thì dùng; thiếu mà có tổng tiền thuế thì thử suy ra
-  let vatRates = data.lines.map((line) => line.vat_rate);
-  const subtotal = data.subtotal ?? data.lines.reduce((sum, line) => sum + (line.amount ?? 0), 0);
-  const vatTotal = data.vat_amount ?? (data.total_amount && subtotal ? data.total_amount - subtotal : null);
-  if (vatRates.some((rate) => rate === null) && vatTotal && vatTotal > 0 && data.lines.every((l) => l.amount !== null)) {
-    const inferred = inferLineVatRates(data.lines.map((l) => l.amount!), vatTotal);
+  // Chiết khấu (trước VAT): hàng tặng = 0 đồng; CK dòng không vượt thành tiền; CK tổng HĐ chia theo tiền sau CK dòng
+  const lineAmounts = data.lines.map((line) => (line.is_gift ? 0 : Math.max(line.amount ?? 0, 0)));
+  const lineDiscounts = data.lines.map((line, i) => (line.is_gift ? 0 : Math.min(Math.max(Math.round(line.discount_amount), 0), lineAmounts[i])));
+  const nets = lineAmounts.map((amount, i) => amount - lineDiscounts[i]);
+  const netTotal = nets.reduce((sum, n) => sum + n, 0);
+  const orderDiscount = Math.min(Math.max(Math.round(data.order_discount), 0), netTotal);
+  const taxable = allocateOrderDiscount(nets, orderDiscount).map((alloc, i) => nets[i] - alloc);
+  const lineDiscountTotal = lineDiscounts.reduce((sum, d) => sum + d, 0);
+  const giftCount = data.lines.filter((line) => line.is_gift).length;
+  if (lineDiscountTotal > 0 || orderDiscount > 0 || giftCount > 0) {
+    const parts = [
+      lineDiscountTotal > 0 && `chiết khấu trên dòng ${formatMoney(lineDiscountTotal)}`,
+      orderDiscount > 0 && `chiết khấu tổng hóa đơn ${formatMoney(orderDiscount)}`,
+      giftCount > 0 && `${giftCount} món hàng tặng`,
+    ].filter(Boolean);
+    warnings.push(`Hóa đơn có ${parts.join(", ")} — kiểm tra mục Khuyến mãi / chiết khấu.`);
+  }
+
+  // Thuế suất từng dòng: AI đọc được thì dùng; thiếu mà có tổng tiền thuế thì thử suy ra (trên tiền sau chiết khấu)
+  let vatRates = data.lines.map((line) => (line.is_gift ? 0 : line.vat_rate));
+  const taxableTotal = taxable.reduce((sum, t) => sum + t, 0);
+  const vatTotal = data.vat_amount ?? (data.total_amount && taxableTotal ? data.total_amount - taxableTotal : null);
+  if (vatRates.some((rate) => rate === null) && vatTotal && vatTotal > 0 && data.lines.every((l) => l.is_gift || l.amount !== null)) {
+    const inferred = inferLineVatRates(taxable, vatTotal);
     if (inferred) {
       vatRates = inferred;
       warnings.push("Thuế suất VAT từng dòng do app suy ra từ tổng tiền thuế — kiểm tra lại.");
@@ -203,8 +231,10 @@ function buildDraft(
       rawName: line.name.trim(),
       quantity: num(line.quantity),
       unitName: line.unit?.trim() ?? "",
-      unitPrice: num(line.unit_price),
-      amount: num(line.amount),
+      unitPrice: line.is_gift ? "0" : num(line.unit_price),
+      amount: line.is_gift ? "0" : num(line.amount),
+      discount: lineDiscounts[index] > 0 ? num(lineDiscounts[index]) : "",
+      isGift: line.is_gift,
       vatRate: num(vatRates[index] ?? 0) || "0",
     };
     const key = normName(line.name);
@@ -243,6 +273,7 @@ function buildDraft(
     invoiceDate,
     invoiceTotal: num(data.total_amount),
     printedVat: vatTotal ? num(vatTotal) : "",
+    orderDiscount: orderDiscount > 0 ? num(orderDiscount) : "",
     paymentStatus: data.payment_status === "unknown" ? null : data.payment_status,
     paidAmount: data.payment_status === "partial" && data.paid_amount > 0 ? num(data.paid_amount) : "",
     paymentMethod: data.payment_method === "unknown" ? "cash" : data.payment_method,
@@ -270,6 +301,8 @@ const lineSchema = z.object({
   factor: z.number().positive().nullable(),
   unit_price: z.number().min(0),
   amount: z.number().min(0),
+  discount_amount: z.number().min(0),
+  is_gift: z.boolean(),
   vat_rate: z.number().min(0).max(100),
 });
 
@@ -281,6 +314,7 @@ const receiptSchema = z.object({
   invoice_number: z.string().trim().max(50).nullable(),
   invoice_date: z.iso.date("Ngày hóa đơn không hợp lệ."),
   invoice_total: z.number().min(0).nullable(),
+  order_discount: z.number().min(0),
   note: z.string().trim().max(500).nullable(),
   payment: z.object({
     paid_amount: z.number().min(0),

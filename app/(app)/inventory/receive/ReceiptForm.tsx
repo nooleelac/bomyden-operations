@@ -1,7 +1,17 @@
 "use client";
 
 import { startTransition, useActionState, useMemo, useState } from "react";
-import { ITEM_CATEGORIES, formatMoney, formatQty, lineVat, normName, parseVnNumber, priceChangePercent } from "@/lib/inventory";
+import {
+  ITEM_CATEGORIES,
+  allocateOrderDiscount,
+  formatMoney,
+  formatQty,
+  lineVat,
+  normName,
+  parseDiscount,
+  parseVnNumber,
+  priceChangePercent,
+} from "@/lib/inventory";
 import { initialActionState, withNetworkGuard } from "@/lib/action-state";
 import { saveReceipt, type ReceiptPayload } from "./actions";
 import type { CatalogItem, DraftLine, LastPrices, PaymentStatus, ReceiptDraft, SupplierOption } from "./types";
@@ -34,6 +44,8 @@ function newLine(): DraftLine {
     factor: "",
     unitPrice: "",
     amount: "",
+    discount: "",
+    isGift: false,
     vatRate: "0",
     matchedBy: null,
   };
@@ -73,17 +85,30 @@ function analyze(line: DraftLine, byId: Map<string, CatalogItem>) {
   else if (!quantity || quantity <= 0) error = "Nhập số lượng.";
   else if (!unitName) error = "Nhập đơn vị trên hóa đơn.";
   else if (!factor || factor <= 0) error = `Nhập quy đổi: 1 ${unitName} = ? ${baseUnit}.`;
-  else if (amount === null && unitPrice === null) error = "Nhập đơn giá hoặc thành tiền.";
+  else if (!line.isGift && amount === null && unitPrice === null) error = "Nhập đơn giá hoặc thành tiền.";
 
-  const finalAmount = amount ?? (quantity && unitPrice !== null ? quantity * unitPrice : 0);
-  const finalPrice = unitPrice ?? (quantity ? finalAmount / quantity : 0);
-  const vatRate = parseVnNumber(line.vatRate) ?? 0;
+  // Hàng tặng: 0 đồng, không chiết khấu, không VAT
+  const finalAmount = line.isGift ? 0 : amount ?? (quantity && unitPrice !== null ? quantity * unitPrice : 0);
+  const finalPrice = line.isGift ? 0 : unitPrice ?? (quantity ? finalAmount / quantity : 0);
+  const vatRate = line.isGift ? 0 : parseVnNumber(line.vatRate) ?? 0;
   if (!error && (vatRate < 0 || vatRate > 100)) error = "Thuế suất VAT không hợp lệ.";
-  const vat = lineVat(finalAmount, vatRate);
+  const parsedDiscount = line.isGift ? 0 : parseDiscount(line.discount, finalAmount);
+  if (!error && (parsedDiscount === null || parsedDiscount > finalAmount)) error = "Chiết khấu phải từ 0 đến thành tiền của dòng.";
+  const discount = Math.min(parsedDiscount ?? 0, finalAmount);
   return {
     item, baseUnit, unitName, isBase, known, factor, quantity, baseQty,
-    amount: finalAmount, unitPrice: finalPrice, vatRate, vat, gross: finalAmount + vat, error,
+    amount: finalAmount, unitPrice: finalPrice, vatRate, discount, net: finalAmount - discount, error,
   };
+}
+
+/** Chiết khấu dòng + phần CK tổng HĐ chia về dòng → tiền tính thuế, VAT, giá vốn (khớp hàm DB create_stock_receipt). */
+function withDiscounts(analyzed: ReturnType<typeof analyze>[], orderDiscount: number) {
+  const allocs = allocateOrderDiscount(analyzed.map((a) => a.net), orderDiscount);
+  return analyzed.map((a, i) => {
+    const taxable = a.net - allocs[i];
+    const vat = lineVat(taxable, a.vatRate);
+    return { ...a, orderShare: allocs[i], taxable, vat, gross: taxable + vat };
+  });
 }
 
 export default function ReceiptForm({ branchId, branchName, draft, catalog, suppliers, lastPrices, onCancel }: Props) {
@@ -100,6 +125,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   const [invoiceDate, setInvoiceDate] = useState(draft.invoiceDate);
   const [invoiceTotal, setInvoiceTotal] = useState(draft.invoiceTotal);
   const [note, setNote] = useState("");
+  const [orderDiscount, setOrderDiscount] = useState(draft.orderDiscount);
   const [lines, setLines] = useState<DraftLine[]>(draft.lines.length ? draft.lines : [newLine()]);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(draft.paymentStatus);
   const [paidAmount, setPaidAmount] = useState(draft.paidAmount);
@@ -111,10 +137,21 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
     initialActionState
   );
 
-  const analyzed = lines.map((line) => analyze(line, byId));
-  const subtotal = analyzed.reduce((total, a) => total + (a.amount || 0), 0);
+  const baseAnalyzed = lines.map((line) => analyze(line, byId));
+  const subtotal = baseAnalyzed.reduce((total, a) => total + (a.amount || 0), 0);
+  const lineDiscountSum = baseAnalyzed.reduce((total, a) => total + a.discount, 0);
+  const netSum = subtotal - lineDiscountSum;
+  // CK tổng HĐ: "5%" tính trên tiền hàng sau CK dòng
+  const parsedOrderDiscount = parseDiscount(orderDiscount, netSum);
+  const orderDiscountError =
+    parsedOrderDiscount === null || parsedOrderDiscount > netSum ? "Chiết khấu tổng hóa đơn phải từ 0 đến tiền hàng." : null;
+  const orderDiscountValue = orderDiscountError ? 0 : parsedOrderDiscount ?? 0;
+  const analyzed = withDiscounts(baseAnalyzed, orderDiscountValue);
+  const discountSum = lineDiscountSum + orderDiscountValue;
   const vatSum = analyzed.reduce((total, a) => total + a.vat, 0);
-  const sum = subtotal + vatSum;
+  const sum = subtotal - discountSum + vatSum;
+  const gifts = lines.map((line, i) => ({ line, a: analyzed[i], index: i })).filter((g) => g.line.isGift);
+  const discountedLines = lines.map((line, i) => ({ line, a: analyzed[i], index: i })).filter((d) => d.a.discount > 0);
   const printedTotal = parseVnNumber(invoiceTotal);
   const printedVat = parseVnNumber(draft.printedVat);
   const totalMismatch = printedTotal !== null && Math.abs(printedTotal - sum) >= 1000;
@@ -167,7 +204,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
   }
 
   function submit() {
-    if (errorCount > 0 || paymentError || (supplierId === NEW && !newSupplierName.trim()) || !invoiceDate) {
+    if (errorCount > 0 || paymentError || orderDiscountError || (supplierId === NEW && !newSupplierName.trim()) || !invoiceDate) {
       setShowErrors(true);
       return;
     }
@@ -179,6 +216,7 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
       invoice_number: invoiceNumber.trim() || null,
       invoice_date: invoiceDate,
       invoice_total: printedTotal,
+      order_discount: orderDiscountValue,
       note: note.trim() || null,
       payment: {
         paid_amount: Math.round(paid * 100) / 100,
@@ -199,6 +237,8 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
           factor: a.factor ?? null,
           unit_price: Math.round(a.unitPrice * 100) / 100,
           amount: Math.round(a.amount * 100) / 100,
+          discount_amount: a.discount,
+          is_gift: line.isGift,
           vat_rate: a.vatRate,
         };
       }),
@@ -430,50 +470,92 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`price-${line.key}`}>Đơn giá</label>
-                  <input
-                    id={`price-${line.key}`}
-                    className="input"
-                    inputMode="decimal"
-                    value={line.unitPrice}
-                    onChange={(e) => onQtyOrPrice(line, { unitPrice: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`amount-${line.key}`}>Thành tiền (chưa VAT)</label>
-                  <input
-                    id={`amount-${line.key}`}
-                    className="input"
-                    inputMode="decimal"
-                    value={line.amount}
-                    onChange={(e) => update(line.key, { amount: e.target.value })}
-                  />
-                </div>
-              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-brand"
+                  checked={line.isGift}
+                  onChange={(e) =>
+                    update(line.key, e.target.checked ? { isGift: true, unitPrice: "0", amount: "0", discount: "" } : { isGift: false })
+                  }
+                />
+                <span>🎁 Hàng tặng / khuyến mãi (0 đồng, vẫn cộng kho)</span>
+              </label>
 
-              <div className="flex items-center gap-2">
-                <label className="shrink-0 text-xs font-medium text-neutral-600" htmlFor={`vat-${line.key}`}>Thuế VAT</label>
-                <select
-                  id={`vat-${line.key}`}
-                  className="input w-28"
-                  value={line.vatRate}
-                  onChange={(e) => update(line.key, { vatRate: e.target.value })}
-                >
-                  {(VAT_OPTIONS.includes(line.vatRate) ? VAT_OPTIONS : [...VAT_OPTIONS, line.vatRate]).map((rate) => (
-                    <option key={rate} value={rate}>{rate === "0" ? "0% / KCT" : `${rate}%`}</option>
-                  ))}
-                </select>
-                <span className="text-xs text-neutral-500 tabular-nums">{a.vat > 0 ? `+ ${formatMoney(a.vat)}` : ""}</span>
-              </div>
+              {!line.isGift && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`price-${line.key}`}>Đơn giá</label>
+                    <input
+                      id={`price-${line.key}`}
+                      className="input"
+                      inputMode="decimal"
+                      value={line.unitPrice}
+                      onChange={(e) => onQtyOrPrice(line, { unitPrice: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`amount-${line.key}`}>Thành tiền (trước CK, VAT)</label>
+                    <input
+                      id={`amount-${line.key}`}
+                      className="input"
+                      inputMode="decimal"
+                      value={line.amount}
+                      onChange={(e) => update(line.key, { amount: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="mb-1 block text-xs font-medium text-neutral-600" htmlFor={`discount-${line.key}`}>
+                      Chiết khấu dòng (trước VAT)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id={`discount-${line.key}`}
+                        className="input"
+                        inputMode="decimal"
+                        placeholder="vd: 10% hoặc 20.000"
+                        value={line.discount}
+                        onChange={(e) => update(line.key, { discount: e.target.value })}
+                      />
+                      {a.discount > 0 && (
+                        <span className="shrink-0 text-xs text-emerald-700 tabular-nums">− {formatMoney(a.discount)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!line.isGift && (
+                <div className="flex items-center gap-2">
+                  <label className="shrink-0 text-xs font-medium text-neutral-600" htmlFor={`vat-${line.key}`}>Thuế VAT</label>
+                  <select
+                    id={`vat-${line.key}`}
+                    className="input w-28"
+                    value={line.vatRate}
+                    onChange={(e) => update(line.key, { vatRate: e.target.value })}
+                  >
+                    {(VAT_OPTIONS.includes(line.vatRate) ? VAT_OPTIONS : [...VAT_OPTIONS, line.vatRate]).map((rate) => (
+                      <option key={rate} value={rate}>{rate === "0" ? "0% / KCT" : `${rate}%`}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-neutral-500 tabular-nums">{a.vat > 0 ? `+ ${formatMoney(a.vat)}` : ""}</span>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-neutral-500">
                 <span>
                   {a.baseQty ? <>Cộng kho: <strong className="text-neutral-800">{formatQty(a.baseQty)} {a.baseUnit}</strong></> : "—"}
                 </span>
                 <span className="tabular-nums">
-                  Sau VAT: <strong className="text-neutral-800">{formatMoney(a.gross)}</strong>
+                  {line.isGift ? (
+                    <strong className="text-emerald-700">Hàng tặng · 0 đ</strong>
+                  ) : (
+                    <>
+                      {a.orderShare > 0 && <>CK tổng HĐ chia về: −{formatMoney(a.orderShare)} · </>}
+                      {a.discount + a.orderShare > 0 ? "Sau CK & VAT" : "Sau VAT"}:{" "}
+                      <strong className="text-neutral-800">{formatMoney(a.gross)}</strong>
+                    </>
+                  )}
                 </span>
               </div>
               {change !== null && Math.abs(change) >= PRICE_ALERT_PERCENT && (
@@ -491,12 +573,69 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
         </button>
       </section>
 
+      <section className={`card space-y-3 p-4 ${showErrors && orderDiscountError ? "border-red-300" : ""}`}>
+        <div>
+          <h2 className="font-semibold">Khuyến mãi / chiết khấu</h2>
+          <p className="text-xs text-neutral-500">Tính trước VAT. Giá vốn từng nguyên liệu được tính theo giá sau chiết khấu.</p>
+        </div>
+        {(discountedLines.length > 0 || gifts.length > 0) && (
+          <ul className="space-y-1 text-sm">
+            {discountedLines.map(({ line, a, index }) => (
+              <li key={line.key} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate text-neutral-600">
+                  #{index + 1} {a.item?.name ?? (line.newItemName || line.rawName || "Dòng nhập tay")}
+                  {line.discount.trim().endsWith("%") && <span className="text-neutral-400"> ({line.discount.trim()})</span>}
+                </span>
+                <span className="shrink-0 text-emerald-700 tabular-nums">− {formatMoney(a.discount)}</span>
+              </li>
+            ))}
+            {gifts.map(({ line, a, index }) => (
+              <li key={line.key} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate text-neutral-600">
+                  🎁 #{index + 1} {a.item?.name ?? (line.newItemName || line.rawName || "Dòng nhập tay")}
+                  {a.quantity ? ` · ${formatQty(a.quantity)} ${a.unitName}` : ""}
+                </span>
+                <span className="shrink-0 text-emerald-700">Tặng · 0 đ</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div>
+          <label htmlFor="order-discount" className="mb-1 block text-sm font-medium text-neutral-700">
+            Chiết khấu / giảm giá trên tổng hóa đơn
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="order-discount"
+              className="input"
+              inputMode="decimal"
+              placeholder="vd: 5% hoặc 50.000 — để trống nếu không có"
+              value={orderDiscount}
+              onChange={(e) => setOrderDiscount(e.target.value)}
+            />
+            {orderDiscountValue > 0 && (
+              <span className="shrink-0 text-sm text-emerald-700 tabular-nums">− {formatMoney(orderDiscountValue)}</span>
+            )}
+          </div>
+          {orderDiscountValue > 0 && (
+            <p className="mt-1 text-xs text-neutral-500">Ghi thành một khoản riêng; được chia về các dòng theo tỉ lệ tiền để tính giá vốn.</p>
+          )}
+          {orderDiscountError && <p className="field-error">{orderDiscountError}</p>}
+        </div>
+      </section>
+
       <section className="card space-y-3 p-4">
         <dl className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <dt className="text-neutral-600">Tiền hàng (chưa VAT)</dt>
+            <dt className="text-neutral-600">Tiền hàng (trước CK, chưa VAT)</dt>
             <dd className="tabular-nums">{formatMoney(subtotal)}</dd>
           </div>
+          {discountSum > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-neutral-600">Khuyến mãi / chiết khấu</dt>
+              <dd className="text-emerald-700 tabular-nums">− {formatMoney(discountSum)}</dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt className="text-neutral-600">Tiền thuế VAT</dt>
             <dd className="tabular-nums">{formatMoney(vatSum)}</dd>
@@ -514,7 +653,9 @@ export default function ReceiptForm({ branchId, branchName, draft, catalog, supp
             ⚠️ Lệch {formatMoney(Math.abs(printedTotal! - sum))} so với tổng in trên hóa đơn ({formatMoney(printedTotal)}).
             {printedVat !== null && Math.abs(printedVat - vatSum) >= 1000
               ? ` Tiền thuế trên hóa đơn là ${formatMoney(printedVat)} — kiểm tra lại thuế suất VAT từng dòng.`
-              : " Kiểm tra lại các dòng (có thể do chiết khấu, phí ship)."}
+              : printedTotal! < sum
+                ? " Hóa đơn có thể có chiết khấu / khuyến mãi chưa nhập — kiểm tra mục Khuyến mãi / chiết khấu và các dòng."
+                : " Kiểm tra lại các dòng và chiết khấu (có thể do phí ship hoặc chiết khấu nhập dư)."}
           </p>
         )}
       </section>

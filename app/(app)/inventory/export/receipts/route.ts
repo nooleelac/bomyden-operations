@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("stock_receipts")
     .select(
-      "id, invoice_number, invoice_date, subtotal, vat_amount, total_amount, invoice_total, paid_amount, debt_amount, due_date, status, note, created_at, cancel_reason, branch:branches(name), supplier:suppliers(name), creator:employees!stock_receipts_created_by_fkey(full_name), stock_receipt_lines(line_no, raw_name, quantity, unit_name, factor, base_quantity, unit_price, amount, vat_rate, vat_amount, item:inventory_items(name, category, base_unit)), supplier_payments(amount, paid_on, method, note, voided_at, creator:employees!supplier_payments_created_by_fkey(full_name))"
+      "id, invoice_number, invoice_date, subtotal, discount_amount, order_discount, vat_amount, total_amount, invoice_total, paid_amount, debt_amount, due_date, status, note, created_at, cancel_reason, branch:branches(name), supplier:suppliers(name), creator:employees!stock_receipts_created_by_fkey(full_name), stock_receipt_lines(line_no, raw_name, quantity, unit_name, factor, base_quantity, unit_price, amount, discount_amount, order_discount, is_gift, vat_rate, vat_amount, cost_amount, item:inventory_items(name, category, base_unit)), supplier_payments(amount, paid_on, method, note, voided_at, creator:employees!supplier_payments_created_by_fkey(full_name))"
     )
     .gte("invoice_date", from)
     .lt("invoice_date", to)
@@ -44,7 +44,15 @@ export async function GET(request: NextRequest) {
       { header: "Nhà cung cấp", width: 28, value: (r) => r.supplier?.name ?? "Không rõ" },
       { header: "Số HĐ", width: 16, value: (r) => r.invoice_number },
       { header: "Số mặt hàng", type: "int", width: 11, value: (r) => r.stock_receipt_lines.length },
-      { header: "Tiền hàng (chưa VAT)", type: "money", width: 18, total: true, value: (r) => (r.status === "posted" ? r.subtotal : 0) },
+      { header: "Tiền hàng (trước CK, chưa VAT)", type: "money", width: 18, total: true, value: (r) => (r.status === "posted" ? r.subtotal : 0) },
+      {
+        header: "CK trên dòng",
+        type: "money",
+        width: 14,
+        total: true,
+        value: (r) => (r.status === "posted" ? Number(r.discount_amount) - Number(r.order_discount) : 0),
+      },
+      { header: "CK tổng HĐ", type: "money", width: 14, total: true, value: (r) => (r.status === "posted" ? r.order_discount : 0) },
       { header: "Tiền thuế VAT", type: "money", width: 15, total: true, value: (r) => (r.status === "posted" ? r.vat_amount : 0) },
       { header: "Tổng thanh toán", type: "money", width: 17, total: true, value: (r) => (r.status === "posted" ? r.total_amount : 0) },
       { header: "Tổng in trên HĐ", type: "money", width: 16, value: (r) => r.invoice_total },
@@ -79,17 +87,20 @@ export async function GET(request: NextRequest) {
       { header: "Số lượng", type: "qty", width: 10, value: ({ line }) => line.quantity },
       { header: "Đơn vị", width: 9, value: ({ line }) => line.unit_name },
       { header: "Đơn giá", type: "money", width: 13, value: ({ line }) => line.unit_price },
-      { header: "Thành tiền (chưa VAT)", type: "money", width: 17, total: true, value: ({ line }) => line.amount },
+      { header: "Hàng tặng", width: 10, value: ({ line }) => (line.is_gift ? "Tặng" : "") },
+      { header: "Thành tiền (trước CK, chưa VAT)", type: "money", width: 17, total: true, value: ({ line }) => line.amount },
+      { header: "CK dòng", type: "money", width: 13, total: true, value: ({ line }) => line.discount_amount },
+      { header: "CK tổng HĐ chia về", type: "money", width: 15, total: true, value: ({ line }) => line.order_discount },
       { header: "VAT %", type: "percent", width: 8, value: ({ line }) => line.vat_rate },
       { header: "Tiền VAT", type: "money", width: 13, total: true, value: ({ line }) => line.vat_amount },
-      { header: "Thành tiền sau VAT", type: "money", width: 17, total: true, value: ({ line }) => Number(line.amount) + Number(line.vat_amount) },
+      { header: "Thành tiền sau CK & VAT", type: "money", width: 17, total: true, value: ({ line }) => line.cost_amount },
       { header: "SL quy đổi kho", type: "qty", width: 13, value: ({ line }) => line.base_quantity },
       { header: "Đơn vị kho", width: 10, value: ({ line }) => line.item?.base_unit },
       {
-        header: "Giá vốn / đv kho (sau VAT)",
+        header: "Giá vốn / đv kho (sau CK & VAT)",
         type: "money",
         width: 18,
-        value: ({ line }) => (Number(line.base_quantity) > 0 ? (Number(line.amount) + Number(line.vat_amount)) / Number(line.base_quantity) : null),
+        value: ({ line }) => (Number(line.base_quantity) > 0 ? Number(line.cost_amount) / Number(line.base_quantity) : null),
       },
     ],
     lines,

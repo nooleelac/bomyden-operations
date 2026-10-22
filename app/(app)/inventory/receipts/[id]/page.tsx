@@ -22,7 +22,7 @@ export default async function ReceiptDetailPage({ params, searchParams }: PagePr
   const { data: receipt } = await supabase
     .from("stock_receipts")
     .select(
-      "*, branch:branches(name), supplier:suppliers(name, phone), creator:employees!stock_receipts_created_by_fkey(full_name), canceller:employees!stock_receipts_cancelled_by_fkey(full_name), stock_receipt_lines(line_no, raw_name, quantity, unit_name, factor, base_quantity, unit_price, amount, vat_rate, vat_amount, item:inventory_items(name, base_unit)), supplier_payments(id, amount, paid_on, method, note, created_at, voided_at, void_reason, creator:employees!supplier_payments_created_by_fkey(full_name))"
+      "*, branch:branches(name), supplier:suppliers(name, phone), creator:employees!stock_receipts_created_by_fkey(full_name), canceller:employees!stock_receipts_cancelled_by_fkey(full_name), stock_receipt_lines(line_no, raw_name, quantity, unit_name, factor, base_quantity, unit_price, amount, discount_amount, order_discount, is_gift, vat_rate, vat_amount, cost_amount, item:inventory_items(name, base_unit)), supplier_payments(id, amount, paid_on, method, note, created_at, voided_at, void_reason, creator:employees!supplier_payments_created_by_fkey(full_name))"
     )
     .eq("id", id)
     .maybeSingle();
@@ -75,7 +75,12 @@ export default async function ReceiptDetailPage({ params, searchParams }: PagePr
                 <li key={line.line_no} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-medium">{line.item?.name}</p>
+                      <p className="font-medium">
+                        {line.item?.name}
+                        {line.is_gift && (
+                          <span className="ml-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-normal text-emerald-700">🎁 Hàng tặng</span>
+                        )}
+                      </p>
                       {line.raw_name && line.raw_name !== line.item?.name && (
                         <p className="text-xs text-neutral-400">Trên hóa đơn: {line.raw_name}</p>
                       )}
@@ -85,11 +90,24 @@ export default async function ReceiptDetailPage({ params, searchParams }: PagePr
                           <span className="text-neutral-400"> (= {formatQty(line.base_quantity)} {line.item?.base_unit})</span>
                         )}
                       </p>
-                      <p className="text-xs text-neutral-500">VAT {formatQty(line.vat_rate)}%{Number(line.vat_amount) > 0 && ` · ${formatMoney(line.vat_amount)}`}</p>
+                      {(Number(line.discount_amount) > 0 || Number(line.order_discount) > 0) && (
+                        <p className="text-xs text-emerald-700 tabular-nums">
+                          {Number(line.discount_amount) > 0 && `CK dòng −${formatMoney(line.discount_amount)}`}
+                          {Number(line.discount_amount) > 0 && Number(line.order_discount) > 0 && " · "}
+                          {Number(line.order_discount) > 0 && `CK tổng HĐ chia về −${formatMoney(line.order_discount)}`}
+                        </p>
+                      )}
+                      {!line.is_gift && (
+                        <p className="text-xs text-neutral-500">VAT {formatQty(line.vat_rate)}%{Number(line.vat_amount) > 0 && ` · ${formatMoney(line.vat_amount)}`}</p>
+                      )}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-semibold tabular-nums">{formatMoney(Number(line.amount) + Number(line.vat_amount))}</p>
-                      <p className="text-xs text-neutral-400 tabular-nums">chưa VAT {formatMoney(line.amount)}</p>
+                      <p className="font-semibold tabular-nums">{formatMoney(line.cost_amount)}</p>
+                      {!line.is_gift && (
+                        <p className="text-xs text-neutral-400 tabular-nums">
+                          {Number(line.discount_amount) + Number(line.order_discount) > 0 ? "trước CK, " : ""}chưa VAT {formatMoney(line.amount)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -97,9 +115,21 @@ export default async function ReceiptDetailPage({ params, searchParams }: PagePr
             </ul>
             <dl className="space-y-1 border-t border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
               <div className="flex justify-between text-neutral-600">
-                <dt>Tiền hàng (chưa VAT)</dt>
+                <dt>Tiền hàng (trước CK, chưa VAT)</dt>
                 <dd className="tabular-nums">{formatMoney(receipt.subtotal)}</dd>
               </div>
+              {Number(receipt.discount_amount) - Number(receipt.order_discount) > 0 && (
+                <div className="flex justify-between text-neutral-600">
+                  <dt>Chiết khấu trên dòng</dt>
+                  <dd className="text-emerald-700 tabular-nums">−{formatMoney(Number(receipt.discount_amount) - Number(receipt.order_discount))}</dd>
+                </div>
+              )}
+              {Number(receipt.order_discount) > 0 && (
+                <div className="flex justify-between text-neutral-600">
+                  <dt>Chiết khấu tổng hóa đơn</dt>
+                  <dd className="text-emerald-700 tabular-nums">−{formatMoney(receipt.order_discount)}</dd>
+                </div>
+              )}
               <div className="flex justify-between text-neutral-600">
                 <dt>Tiền thuế VAT</dt>
                 <dd className="tabular-nums">{formatMoney(receipt.vat_amount)}</dd>

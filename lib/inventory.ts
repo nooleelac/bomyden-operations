@@ -62,6 +62,38 @@ export function lineVat(amount: number, ratePercent: number): number {
   return Math.round((amount * ratePercent) / 100);
 }
 
+/**
+ * Ô chiết khấu: "10%" → 10% của `base`; "20.000" → 20000 đ. Trống → 0. Không phải số → null.
+ * Kết quả làm tròn đến đồng.
+ */
+export function parseDiscount(input: string, base: number): number | null {
+  const s = input.trim();
+  if (!s) return 0;
+  if (s.endsWith("%")) {
+    const pct = parseVnNumber(s.slice(0, -1));
+    return pct === null || pct < 0 || pct > 100 ? null : Math.round((base * pct) / 100);
+  }
+  const n = parseVnNumber(s);
+  return n === null || n < 0 ? null : Math.round(n);
+}
+
+/**
+ * Chia chiết khấu tổng hóa đơn về các dòng theo tỉ lệ tiền (sau CK dòng), làm tròn đến đồng;
+ * phần lẻ dồn vào dòng tiền lớn nhất (dòng đầu nếu bằng nhau). Khớp hàm DB create_stock_receipt.
+ */
+export function allocateOrderDiscount(nets: number[], discount: number): number[] {
+  const total = nets.reduce((sum, n) => sum + n, 0);
+  const d = Math.round(discount);
+  if (d <= 0 || total <= 0) return nets.map(() => 0);
+  let maxIndex = 0;
+  nets.forEach((n, i) => {
+    if (n > nets[maxIndex]) maxIndex = i;
+  });
+  const result = nets.map((n, i) => (i === maxIndex ? 0 : Math.round((d * n) / total)));
+  result[maxIndex] = d - result.reduce((sum, a) => sum + a, 0);
+  return result;
+}
+
 const VAT_CANDIDATES = [5, 8, 10];
 
 /**

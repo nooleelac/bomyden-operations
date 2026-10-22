@@ -26,6 +26,7 @@ function manualDraft(): ReceiptDraft {
     invoiceDate: new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()),
     invoiceTotal: "",
     printedVat: "",
+    orderDiscount: "",
     paymentStatus: null,
     paidAmount: "",
     paymentMethod: "cash",

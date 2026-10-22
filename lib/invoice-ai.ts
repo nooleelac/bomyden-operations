@@ -9,7 +9,7 @@ const DEFAULT_MODEL = "claude-haiku-5-5";
 
 // LƯU Ý giới hạn structured outputs: tối đa 16 trường kiểu "union" (nullable / anyOf) trong toàn schema,
 // vượt là API trả 400. Trường nào để trống được bằng "" / 0 / "unknown" thì KHÔNG dùng .nullable().
-// Hiện dùng 11 (5 ở phần đầu + 6 ở mỗi dòng hàng).
+// Hiện dùng 11 (5 ở phần đầu + 6 ở mỗi dòng hàng). Chiết khấu / hàng tặng dùng số 0 / false nên không tốn thêm.
 const InvoiceSchema = z.object({
   is_invoice: z.boolean(),
   supplier_name: z.string().nullable(),
@@ -22,6 +22,7 @@ const InvoiceSchema = z.object({
   paid_amount: z.number(),
   payment_method: z.enum(["cash", "transfer", "other", "unknown"]),
   due_date: z.string(),
+  order_discount: z.number(),
   lines: z.array(
     z.object({
       name: z.string(),
@@ -31,6 +32,8 @@ const InvoiceSchema = z.object({
       amount: z.number().nullable(),
       vat_rate: z.number().nullable(),
       catalog_no: z.number().int().nullable(),
+      discount_amount: z.number(),
+      is_gift: z.boolean(),
     })
   ),
   warning: z.string(),
@@ -49,7 +52,9 @@ const SYSTEM_PROMPT = `Bạn đọc ảnh chụp hóa đơn / phiếu giao hàng
 
 Quy tắc:
 - is_invoice = false nếu ảnh không phải hóa đơn/phiếu mua hàng (khi đó lines để rỗng).
-- Mỗi mặt hàng là 1 dòng trong "lines". Bỏ qua dòng tổng cộng, thuế, chiết khấu, phí ship, chữ ký.
+- Mỗi mặt hàng là 1 dòng trong "lines". Bỏ qua dòng tổng cộng, thuế, phí ship, chữ ký.
+  Dòng chiết khấu / giảm giá KHÔNG phải mặt hàng: không đưa vào "lines" như một món, mà ghi vào "discount_amount"
+  hoặc "order_discount" theo mục KHUYẾN MÃI / CHIẾT KHẤU bên dưới (không được bỏ qua).
 - "name": ghi đúng tên hàng như trên hóa đơn (giữ tiếng Việt có dấu, sửa lỗi chính tả rõ ràng của chữ viết tay).
 - Số tiền theo kiểu Việt Nam: "1.250.000" hoặc "1,250,000" = 1250000; "1tr2" = 1200000; "250k" = 250000;
   số tiền viết tắt bỏ 3 số 0 (vd cột "Thành tiền" ghi 250 trong khi đơn giá 50 × 5) thì nhân 1000 cho đúng.
@@ -67,8 +72,21 @@ VAT (thuế GTGT):
 - "vat_rate" của từng dòng: thuế suất % (0, 5, 8, 10...) lấy từ cột "Thuế suất" / "VAT %" của dòng đó.
   Nếu cả hóa đơn chỉ ghi một thuế suất chung thì dùng cho mọi dòng. Hàng "KCT" (không chịu thuế) = 0.
   Nếu hóa đơn có thuế nhưng không ghi rõ thuế suất từng dòng thì để null (app sẽ tự suy ra).
-- "subtotal": cộng tiền hàng trước thuế. "vat_amount": tổng tiền thuế GTGT. "total_amount": tổng tiền thanh toán SAU thuế
-  (sau chiết khấu nếu có). Không có thì null.
+- "subtotal": cộng thành tiền các dòng, TRƯỚC chiết khấu và trước thuế. "vat_amount": tổng tiền thuế GTGT.
+  "total_amount": tổng tiền thanh toán SAU chiết khấu, SAU thuế (số tiền thực phải trả). Không có thì null.
+
+KHUYẾN MÃI / CHIẾT KHẤU (tính TRƯỚC thuế):
+- "amount" của dòng luôn là thành tiền TRƯỚC chiết khấu (số lượng × đơn giá gốc).
+- "discount_amount" của dòng: số tiền chiết khấu / giảm giá riêng của món đó — từ cột "CK", "Chiết khấu", "Giảm giá", "% CK"
+  trên dòng, hoặc dòng "Giảm giá / CK <tên món>" (thường là số âm) nằm ngay dưới món. Ghi số DƯƠNG. Ghi theo % thì đổi ra tiền
+  (vd 10% của 500.000 = 50000). Không có thì 0.
+- "order_discount": chiết khấu / giảm giá / khuyến mãi trừ trên TỔNG hóa đơn (dòng "Chiết khấu thương mại", "Giảm giá",
+  "Khuyến mãi", "CK x%" ở phần tổng, hoặc dòng số tiền âm không gắn với món nào). Ghi số DƯƠNG, đổi % ra tiền theo tiền hàng.
+  Nếu hóa đơn trừ chiết khấu SAU khi đã cộng thuế thì đổi về trước thuế (chia cho 1 + thuế suất) và ghi rõ vào "warning".
+  Không có thì 0. Không tính trùng: khoản đã ghi vào discount_amount của dòng thì không cộng vào order_discount.
+- Hàng tặng / khuyến mãi 0 đồng ("Tặng", "KM", "Hàng khuyến mãi", "Quà tặng", giá 0 hoặc được giảm 100%): vẫn là 1 dòng trong
+  "lines" với số lượng thật, "is_gift" = true, unit_price = 0, amount = 0, discount_amount = 0. Món thường: "is_gift" = false.
+- Kiểm tra: tổng "amount" − tổng "discount_amount" − "order_discount" + "vat_amount" ≈ "total_amount".
 
 THANH TOÁN / CÔNG NỢ:
 - "payment_status": "paid" nếu có dấu hiệu RÕ đã trả đủ (chữ/con dấu "Đã thanh toán", "Đã thu tiền", "Paid", ghi đã nhận đủ tiền);

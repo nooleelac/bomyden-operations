@@ -62,7 +62,7 @@ export default async function UsagePage({ searchParams }: PageProps<"/inventory/
       .lt("created_at", end),
     supabase
       .from("stock_receipts")
-      .select("stock_receipt_lines(item_id, base_quantity, amount, vat_amount, item:inventory_items(name, category, base_unit))")
+      .select("stock_receipt_lines(item_id, base_quantity, cost_amount, item:inventory_items(name, category, base_unit))")
       .eq("status", "posted")
       .in("branch_id", scope)
       .gte("invoice_date", from)
@@ -126,7 +126,7 @@ export default async function UsagePage({ searchParams }: PageProps<"/inventory/
     for (const l of rc.stock_receipt_lines) {
       const r = row(l.item_id, l.item);
       r.receivedQty += Number(l.base_quantity);
-      r.receivedValue += Number(l.amount) + Number(l.vat_amount);
+      r.receivedValue += Number(l.cost_amount);
     }
   }
 

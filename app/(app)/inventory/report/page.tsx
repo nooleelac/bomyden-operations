@@ -45,7 +45,7 @@ export default async function InventoryReportPage({ searchParams }: PageProps<"/
   const [receiptsRes, prevReceiptsRes, issuesRes, countsRes, lastCountsRes, balancesRes, debtRes, lastPrices] = await Promise.all([
     supabase
       .from("stock_receipts")
-      .select("invoice_date, total_amount, supplier:suppliers(id, name), stock_receipt_lines(amount, vat_amount, item:inventory_items(category))")
+      .select("invoice_date, total_amount, supplier:suppliers(id, name), stock_receipt_lines(cost_amount, item:inventory_items(category))")
       .eq("status", "posted")
       .in("branch_id", scope)
       .gte("invoice_date", from)
@@ -94,7 +94,7 @@ export default async function InventoryReportPage({ searchParams }: PageProps<"/
     bySupplier.set(key, s);
     for (const l of r.stock_receipt_lines) {
       const cat = l.item?.category ?? "Khác";
-      byCategory.set(cat, (byCategory.get(cat) ?? 0) + Number(l.amount) + Number(l.vat_amount));
+      byCategory.set(cat, (byCategory.get(cat) ?? 0) + Number(l.cost_amount));
     }
   }
   const prevReceived = (prevReceiptsRes.data ?? []).reduce((t, r) => t + Number(r.total_amount), 0);

@@ -37,12 +37,12 @@ export async function loadSuppliers(): Promise<SupplierOption[]> {
   return (data ?? []).map((s) => ({ id: s.id, name: s.name, paymentTermsDays: s.payment_terms_days }));
 }
 
-/** Giá nhập gần nhất SAU VAT của từng nguyên liệu (quy về 1 đơn vị kho), từ các phiếu chưa hủy. */
+/** Giá nhập gần nhất SAU chiết khấu, SAU VAT của từng nguyên liệu (quy về 1 đơn vị kho), từ các phiếu chưa hủy. */
 export async function loadLastPrices(): Promise<LastPrices> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("stock_receipts")
-    .select("invoice_date, stock_receipt_lines(item_id, amount, vat_amount, base_quantity)")
+    .select("invoice_date, stock_receipt_lines(item_id, cost_amount, base_quantity)")
     .eq("status", "posted")
     .order("invoice_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -53,7 +53,8 @@ export async function loadLastPrices(): Promise<LastPrices> {
     for (const line of receipt.stock_receipt_lines) {
       if (result[line.item_id]) continue;
       const base = Number(line.base_quantity);
-      const amount = Number(line.amount) + Number(line.vat_amount);
+      // Giá vốn sau chiết khấu, sau VAT; hàng tặng (0 đ) không tính là giá nhập
+      const amount = Number(line.cost_amount);
       if (base > 0 && amount > 0) result[line.item_id] = { price: amount / base, date: receipt.invoice_date };
     }
   }

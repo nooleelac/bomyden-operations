@@ -10,7 +10,7 @@ export type CatalogItem = {
 
 export type SupplierOption = { id: string; name: string; paymentTermsDays: number | null };
 
-/** Giá nhập gần nhất SAU VAT (quy về 1 đơn vị kho) của từng nguyên liệu */
+/** Giá nhập gần nhất SAU chiết khấu, SAU VAT (quy về 1 đơn vị kho) của từng nguyên liệu */
 export type LastPrices = Record<string, { price: number; date: string }>;
 
 /** Một dòng trên màn hình xác nhận. Số để dạng chuỗi cho ô nhập. */
@@ -28,6 +28,10 @@ export type DraftLine = {
   unitPrice: string;
   /** Thành tiền CHƯA VAT */
   amount: string;
+  /** Chiết khấu riêng dòng, TRƯỚC VAT: số tiền hoặc "10%" */
+  discount: string;
+  /** Hàng tặng / khuyến mãi 0 đồng (vẫn cộng kho) */
+  isGift: boolean;
   /** Thuế suất VAT % */
   vatRate: string;
   matchedBy: "memory" | "ai" | null;
@@ -44,6 +48,8 @@ export type ReceiptDraft = {
   invoiceTotal: string;
   /** Tiền thuế in trên hóa đơn (chỉ để đối chiếu) */
   printedVat: string;
+  /** Chiết khấu / giảm giá trên tổng hóa đơn, TRƯỚC VAT: số tiền hoặc "5%" */
+  orderDiscount: string;
   /** null = chưa rõ, người dùng phải chọn */
   paymentStatus: PaymentStatus | null;
   paidAmount: string;
