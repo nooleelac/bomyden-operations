@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Tab = "stock" | "counts" | "issues" | "usage" | "receipts" | "debts" | "items" | "suppliers" | "settings";
+type Tab = "report" | "stock" | "counts" | "issues" | "usage" | "receipts" | "debts" | "items" | "suppliers" | "settings";
 
 /** Thanh điều hướng các trang Kho */
 export default function InventoryNav({ active, isManager, isAdmin }: { active: Tab; isManager: boolean; isAdmin: boolean }) {
@@ -11,6 +11,7 @@ export default function InventoryNav({ active, isManager, isAdmin }: { active: T
     { key: "issues", href: "/inventory/issues", label: "Xuất kho" },
     ...(isManager
       ? [
+          { key: "report" as const, href: "/inventory/report", label: "Báo cáo" },
           { key: "usage" as const, href: "/inventory/usage", label: "Tiêu hao" },
           { key: "debts" as const, href: "/inventory/debts", label: "Công nợ" },
           { key: "items" as const, href: "/inventory/items", label: "Nguyên liệu" },
