@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { vnDateString } from "@/lib/time";
 
 // Mô hình đọc hóa đơn. Đổi bằng biến môi trường INVOICE_AI_MODEL (vd: claude-sonnet-5-5) mà không cần sửa code.
 const DEFAULT_MODEL = "claude-haiku-5-5";
@@ -12,6 +13,8 @@ const DEFAULT_MODEL = "claude-haiku-5-5";
 // Hiện dùng 11 (5 ở phần đầu + 6 ở mỗi dòng hàng). Chiết khấu / hàng tặng dùng số 0 / false nên không tốn thêm.
 const InvoiceSchema = z.object({
   is_invoice: z.boolean(),
+  /** "chat" = ảnh chụp tin nhắn (Zalo...) không kèm hóa đơn đọc được */
+  source: z.enum(["invoice", "chat"]),
   supplier_name: z.string().nullable(),
   invoice_number: z.string(),
   invoice_date: z.string().nullable(),
@@ -48,10 +51,14 @@ export type InvoiceAiResult =
   | { ok: false; message: string; model: string; inputTokens?: number; outputTokens?: number; detail?: string };
 
 const SYSTEM_PROMPT = `Bạn đọc ảnh chụp hóa đơn / phiếu giao hàng / phiếu bán hàng mua nguyên liệu của một nhà hàng ở Việt Nam.
-Ảnh có thể là hóa đơn in, hóa đơn VAT, hoặc phiếu viết tay của chợ / mối hàng; có thể nghiêng, mờ, nhàu.
+Ảnh có thể là hóa đơn in, hóa đơn VAT, phiếu viết tay của chợ / mối hàng (có thể nghiêng, mờ, nhàu),
+hoặc ẢNH CHỤP MÀN HÌNH TIN NHẮN (Zalo, Messenger, SMS...) trao đổi mua hàng với nhà cung cấp.
 
 Quy tắc:
-- is_invoice = false nếu ảnh không phải hóa đơn/phiếu mua hàng (khi đó lines để rỗng).
+- is_invoice = false nếu ảnh không phải hóa đơn/phiếu mua hàng và cũng không phải tin nhắn có thông tin mua hàng
+  (khi đó lines để rỗng).
+- "source": "invoice" khi đọc từ hóa đơn / phiếu (kể cả ảnh hóa đơn được gửi trong tin nhắn); "chat" khi lấy thông tin
+  từ nội dung tin nhắn chữ (xem mục TIN NHẮN).
 - Mỗi mặt hàng là 1 dòng trong "lines". Bỏ qua dòng tổng cộng, thuế, phí ship, chữ ký.
   Dòng chiết khấu / giảm giá KHÔNG phải mặt hàng: không đưa vào "lines" như một món, mà ghi vào "discount_amount"
   hoặc "order_discount" theo mục KHUYẾN MÃI / CHIẾT KHẤU bên dưới (không được bỏ qua).
@@ -99,7 +106,29 @@ THANH TOÁN / CÔNG NỢ:
 - "catalog_no": nếu mặt hàng chắc chắn là một nguyên liệu trong DANH MỤC bên dưới (cùng loại hàng, có thể khác cách viết)
   thì ghi số thứ tự của nó; nếu không chắc hoặc không có thì null.
 - "warning": ghi ngắn bằng tiếng Việt nếu có chỗ không đọc rõ / nghi ngờ (vd "Dòng 3 mờ, số lượng không chắc"), không có thì chuỗi rỗng "".
-- "invoice_number": số hóa đơn / số phiếu, không có thì chuỗi rỗng "".`;
+- "invoice_number": số hóa đơn / số phiếu, không có thì chuỗi rỗng "".
+
+TIN NHẮN (ảnh chụp màn hình Zalo / Messenger / SMS):
+- Nếu trong cuộc trò chuyện có ảnh hóa đơn / phiếu giao hàng đủ rõ để đọc → đọc hóa đơn đó như bình thường
+  (source = "invoice"); nội dung tin nhắn chỉ dùng bổ sung (tên nhà cung cấp, đã chuyển khoản...).
+- Nếu KHÔNG có hóa đơn đọc được nhưng tin nhắn có nội dung đặt hàng / giao hàng / báo tiền hàng (tên hàng kèm số lượng
+  hoặc giá) → is_invoice = true, source = "chat", và:
+  * "supplier_name": tên người / cửa hàng ở BÊN KIA cuộc trò chuyện (tên ở đầu màn hình, hoặc tên / ảnh đại diện cạnh
+    các tin nhắn bên trái). Tin nhắn bên phải (thường màu xanh) là của nhà hàng — người mua: KHÔNG lấy làm nhà cung cấp.
+  * Mỗi món nhắc tới là 1 dòng trong "lines": "name" lấy từ nội dung tin nhắn, số lượng / đơn vị / giá theo tin nhắn
+    (vd "thăn bò 5kg x 280k" → quantity 5, unit "kg", unit_price 280000, amount 1400000; "2 thùng pepsi 1tr" → quantity 2,
+    unit "thùng", amount 1000000). Giá ghi không rõ là đơn giá hay thành tiền thì đối chiếu với tổng tiền nếu có,
+    không đối chiếu được thì ghi vào "warning".
+  * Có nhiều tin nhắn về cùng đơn hàng: ưu tiên tin nhắn tổng kết / xác nhận / báo tiền SAU CÙNG của nhà cung cấp; đã sửa
+    (bớt, thêm, đổi số lượng) thì dùng số sau cùng. Không cộng trùng món được nhắc lại nhiều lần. Bỏ qua lời chào,
+    sticker, hẹn giờ giao, tin nhắn không liên quan tới hàng hóa.
+  * "total_amount": tổng tiền nhà cung cấp báo trong tin nhắn (nếu có), không có thì null.
+  * "invoice_date": ngày của tin nhắn đặt / giao hàng theo mốc ngày hiển thị trong cuộc trò chuyện ("Hôm nay", "Hôm qua",
+    "T2"... tính theo ngày hôm nay được cho); chỉ có giờ thì dùng ngày hôm nay.
+  * "invoice_number" = "". "vat_rate" = 0 trừ khi tin nhắn ghi rõ thuế.
+  * Thanh toán: "đã ck", "chuyển khoản rồi", có ảnh biên lai chuyển tiền → "paid" (paid_amount nếu thấy số tiền);
+    "ghi sổ", "cuối tháng tính", "nợ" → "unpaid"; còn lại "unknown".
+  * Luôn ghi vào "warning" một câu ngắn: thông tin lấy từ tin nhắn, cần kiểm tra lại.`;
 
 function catalogText(catalog: CatalogEntry[], suppliers: string[]): string {
   const items = catalog.length
@@ -143,7 +172,7 @@ export async function extractInvoice(
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } },
-            { type: "text", text: "Đọc hóa đơn trong ảnh này." },
+            { type: "text", text: `Hôm nay là ${vnDateString()}. Đọc hóa đơn / tin nhắn trong ảnh này.` },
           ],
         },
       ],

@@ -120,7 +120,7 @@ export default function ReceiveView({ branches, catalog, suppliers, lastPrices, 
           <label className="card flex cursor-pointer flex-col items-center gap-2 border-2 border-dashed border-neutral-300 p-8 text-center transition hover:border-neutral-500">
             <span className="text-5xl" aria-hidden="true">📷</span>
             <span className="text-lg font-semibold">Chụp ảnh hóa đơn</span>
-            <span className="text-sm text-neutral-500">Chụp thẳng, đủ sáng, thấy rõ toàn bộ các dòng hàng và tổng tiền</span>
+            <span className="text-sm text-neutral-500">Chụp thẳng, đủ sáng, thấy rõ các dòng hàng và tổng tiền — hoặc chụp màn hình tin nhắn Zalo đặt hàng với nhà cung cấp</span>
             <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPhoto} />
           </label>
 

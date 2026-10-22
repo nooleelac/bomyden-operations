@@ -117,13 +117,21 @@ export async function scanInvoice(branchId: string, _prev: ScanState, formData: 
   if (!ai.data.is_invoice || ai.data.lines.length === 0) {
     return {
       ok: false,
-      message: "AI không thấy mặt hàng nào trong ảnh. Hãy chụp lại rõ, đủ sáng, thẳng hóa đơn — hoặc nhập tay bên dưới.",
+      message:
+        "AI không thấy mặt hàng nào trong ảnh. Hãy chụp lại rõ hóa đơn, hoặc chụp màn hình tin nhắn có ghi tên hàng, số lượng, giá — hoặc nhập tay bên dưới.",
       draft: emptyDraft,
     };
   }
 
   const { data: aliases } = await supabase.from("inventory_aliases").select("supplier_id, alias_norm, item_id, unit_name, factor");
-  return { ok: true, message: "", draft: buildDraft(ai.data, emptyDraft, catalog, suppliers, aliases ?? []) };
+  const fromChat = ai.data.source === "chat";
+  return {
+    ok: true,
+    message: fromChat
+      ? "📱 Đọc từ tin nhắn (không có hóa đơn): nhà cung cấp lấy theo người nhắn, mặt hàng / số lượng / giá lấy theo nội dung tin nhắn. Kiểm tra kỹ trước khi lưu."
+      : "",
+    draft: buildDraft(ai.data, emptyDraft, catalog, suppliers, aliases ?? []),
+  };
 }
 
 function blankLine(): DraftLine {
