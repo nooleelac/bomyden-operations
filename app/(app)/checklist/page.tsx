@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRequestTime } from "@/lib/request-time";
 import { vnDateString, vnDayRange } from "@/lib/time";
-import { displayStatus, shiftCoversTask } from "@/lib/checklist";
+import { displayStatus, shiftCoversTask, taskAssignee } from "@/lib/checklist";
+import { loadChecklistPeople } from "@/lib/checklist-people";
 import { signTaskPhotos } from "@/lib/task-photos";
 import ChecklistView from "./ChecklistView";
 import type { TaskCardData } from "./TaskCard";
@@ -45,39 +46,35 @@ export default async function ChecklistPage() {
 
   if (error) throw new Error("Không tải được checklist.");
 
-  // Quản lý đọc được mọi việc theo ca của chi nhánh → chỉ giữ việc trùng ca của chính mình
-  const tasks = allTasks.filter((t) => !t.by_shift || (myShifts ?? []).some((s) => shiftCoversTask(s, t)));
+  // Ai nghỉ phép / đã chấm công hôm nay → người phụ trách thực tế của việc giao đích danh
+  const people = await loadChecklistPeople(
+    today,
+    [me.id, ...allTasks.flatMap((t) => (t.by_shift ? [] : [t.primary_employee_id, t.backup_employee_id]))]
+  );
+  const meOnLeave = people.onLeave.has(me.id);
 
-  // Tên đồng nghiệp + người chính đã đi làm hôm nay chưa (đọc bằng quyền server, chỉ cho các việc của chính mình)
+  // Quản lý đọc được mọi việc theo ca của chi nhánh → chỉ giữ việc trùng ca của chính mình (nghỉ phép → không nhận việc của ca)
+  const tasks = allTasks.filter((t) => !t.by_shift || (!meOnLeave && (myShifts ?? []).some((s) => shiftCoversTask(s, t))));
+  const assignee = new Map(tasks.map((t) => [t.id, t.by_shift ? null : taskAssignee(t, people)]));
+
+  // Tên đồng nghiệp (đọc bằng quyền server, chỉ cho các việc của chính mình)
   const admin = createAdminClient();
   const peopleIds = [...new Set(tasks.flatMap((t) => [t.primary_employee_id, t.completed_by]).filter(Boolean) as string[])];
-  const backupPrimaryIds = [
-    ...new Set(tasks.filter((t) => !t.by_shift && t.backup_employee_id === me.id).map((t) => t.primary_employee_id!)),
-  ];
 
-  const [{ data: people }, { data: checkIns }, photoUrls] = await Promise.all([
+  const [{ data: employees }, photoUrls] = await Promise.all([
     peopleIds.length
       ? admin.from("employees").select("id, full_name").in("id", peopleIds)
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
-    backupPrimaryIds.length
-      ? admin
-          .from("attendance_records")
-          .select("employee_id")
-          .in("employee_id", backupPrimaryIds)
-          .gte("check_in_at", range.start)
-          .lt("check_in_at", range.end)
-      : Promise.resolve({ data: [] as { employee_id: string }[] }),
     signTaskPhotos(tasks.map((t) => t.photo_path)),
   ]);
 
-  const names = new Map((people ?? []).map((p) => [p.id, p.full_name]));
-  const primaryWorked = new Set((checkIns ?? []).map((c) => c.employee_id));
+  const names = new Map((employees ?? []).map((p) => [p.id, p.full_name]));
   const needsShift = mustClockIn(me);
 
   const cards: TaskCardData[] = tasks.map((t) => {
     const role = t.by_shift ? "shift" : t.primary_employee_id === me.id ? "primary" : "backup";
     let blockedReason: string | null = null;
-    if (role === "backup" && primaryWorked.has(t.primary_employee_id!)) {
+    if (role === "backup" && assignee.get(t.id) !== me.id) {
       blockedReason = `${names.get(t.primary_employee_id!) ?? "Người phụ trách chính"} đã đi làm hôm nay nên sẽ làm việc này.`;
     } else if (needsShift && openShift?.branch_id !== t.branch_id) {
       blockedReason = `Vào ca tại ${t.branch?.name ?? "chi nhánh"} để đánh dấu việc này.`;
@@ -101,20 +98,22 @@ export default async function ChecklistPage() {
       isUrgent: t.is_urgent,
       urgentResolved: Boolean(t.urgent_resolved_at),
       role,
-      primaryName: t.primary_employee_id ? names.get(t.primary_employee_id) ?? "" : "",
+      primaryName: t.primary_employee_id
+        ? `${names.get(t.primary_employee_id) ?? ""}${people.onLeave.has(t.primary_employee_id) ? " (nghỉ phép)" : ""}`
+        : "",
       blockedReason,
     };
   });
 
-  // Việc của tôi: việc mình là người chính + việc của ca mình
-  const mine = cards.filter((c) => c.role === "primary" || c.role === "shift");
-  // Việc làm thay: chỉ hiện khi người chính nghỉ, hoặc khi chính mình đã làm
-  const covering = cards.filter(
-    (c) => c.role === "backup" && (!primaryWorked.has(tasks.find((t) => t.id === c.id)!.primary_employee_id!) || c.completedAt)
-  );
+  // Việc của tôi: việc mình là người chính (trừ ngày mình nghỉ phép — đã chuyển cho người thay) + việc của ca mình
+  const mine = cards.filter((c) => c.role === "shift" || (c.role === "primary" && (!meOnLeave || c.completedAt)));
+  // Việc làm thay: khi người chính nghỉ / chưa đi làm, hoặc khi chính mình đã làm — tính như việc chính của mình
+  const covering = cards.filter((c) => c.role === "backup" && (assignee.get(c.id) === me.id || c.completedAt));
+  const handedOver = cards.filter((c) => c.role === "primary" && !mine.includes(c)).length;
 
-  const total = mine.length;
-  const finished = mine.filter((c) => ["done", "late", "failed"].includes(c.displayStatus)).length;
+  const counted = [...mine, ...covering];
+  const total = counted.length;
+  const finished = counted.filter((c) => ["done", "late", "failed"].includes(c.displayStatus)).length;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -137,7 +136,14 @@ export default async function ChecklistPage() {
         </div>
       )}
 
-      {needsShift && !openShift && cards.some((c) => !c.completedAt) && (
+      {meOnLeave && (
+        <p className="alert-info mt-4">
+          Hôm nay bạn nghỉ phép
+          {handedOver > 0 ? ` — ${handedOver} việc của bạn đã chuyển cho người làm thay` : ""}. Bạn không bị tính phạt checklist hôm nay.
+        </p>
+      )}
+
+      {needsShift && !openShift && counted.some((c) => !c.completedAt) && (
         <p className="alert-info mt-4">
           Bạn chưa vào ca. <Link href="/attendance" className="font-semibold underline">Vào ca</Link> để đánh dấu công việc.
         </p>

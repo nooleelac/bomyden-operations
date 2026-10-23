@@ -77,7 +77,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     }
   };
 
-  const [reportRes, templatesRes, staffRes, shiftsRes, setsRes] = await Promise.all([
+  const [reportRes, templatesRes, staffRes, shiftsRes, setsRes, leavesRes] = await Promise.all([
     tab === "report" ? loadReport() : Promise.resolve({ data: [], error: null }),
     supabase
       .from("task_templates")
@@ -97,22 +97,34 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     // Ca đã công bố trong khoảng ngày → biết ai nhận việc "giao theo ca"
     supabase
       .from("shifts")
-      .select("branch_id, start_at, end_at, employee:employees!shifts_employee_id_fkey(id, full_name, is_active)")
+      .select("branch_id, work_date, start_at, end_at, employee:employees!shifts_employee_id_fkey(id, full_name, is_active)")
       .eq("status", "published")
       .in("branch_id", scope)
       .lt("start_at", rangeEnd)
       .gt("end_at", rangeStart),
     supabase.from("task_sets").select("id, branch_id, name, branch:branches(name)").in("branch_id", scope).order("name"),
+    // Đơn nghỉ đã duyệt → người nghỉ không nhận việc (việc đích danh chuyển cho người thay, việc theo ca cho người còn lại)
+    supabase
+      .from("schedule_requests")
+      .select("employee_id, start_date, end_date")
+      .eq("kind", "leave")
+      .eq("status", "approved")
+      .lte("start_date", to)
+      .gte("end_date", from),
   ]);
 
-  if (reportRes.error || templatesRes.error || staffRes.error || shiftsRes.error || setsRes.error) {
+  if (reportRes.error || templatesRes.error || staffRes.error || shiftsRes.error || setsRes.error || leavesRes.error) {
     throw new Error("Không tải được dữ liệu checklist.");
   }
 
   const photoUrls = await signTaskPhotos(reportRes.data.map((r) => (r.photo_purged_at ? null : r.photo_path)));
 
+  const onLeave = (employeeId: string | null, day: string) =>
+    employeeId !== null && leavesRes.data.some((l) => l.employee_id === employeeId && l.start_date! <= day && l.end_date! >= day);
   const shiftEmployeesOf = (r: { branch_id: string; start_at: string; due_at: string }) =>
-    shiftsRes.data.filter((s) => s.employee?.is_active && shiftCoversTask(s, r)).map((s) => s.employee!);
+    shiftsRes.data
+      .filter((s) => s.employee?.is_active && shiftCoversTask(s, r) && !onLeave(s.employee!.id, s.work_date))
+      .map((s) => s.employee!);
   const shiftStaffOf = (r: { branch_id: string; start_at: string; due_at: string }) => [...new Set(shiftEmployeesOf(r).map((e) => e.full_name))];
 
   // Nhân viên để lọc báo cáo: người thuộc chi nhánh đang xem
@@ -146,7 +158,7 @@ export default async function ManageChecklistPage({ searchParams }: PageProps<"/
     startAt: r.start_at,
     dueAt: r.due_at,
     displayStatus: displayStatus(r, now),
-    primaryName: r.primary?.full_name ?? "—",
+    primaryName: r.primary ? `${r.primary.full_name}${onLeave(r.primary_employee_id, r.task_date) ? " (nghỉ phép)" : ""}` : "—",
     backupName: r.backup?.full_name ?? null,
     completedByName: r.completer?.full_name ?? null,
     completedAt: r.completed_at,

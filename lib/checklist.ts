@@ -78,6 +78,22 @@ export function shiftCoversTask(
   );
 }
 
+/**
+ * Người phải làm việc giao đích danh trong ngày (null = không có ai). Khớp với private.task_assignee trong CSDL:
+ * người chính nghỉ phép → người thay (nếu người thay không nghỉ); người chính chưa chấm công → người thay; còn lại → người chính.
+ */
+export function taskAssignee(
+  task: { primary_employee_id: string | null; backup_employee_id: string | null },
+  people: { onLeave: Set<string>; checkedIn: Set<string> }
+): string | null {
+  const { primary_employee_id: primary, backup_employee_id: backup } = task;
+  if (!primary) return null;
+  const backupFree = backup !== null && !people.onLeave.has(backup);
+  if (people.onLeave.has(primary)) return backupFree ? backup : null;
+  if (backupFree && !people.checkedIn.has(primary)) return backup;
+  return primary;
+}
+
 /** "1,15, 31" → [1, 15, 31] (bỏ trùng, chỉ nhận 1..31) */
 export function parseMonthDays(value: string): number[] | null {
   const items = value.split(/[\s,;]+/).filter(Boolean);

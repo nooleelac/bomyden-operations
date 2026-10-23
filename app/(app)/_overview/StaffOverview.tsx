@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getRequestTime } from "@/lib/request-time";
 import { formatDuration, formatTime, isForgotten, minutesBetween } from "@/lib/time";
 import { addDays, dayLabel, hm } from "@/lib/schedule";
-import { DISPLAY_STATUS, displayStatus, shiftCoversTask } from "@/lib/checklist";
+import { DISPLAY_STATUS, displayStatus, shiftCoversTask, taskAssignee } from "@/lib/checklist";
+import { loadChecklistPeople } from "@/lib/checklist-people";
 import ChecklistWeek from "./ChecklistWeek";
 import { ActionList, Badge, SectionCard, StatTile, type ActionItem, type Tone } from "./ui";
 
@@ -35,7 +36,7 @@ export default async function StaffOverview({ me, today, compact = false }: { me
       .maybeSingle(),
     supabase
       .from("task_instances")
-      .select("id, branch_id, by_shift, title, status, start_at, due_at, completed_at, primary_employee_id")
+      .select("id, branch_id, by_shift, title, status, start_at, due_at, completed_at, completed_by, primary_employee_id, backup_employee_id")
       .eq("task_date", today)
       .neq("status", "cancelled")
       .or(`primary_employee_id.eq.${me.id},backup_employee_id.eq.${me.id},by_shift.eq.true`)
@@ -58,9 +59,22 @@ export default async function StaffOverview({ me, today, compact = false }: { me
   const open = openRes.data;
   const forgotten = open ? isForgotten(open.check_in_at, null, now) : false;
 
-  // Việc của tôi: việc mình là người chính + việc theo ca trùng ca mình (việc thay thế chỉ làm khi người chính nghỉ)
-  const tasks = (tasksRes.data ?? [])
-    .filter((t) => (t.by_shift ? shifts.some((s) => shiftCoversTask(s, t)) : t.primary_employee_id === me.id))
+  // Việc của tôi: việc mình là người chính + việc theo ca trùng ca mình + việc làm thay khi người chính nghỉ / chưa đi làm.
+  // Ngày mình nghỉ phép → không có việc (việc đích danh đã chuyển cho người thay)
+  const allTasks = tasksRes.data ?? [];
+  const people = await loadChecklistPeople(
+    today,
+    [me.id, ...allTasks.flatMap((t) => (t.by_shift ? [] : [t.primary_employee_id, t.backup_employee_id]))]
+  );
+  const meOnLeave = people.onLeave.has(me.id);
+  const tasks = allTasks
+    .filter((t) =>
+      meOnLeave
+        ? t.completed_by === me.id
+        : t.by_shift
+          ? shifts.some((s) => shiftCoversTask(s, t))
+          : t.primary_employee_id === me.id || taskAssignee(t, people) === me.id || t.completed_by === me.id
+    )
     .map((t) => ({ ...t, display: displayStatus(t, now) }));
   const finished = tasks.filter((t) => t.display === "done" || t.display === "late").length;
   const overdue = tasks.filter((t) => t.display === "overdue");
