@@ -162,6 +162,8 @@ type PayrollSettingsRow = {
   forgot_checkout_penalty: number
   kpi_checklist_bonus: number
   kpi_checklist_target_percent: number
+  early_arrival_round_minutes: number
+  early_checkout_round_minutes: number
   updated_at: string
   updated_by: string | null
 }
@@ -2406,6 +2408,10 @@ export type Database = {
       attendance_late_grace: {
         Args: { p_employee_ids: string[] }
         Returns: { employee_id: string; grace_minutes: number }[]
+      }
+      attendance_rounding: {
+        Args: Record<PropertyKey, never>
+        Returns: { early_arrival_minutes: number; early_checkout_minutes: number }[]
       }
       delete_branch: {
         Args: { p_branch_id: string }

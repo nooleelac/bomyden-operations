@@ -62,9 +62,29 @@ export function SettingsForm({ settings }: { settings: PayrollSettings }) {
           </div>
         </div>
         <p className="mt-1 text-xs text-neutral-500">
-          Hết ca + phút du di mà chưa ra ca → nhắc nhân viên. Tự bấm ra ca muộn hơn mốc này → chỉ tính lương đến mốc này
-          (làm thêm thật: nhân viên gửi yêu cầu sửa giờ để duyệt). Hết ca + số phút tự chốt → app ghi giờ ra = giờ kết thúc ca và
-          tính 1 lần quên ra ca. Nhân viên miễn tự chốt (cài ở dưới) chỉ được nhắc, tính đủ giờ.
+          Hết ca + phút du di mà chưa ra ca → nhắc nhân viên (bảng lương cảnh báo các lượt ra muộn hơn mốc này để kiểm tra).
+          Hết ca + số phút tự chốt → app ghi giờ ra = giờ kết thúc ca và tính 1 lần quên ra ca. Nhân viên miễn tự chốt (cài ở dưới)
+          chỉ được nhắc.
+        </p>
+      </div>
+      <div className="border-t border-neutral-100 pt-4">
+        <h2 className="font-semibold">Làm tròn giờ công theo ca</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="st-arnd" className="mb-1 block text-sm font-medium text-neutral-700">Đến sớm tối đa vẫn tính từ đầu ca (phút)</label>
+            <input id="st-arnd" name="early_arrival_round_minutes" type="number" min={0} max={120} defaultValue={settings.early_arrival_round_minutes} className="input" />
+            {state.fieldErrors?.early_arrival_round_minutes && <p className="field-error">{state.fieldErrors.early_arrival_round_minutes}</p>}
+          </div>
+          <div>
+            <label htmlFor="st-lrnd" className="mb-1 block text-sm font-medium text-neutral-700">Ra sớm tối đa vẫn tính đủ ca (phút)</label>
+            <input id="st-lrnd" name="early_checkout_round_minutes" type="number" min={0} max={60} defaultValue={settings.early_checkout_round_minutes} className="input" />
+            {state.fieldErrors?.early_checkout_round_minutes && <p className="field-error">{state.fieldErrors.early_checkout_round_minutes}</p>}
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          VD ca 16:00–00:00 với 30 / 15 phút: vào 15:45, ra 23:45 → tính 16:00–00:00 (đủ 8 giờ, không phạt về sớm). Vào 15:50, ra 00:15
+          → tính 16:00–00:15. Đến sớm hơn mốc → tính từ giờ vào thực tế (có thể thành tăng ca). Ra sớm hơn mốc → tính đến giờ ra thực tế.
+          Ra sau giờ hết ca → tính theo giờ ra thực tế. Lượt không có ca theo lịch → tính giờ thực tế.
         </p>
       </div>
       <div className="border-t border-neutral-100 pt-4">

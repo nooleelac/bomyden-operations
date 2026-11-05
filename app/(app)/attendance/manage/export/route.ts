@@ -4,6 +4,7 @@ import { getManageableBranches } from "@/lib/branches";
 import { createClient } from "@/lib/supabase/server";
 import { addSheet, createWorkbook, excelResponse, monthRange } from "@/lib/excel";
 import { vnDateString } from "@/lib/time";
+import { matchShift, paidMinutes, toRounding } from "@/lib/attendance-rounding";
 
 const METHOD_LABELS: Record<string, string> = { gps: "GPS", wifi: "Wi-Fi", manual: "Nhập tay", auto: "Tự chốt (quên ra ca)" };
 
@@ -18,19 +19,32 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   // RLS tự giới hạn theo chi nhánh người thao tác quản lý
-  const { data, error } = await supabase
-    .from("attendance_records")
-    .select(
-      "id, employee_id, check_in_at, check_out_at, check_in_method, check_out_method, is_corrected, correction_note, employee:employees!attendance_records_employee_id_fkey(full_name), branch:branches(name)"
-    )
-    .gte("check_in_at", `${from}T00:00:00+07:00`)
-    .lt("check_in_at", `${to}T00:00:00+07:00`)
-    .in("branch_id", branchIds)
-    .order("check_in_at");
-  if (error) return new Response("Không tải được chấm công.", { status: 500 });
+  const [{ data, error }, shiftsRes, { data: roundingRows }] = await Promise.all([
+    supabase
+      .from("attendance_records")
+      .select(
+        "id, employee_id, check_in_at, check_out_at, check_in_method, check_out_method, is_corrected, correction_note, employee:employees!attendance_records_employee_id_fkey(full_name), branch:branches(name)"
+      )
+      .gte("check_in_at", `${from}T00:00:00+07:00`)
+      .lt("check_in_at", `${to}T00:00:00+07:00`)
+      .in("branch_id", branchIds)
+      .order("check_in_at"),
+    supabase
+      .from("shifts")
+      .select("employee_id, start_at, end_at")
+      .eq("status", "published")
+      .in("branch_id", branchIds)
+      .gte("work_date", from)
+      .lte("work_date", to),
+    supabase.rpc("attendance_rounding"),
+  ]);
+  if (error || shiftsRes.error) return new Response("Không tải được chấm công.", { status: 500 });
 
+  // Giờ công làm tròn theo ca — cùng quy tắc với bảng lương
+  const rounding = toRounding(roundingRows);
+  const shifts = (shiftsRes.data ?? []).map((s) => ({ employeeId: s.employee_id, startAt: s.start_at, endAt: s.end_at }));
   const records = (data ?? []).map((r) => {
-    const minutes = r.check_out_at ? Math.max(0, Math.round((Date.parse(r.check_out_at) - Date.parse(r.check_in_at)) / 60000)) : null;
+    const minutes = paidMinutes(r.check_in_at, r.check_out_at, matchShift(shifts, r.employee_id, r.check_in_at), rounding);
     return { ...r, minutes, workDate: vnDateString(new Date(r.check_in_at)) };
   });
 

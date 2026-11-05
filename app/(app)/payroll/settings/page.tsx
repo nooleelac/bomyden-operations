@@ -54,8 +54,8 @@ export default async function PayrollSettingsPage() {
       <section className="card mt-6 p-5">
         <h2 className="font-semibold">Miễn tự chốt ca</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Dành cho người hay làm thêm ngoài lịch (ví dụ bếp chính). Quên ra ca vẫn được nhắc nhưng app không tự chốt, và ra ca muộn
-          hơn lịch vẫn tính đủ giờ (phiếu lương có cảnh báo để kiểm tra). Ca mở quá 16 giờ vẫn tính quên ra ca.
+          Dành cho người hay làm thêm ngoài lịch (ví dụ bếp chính). Quên ra ca vẫn được nhắc nhưng app không tự chốt
+          (phiếu lương có cảnh báo các lượt ra muộn để kiểm tra). Ca mở quá 16 giờ vẫn tính quên ra ca.
         </p>
         {(staff ?? []).length === 0 ? (
           <p className="mt-4 text-sm text-neutral-500">Chưa có nhân viên phải chấm công.</p>

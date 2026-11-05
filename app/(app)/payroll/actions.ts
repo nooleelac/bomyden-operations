@@ -246,6 +246,16 @@ const settingsSchema = z.object({
     .int()
     .min(15, { message: "Tối thiểu 15 phút." })
     .max(720, { message: "Tối đa 720 phút." }),
+  early_arrival_round_minutes: z.coerce
+    .number({ message: "Số phút phải là số." })
+    .int()
+    .min(0, { message: "Tối thiểu 0 phút." })
+    .max(120, { message: "Tối đa 120 phút." }),
+  early_checkout_round_minutes: z.coerce
+    .number({ message: "Số phút phải là số." })
+    .int()
+    .min(0, { message: "Tối thiểu 0 phút." })
+    .max(60, { message: "Tối đa 60 phút." }),
   advance_max_percent: z.coerce
     .number({ message: "Tỷ lệ ứng lương phải là số." })
     .int({ message: "Tỷ lệ ứng lương phải là số nguyên." })
@@ -273,6 +283,8 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
     forgot_checkout_penalty: str(formData, "forgot_checkout_penalty"),
     checkout_grace_minutes: str(formData, "checkout_grace_minutes") || "0",
     auto_checkout_after_minutes: str(formData, "auto_checkout_after_minutes") || "60",
+    early_arrival_round_minutes: str(formData, "early_arrival_round_minutes") || "0",
+    early_checkout_round_minutes: str(formData, "early_checkout_round_minutes") || "0",
     advance_max_percent: str(formData, "advance_max_percent") || "0",
     kpi_checklist_bonus: str(formData, "kpi_checklist_bonus"),
     kpi_checklist_target_percent: str(formData, "kpi_checklist_target_percent") || "100",
@@ -288,6 +300,7 @@ export async function saveSettings(_prev: ActionState, formData: FormData): Prom
   if (!data?.length) return fail("Bạn không có quyền sửa cài đặt lương.");
 
   revalidatePayroll();
+  revalidatePath("/attendance", "layout"); // giờ công trang chấm công dùng cài đặt làm tròn
   return success("Đã lưu cài đặt. Áp dụng cho các kỳ chưa chốt.");
 }
 
@@ -307,7 +320,7 @@ export async function setManagerPayrollAccess(employeeId: string, enabled: boole
   return success(enabled ? "Đã cấp quyền bảng lương." : "Đã thu hồi quyền bảng lương.");
 }
 
-// Miễn tự chốt ca (bếp chính / người hay làm thêm ngoài lịch): chỉ nhắc ra ca, không tự chốt, tính đủ giờ
+// Miễn tự chốt ca (bếp chính / người hay làm thêm ngoài lịch): chỉ nhắc ra ca, không tự chốt
 export async function setAutoCheckoutExempt(employeeId: string, enabled: boolean): Promise<ActionState> {
   await requireAdmin();
   const supabase = await createClient();

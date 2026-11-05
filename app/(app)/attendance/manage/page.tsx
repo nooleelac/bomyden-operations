@@ -7,6 +7,7 @@ import { getManageableBranches } from "@/lib/branches";
 import { isForgotten, isValidDateString, vnDateString, vnDayRange } from "@/lib/time";
 import { getRequestTime } from "@/lib/request-time";
 import { buildAttendanceReport, type ReportEmployee } from "@/lib/attendance-report";
+import { matchShift, paidMinutes, toRounding } from "@/lib/attendance-rounding";
 import HistoryFilters from "@/components/HistoryFilters";
 import ManageView, { type PendingItem, type RecordItem } from "./ManageView";
 import type { StaffOption } from "./ManageDialogs";
@@ -139,7 +140,7 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
 
   // Đơn xin trễ đã duyệt (mốc tính trễ là giờ đã xin) + số phút ân hạn đi trễ theo cài đặt bảng lương — tải song song
   const shiftIds = shiftsRes.data.map((s) => s.id);
-  const [{ data: lateRequests }, { data: graces }] = await Promise.all([
+  const [{ data: lateRequests }, { data: graces }, { data: roundingRows }] = await Promise.all([
     shiftIds.length
       ? supabase
           .from("schedule_requests")
@@ -151,8 +152,19 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
     employeesMap.size > 0
       ? supabase.rpc("attendance_late_grace", { p_employee_ids: [...employeesMap.keys()] })
       : { data: [] },
+    supabase.rpc("attendance_rounding"),
   ]);
+  const rounding = toRounding(roundingRows);
   const lateTime = new Map((lateRequests ?? []).map((q) => [q.shift_id, q.requested_time]));
+  const reportShifts = shiftsRes.data.map((s) => ({
+    id: s.id,
+    employeeId: s.employee_id,
+    workDate: s.work_date,
+    startAt: s.start_at,
+    endAt: s.end_at,
+    startTime: s.start_time,
+    lateRequestTime: lateTime.get(s.id) ?? null,
+  }));
   for (const g of graces ?? []) {
     const emp = employeesMap.get(g.employee_id);
     if (emp) emp.grace = g.grace_minutes;
@@ -173,6 +185,7 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
     branchName: r.branch?.name ?? "—",
     checkIn: r.check_in_at,
     checkOut: r.check_out_at,
+    paidMinutes: paidMinutes(r.check_in_at, r.check_out_at, matchShift(reportShifts, r.employee_id, r.check_in_at), rounding),
     inMethod: r.check_in_method,
     outMethod: r.check_out_method,
     isCorrected: r.is_corrected,
@@ -209,17 +222,10 @@ export default async function ManageAttendancePage({ searchParams }: PageProps<"
     to,
     now,
     employees: reportEmployees,
-    shifts: shiftsRes.data.map((s) => ({
-      id: s.id,
-      employeeId: s.employee_id,
-      workDate: s.work_date,
-      startAt: s.start_at,
-      endAt: s.end_at,
-      startTime: s.start_time,
-      lateRequestTime: lateTime.get(s.id) ?? null,
-    })),
+    shifts: reportShifts,
     records: rangeRecords.filter((r) => keep(r.employee_id)).map(toRecord),
     leaves: leavesRes.data.map((l) => ({ employeeId: l.employee_id, startDate: l.start_date!, endDate: l.end_date! })),
+    rounding,
   });
 
   const fmt = (s: string) => s.split("-").reverse().join("/");

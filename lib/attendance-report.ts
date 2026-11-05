@@ -6,6 +6,7 @@
 //  * Chưa vào ca: ca đã bắt đầu, chưa kết thúc, chưa chấm công.
 
 import { formatTime, vnDateString } from "@/lib/time";
+import { matchShift, paidMinutes, type Rounding } from "@/lib/attendance-rounding";
 
 const VN_OFFSET = "+07:00";
 
@@ -35,7 +36,7 @@ export type EmployeeDay<R extends ReportRecord = ReportRecord> = {
   /** Ca theo lịch trong ngày, VD "08:00–14:00" */
   shiftLabel: string | null;
   lateMinutes: number;
-  /** Phút làm của các lượt đã ra ca */
+  /** Phút tính công của các lượt đã ra ca (đã làm tròn theo ca) */
   minutes: number;
   records: R[];
 };
@@ -67,6 +68,7 @@ export function buildAttendanceReport<R extends ReportRecord>({
   shifts,
   records,
   leaves,
+  rounding,
 }: {
   from: string;
   to: string;
@@ -75,6 +77,8 @@ export function buildAttendanceReport<R extends ReportRecord>({
   shifts: ReportShift[];
   records: R[];
   leaves: ReportLeave[];
+  /** Làm tròn giờ công theo ca (cài đặt bảng lương) */
+  rounding: Rounding;
 }): EmployeeDay<R>[] {
   const group = <T,>(items: T[], key: (t: T) => string) => {
     const map = new Map<string, T[]>();
@@ -102,7 +106,7 @@ export function buildAttendanceReport<R extends ReportRecord>({
     let status: DayStatus;
     let lateMinutes = 0;
     const minutes = dayRecords.reduce(
-      (total, r) => total + (r.checkOut ? Math.max(0, Math.round((Date.parse(r.checkOut) - Date.parse(r.checkIn)) / 60_000)) : 0),
+      (total, r) => total + (paidMinutes(r.checkIn, r.checkOut, matchShift(shifts, r.employeeId, r.checkIn), rounding) ?? 0),
       0
     );
 

@@ -27,6 +27,8 @@ export type RecordItem = {
   branchName: string;
   checkIn: string;
   checkOut: string | null;
+  /** Phút tính công (làm tròn theo ca); null khi chưa ra ca */
+  paidMinutes: number | null;
   inMethod: AttendanceMethod;
   outMethod: AttendanceMethod | null;
   isCorrected: boolean;
@@ -48,6 +50,18 @@ type Props = {
 
 const WEEKDAY_NAMES = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
 
+/** Thời lượng tính công (đã làm tròn theo ca); khác giờ thực tế thì ghi thêm giờ thực tế */
+function PaidDuration({ record }: { record: RecordItem }) {
+  const actual = minutesBetween(record.checkIn, record.checkOut);
+  const paid = record.paidMinutes ?? actual;
+  return (
+    <span className="ml-1.5 text-neutral-500">
+      ({formatDuration(paid)}
+      {paid !== actual && <span title="Đã làm tròn theo ca"> công · thực tế {formatDuration(actual)}</span>})
+    </span>
+  );
+}
+
 /** Một lượt vào/ra (dùng ở "Cần xử lý" và lịch sử) */
 function SessionLine({ record, onDone, showDate }: { record: RecordItem; onDone: (m: string) => void; showDate?: boolean }) {
   const canEdit = !record.isMine && (record.checkOut !== null || record.forgotten);
@@ -56,9 +70,7 @@ function SessionLine({ record, onDone, showDate }: { record: RecordItem; onDone:
       <div className="min-w-0">
         <p className="text-sm tabular-nums text-neutral-800">
           {showDate ? formatDateTime(record.checkIn) : formatTime(record.checkIn)} → {record.checkOut ? formatTime(record.checkOut) : "…"}
-          {record.checkOut && (
-            <span className="ml-1.5 text-neutral-500">({formatDuration(minutesBetween(record.checkIn, record.checkOut))})</span>
-          )}
+          {record.checkOut && <PaidDuration record={record} />}
         </p>
         <div className="mt-1 flex flex-wrap gap-1.5">
           <MethodBadge method={record.inMethod} prefix="Vào" />

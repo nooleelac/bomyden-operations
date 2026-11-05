@@ -14,6 +14,7 @@ import {
   vnDayRange,
 } from "@/lib/time";
 import { getRequestTime } from "@/lib/request-time";
+import { matchShift, paidMinutes, toRounding } from "@/lib/attendance-rounding";
 import ClockCard from "./ClockCard";
 import RequestCorrectionButton from "./RequestCorrectionButton";
 import CancelCorrectionButton from "./CancelCorrectionButton";
@@ -48,7 +49,14 @@ export default async function AttendancePage() {
   const now = getRequestTime();
   const since = new Date(now - HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  const [{ data: records, error }, { data: corrections }, { data: myBranches }, { data: openRecord }] = await Promise.all([
+  const [
+    { data: records, error },
+    { data: corrections },
+    { data: myBranches },
+    { data: openRecord },
+    { data: myShifts },
+    { data: roundingRows },
+  ] = await Promise.all([
     supabase
       .from("attendance_records")
       .select("id, check_in_at, check_out_at, check_in_method, check_out_method, is_corrected, correction_note, branches(name)")
@@ -69,6 +77,14 @@ export default async function AttendancePage() {
       .eq("employee_id", me.id)
       .is("check_out_at", null)
       .maybeSingle(),
+    // Ca đã công bố trong khoảng lịch sử — để làm tròn giờ công theo ca
+    supabase
+      .from("shifts")
+      .select("start_at, end_at")
+      .eq("employee_id", me.id)
+      .eq("status", "published")
+      .gt("end_at", since),
+    supabase.rpc("attendance_rounding"),
   ]);
 
   if (error) throw new Error("Không tải được dữ liệu chấm công.");
@@ -84,11 +100,16 @@ export default async function AttendancePage() {
   const today = vnDateString(new Date(now));
   const todayStart = vnDayRange(today).start;
   const weekStart = new Date(new Date(todayStart).getTime() - 6 * 24 * 60 * 60 * 1000).toISOString();
+  // Giờ công làm tròn theo ca — cùng quy tắc với bảng lương
+  const rounding = toRounding(roundingRows);
+  const shifts = (myShifts ?? []).map((s) => ({ employeeId: me.id, startAt: s.start_at, endAt: s.end_at }));
+  const paid = (r: { check_in_at: string; check_out_at: string | null }) =>
+    paidMinutes(r.check_in_at, r.check_out_at, matchShift(shifts, me.id, r.check_in_at), rounding);
   const closed = records.filter((r) => r.check_out_at);
   const sumMinutes = (fromIso: string) =>
     closed
       .filter((r) => new Date(r.check_in_at).getTime() >= new Date(fromIso).getTime())
-      .reduce((total, r) => total + minutesBetween(r.check_in_at, r.check_out_at), 0);
+      .reduce((total, r) => total + (paid(r) ?? 0), 0);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -181,11 +202,16 @@ export default async function AttendancePage() {
                       </p>
                       <p className="mt-0.5 text-sm tabular-nums text-neutral-700">
                         {formatTime(record.check_in_at)} → {record.check_out_at ? formatTime(record.check_out_at) : "…"}
-                        {record.check_out_at && (
-                          <span className="ml-2 text-neutral-500">
-                            ({formatDuration(minutesBetween(record.check_in_at, record.check_out_at))})
-                          </span>
-                        )}
+                        {record.check_out_at && (() => {
+                          const actual = minutesBetween(record.check_in_at, record.check_out_at);
+                          const worked = paid(record) ?? actual;
+                          return (
+                            <span className="ml-2 text-neutral-500">
+                              ({formatDuration(worked)}
+                              {worked !== actual && <span title="Đã làm tròn theo ca"> công · thực tế {formatDuration(actual)}</span>})
+                            </span>
+                          );
+                        })()}
                       </p>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <MethodBadge method={record.check_in_method} prefix="Vào" />
